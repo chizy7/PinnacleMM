@@ -1,0 +1,55 @@
+{
+    "strategy": {
+      "name": "BasicMarketMaker",
+      "symbol": "BTC-USD",
+      "baseSpreadBps": 10.0,
+      "minSpreadBps": 5.0,
+      "maxSpreadBps": 50.0,
+      "orderQuantity": 0.01,
+      "minOrderQuantity": 0.001,
+      "maxOrderQuantity": 1.0,
+      "targetPosition": 0.0,
+      "maxPosition": 10.0,
+      "inventorySkewFactor": 0.5,
+      "priceLevelSpacing": 0.1,
+      "maxLevels": 3
+    },
+    "risk": {
+      "maxDrawdownPct": 5.0,
+      "stopLossPct": 3.0,
+      "takeProfitPct": 5.0,
+      "maxTradingVolume": 100.0
+    },
+    "timing": {
+      "quoteUpdateIntervalMs": 100,
+      "orderTimeoutMs": 5000,
+      "cancelRetryIntervalMs": 100,
+      "tradeMonitoringIntervalMs": 50,
+      "publishStatsIntervalMs": 5000
+    },
+    "exchange": {
+      "simulator": {
+        "enabled": true,
+        "volatility": 0.2,
+        "drift": 0.0,
+        "tickSize": 0.01,
+        "participants": [
+          {"type": "taker", "frequency": 10.0, "volumeRatio": 0.3},
+          {"type": "maker", "frequency": 20.0, "volumeRatio": 0.4},
+          {"type": "noise", "frequency": 5.0, "volumeRatio": 0.1},
+          {"type": "arbitrageur", "frequency": 2.0, "volumeRatio": 0.2}
+        ]
+      }
+    },
+    "logging": {
+      "level": "info",
+      "console": true,
+      "file": true,
+      "fileName": "pinnaclemm.log"
+    },
+    "performance": {
+      "useLowLatencyMode": true,
+      "useSharedMemory": false,
+      "useKernelBypass": false
+    }
+  }
