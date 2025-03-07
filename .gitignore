@@ -1,32 +1,68 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
+# Build artifacts
+build/
+bin/
+lib/
 *.o
 *.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
+*.exe
+*.dll
 *.so
 *.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
 *.a
 *.lib
 
-# Executables
-*.exe
-*.out
-*.app
+# CMake artifacts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Data files
+data/*.csv
+data/*.json
+*.log
+
+# Dependency directories
+third_party/
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python (for Jupyter notebooks)
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+venv/
+env/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Custom files
+*.bak
+*.tmp
