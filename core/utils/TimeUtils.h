@@ -95,12 +95,6 @@ public:
      */
     template<typename Func>
     static uint64_t measureExecutionTimeNanos(Func&& func) {
-        // auto start = std::chrono::high_resolution_clock::now();
-        // std::forward<Func>(func)();
-        // auto end = std::chrono::high_resolution_clock::now();
-        
-        // return std::chrono::duration_cast<std::chrono::nanoseconds>(
-        //     end - start).count();
         auto start = std::chrono::steady_clock::now();
         std::forward<Func>(func)();
         auto end = std::chrono::steady_clock::now();
@@ -116,18 +110,12 @@ public:
      */
     template<typename Func>
     static uint64_t measureExecutionTimeMicros(Func&& func) {
-        // auto start = std::chrono::high_resolution_clock::now();
-        // std::forward<Func>(func)();
-        // auto end = std::chrono::high_resolution_clock::now();
-        
-        // return std::chrono::duration_cast<std::chrono::microseconds>(
-        //     end - start).count();
         auto start = std::chrono::steady_clock::now();
-std::forward<Func>(func)();
-auto end = std::chrono::steady_clock::now();
+        std::forward<Func>(func)();
+        auto end = std::chrono::steady_clock::now();
 
-return std::chrono::duration_cast<std::chrono::microseconds>(
-    end - start).count();
+        return std::chrono::duration_cast<std::chrono::microseconds>(
+            end - start).count();
     }
 
     /**
