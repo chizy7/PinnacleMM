@@ -88,7 +88,7 @@ Handles interaction with exchanges and market data.
 
 ## Thread Model
 
-PinnacleMM uses a multi-threaded design for optimal performance:
+PinnacleMM uses a multithreaded design for optimal performance:
 
 1. **Market Data Thread**: Processes incoming market data
 2. **Strategy Thread**: Runs the market making algorithm

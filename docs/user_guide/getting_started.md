@@ -9,6 +9,8 @@ To build and run PinnacleMM, you'll need the following:
 - **C++20 compatible compiler** (GCC 10+, Clang 10+, or MSVC 2019+)
 - **CMake** (version 3.14 or higher)
 - **Boost libraries** (version 1.72 or higher)
+- **spdlog** (for structured logging)
+- **fmt** (formatting library, required by spdlog)
 - **Google Test** (for running unit tests)
 - **Git** (for cloning the repository)
 
@@ -60,7 +62,7 @@ make -j$(nproc)  # Use the number of available CPU cores
 ctest
 ```
 
-Or run specific test:
+Or run a specific test:
 ```bash
 ./tests/orderbook_tests
 ```
@@ -79,12 +81,12 @@ The simplest way to start is with the simulation mode:
 
 PinnacleMM supports the following command line options:
 
-- `--help`: Show help message
-- `--symbol <symbol>`: Trading symbol (default: BTC-USD)
-- `--mode <mode>`: Trading mode (simulation/live) (default: simulation)
-- `--config <file>`: Configuration file (default: config/default_config.json)
-- `--logfile <file>`: Log file (default: pinnaclemm.log)
-- `--verbose`: Enable verbose output
+- `--help`: Show help message.
+- `--symbol <symbol>`: Trading symbol (default: BTC-USD).
+- `--mode <mode>`: Trading mode (simulation/live) (default: simulation).
+- `--config <file>`: Configuration file (default: config/default_config.json).
+- `--logfile <file>`: Log file (default: pinnaclemm.log).
+- `--verbose`: Enable verbose output.
 
 ### Example Configuration
 
@@ -123,6 +125,8 @@ PinnacleMM can also be run inside a Docker container.
 ```bash
 docker build -t pinnaclemm .
 ```
+
+The Dockerfile automatically installs all required dependencies including Boost, spdlog, and fmt libraries.
 
 ### Running the Container
 

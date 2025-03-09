@@ -196,7 +196,8 @@ struct StrategyConfig {
     uint64_t quoteUpdateIntervalMs = 100;  // Quote update interval in milliseconds
     
     // Validate the configuration parameters
-    bool validate() const;
+    // Returns false if validation fails and populates errorReason with descriptive message
+    bool validate(std::string& errorReason) const;
 };
 ```
 
@@ -338,7 +339,7 @@ struct PriceLevel {
 
 ### OrderBookSnapshot
 
-Immutable snapshot of the order book at a point in time.
+Immutable snapshot of the order book at a point.
 
 ```cpp
 class OrderBookSnapshot {

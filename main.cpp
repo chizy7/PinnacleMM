@@ -4,6 +4,9 @@
 #include "strategies/config/StrategyConfig.h"
 #include "exchange/simulator/ExchangeSimulator.h"
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/basic_file_sink.h>
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <string>
@@ -19,7 +22,7 @@ std::atomic<bool> g_running{true};
 
 // Signal handler function
 void signalHandler(int signal) {
-    std::cout << "Received signal " << signal << ", shutting down..." << std::endl;
+    spdlog::warn("Received signal {}, shutting down...", signal);
     g_running.store(false);
 }
 
@@ -53,9 +56,21 @@ int main(int argc, char* argv[]) {
         std::string symbol = vm["symbol"].as<std::string>();
         std::string mode = vm["mode"].as<std::string>();
         std::string configFile = vm["config"].as<std::string>();
+        std::string logFile = vm["logfile"].as<std::string>();
         bool verbose = vm["verbose"].as<bool>();
         
-        std::cout << "Starting PinnacleMM for " << symbol << " in " << mode << " mode" << std::endl;
+        // Initialize logger
+        auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFile, true);
+        auto logger = std::make_shared<spdlog::logger>("pinnaclemm", spdlog::sinks_init_list{console_sink, file_sink});
+        if (verbose) {
+            logger->set_level(spdlog::level::debug);
+        } else {
+            logger->set_level(spdlog::level::info);
+        }
+        spdlog::set_default_logger(logger);
+        
+        spdlog::info("Starting PinnacleMM for {} in {} mode", symbol, mode);
         
         // Create order book
         auto orderBook = std::make_shared<pinnacle::OrderBook>(symbol);
@@ -67,17 +82,17 @@ int main(int argc, char* argv[]) {
         // Initialize strategy
         auto strategy = std::make_shared<pinnacle::strategy::BasicMarketMaker>(symbol, config);
         if (!strategy->initialize(orderBook)) {
-            std::cerr << "Failed to initialize strategy" << std::endl;
+            spdlog::error("Failed to initialize strategy");
             return 1;
         }
         
         // Start strategy
         if (!strategy->start()) {
-            std::cerr << "Failed to start strategy" << std::endl;
+            spdlog::error("Failed to start strategy");
             return 1;
         }
         
-        std::cout << "Strategy started successfully" << std::endl;
+        spdlog::info("Strategy started successfully");
         
         // In simulation mode, start the exchange simulator
         std::shared_ptr<pinnacle::exchange::ExchangeSimulator> simulator;
@@ -85,7 +100,7 @@ int main(int argc, char* argv[]) {
             // Configure simulator (placeholder - actual implementation would be more complex)
             simulator = std::make_shared<pinnacle::exchange::ExchangeSimulator>(orderBook);
             simulator->start();
-            std::cout << "Exchange simulator started" << std::endl;
+            spdlog::info("Exchange simulator started");
         }
         
         // Main application loop
@@ -96,17 +111,17 @@ int main(int argc, char* argv[]) {
             
             // Print statistics periodically
             if (currentTime - lastStatsTime > 5000) { // Every 5 seconds
-                std::cout << "======================" << std::endl;
-                std::cout << "Current time: " << pinnacle::utils::TimeUtils::getCurrentISOTimestamp() << std::endl;
-                std::cout << "Order book status:" << std::endl;
-                std::cout << "  Best bid: " << orderBook->getBestBidPrice() << std::endl;
-                std::cout << "  Best ask: " << orderBook->getBestAskPrice() << std::endl;
-                std::cout << "  Mid price: " << orderBook->getMidPrice() << std::endl;
-                std::cout << "  Spread: " << orderBook->getSpread() << std::endl;
-                std::cout << "  Order count: " << orderBook->getOrderCount() << std::endl;
-                std::cout << "Strategy status:" << std::endl;
-                std::cout << strategy->getStatistics() << std::endl;
-                std::cout << "======================" << std::endl;
+                spdlog::info("======================");
+                spdlog::info("Current time: {}", pinnacle::utils::TimeUtils::getCurrentISOTimestamp());
+                spdlog::info("Order book status:");
+                spdlog::info("  Best bid: {}", orderBook->getBestBidPrice());
+                spdlog::info("  Best ask: {}", orderBook->getBestAskPrice());
+                spdlog::info("  Mid price: {}", orderBook->getMidPrice());
+                spdlog::info("  Spread: {}", orderBook->getSpread());
+                spdlog::info("  Order count: {}", orderBook->getOrderCount());
+                spdlog::info("Strategy status:");
+                spdlog::info("{}" , strategy->getStatistics());
+                spdlog::info("======================");
                 
                 lastStatsTime = currentTime;
             }
@@ -116,7 +131,7 @@ int main(int argc, char* argv[]) {
         }
         
         // Shutdown
-        std::cout << "Shutting down..." << std::endl;
+        spdlog::info("Shutting down...");
         
         // Stop strategy
         if (strategy->isRunning()) {
@@ -128,14 +143,14 @@ int main(int argc, char* argv[]) {
             simulator->stop();
         }
         
-        std::cout << "Final statistics:" << std::endl;
-        std::cout << strategy->getStatistics() << std::endl;
+        spdlog::info("Final statistics:");
+        spdlog::info("{}", strategy->getStatistics());
         
-        std::cout << "Shutdown complete" << std::endl;
+        spdlog::info("Shutdown complete");
         return 0;
     }
     catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        spdlog::error("Error: {}", e.what());
         return 1;
     }
 }

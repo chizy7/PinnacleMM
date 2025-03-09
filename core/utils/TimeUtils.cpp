@@ -44,10 +44,17 @@ std::string TimeUtils::getCurrentISOTimestamp() {
 }
 
 bool TimeUtils::isNanosecondPrecisionAvailable() {
+    static std::atomic<int> cachedResult = -1; // -1 = not computed, 0 = false, 1 = true
+
+    // Return cached result if available 
+    int cached = cachedResult.load(std::memory_order_relaxed);
+    if (cached >= 0) {
+        return cached == 1;
+    }
     // Check if the current platform supports nanosecond precision
-    // by measuring the resolution of the high_resolution_clock
+    // by measuring the resolution of the steady_clock
     
-    using clock = std::chrono::high_resolution_clock;
+    using clock = std::chrono::steady_clock;
     
     // Measure the minimum time difference that can be detected
     constexpr int samplesCount = 100;
@@ -67,7 +74,9 @@ bool TimeUtils::isNanosecondPrecisionAvailable() {
     
     // If the minimum difference is less than 1000 nanoseconds (1 microsecond),
     // we consider the platform to support nanosecond precision
-    return minDiff < 1000;
+    bool result = minDiff < 1000;
+    cachedResult.store(result ? 1 : 0, std::memory_order_relaxed);
+    return result;
 }
 
 } // namespace utils

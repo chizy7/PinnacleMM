@@ -66,21 +66,36 @@ public:
      * 
      * @param volatility Volatility value (0.0-1.0, where 1.0 is high volatility)
      */
-    void setVolatility(double volatility);
+    void setVolatility(double volatility) {
+        if (volatility < 0.0 || volatility > 1.0) {
+            throw std::out_of_range("Volatility must be between 0.0 and 1.0");
+        }
+        m_volatility = volatility;
+    }
     
     /**
      * @brief Set the drift of the simulated market
      * 
      * @param drift Drift value (-1.0 to 1.0, where positive values indicate upward drift)
      */
-    void setDrift(double drift);
+    void setDrift(double drift) {
+        if (drift < -1.0 || drift > 1.0) {
+            throw std::out_of_range("Drift must be between -1.0 and 1.0");
+        }
+        m_drift = drift;
+    }
     
     /**
      * @brief Set the tick size for price movements
      * 
      * @param tickSize Minimum price movement
      */
-    void setTickSize(double tickSize);
+    void setTickSize(double tickSize) {
+        if (tickSize <= 0.0) {
+            throw std::out_of_range("Tick size must be positive");
+        }
+        m_tickSize = tickSize;
+    }
     
     /**
      * @brief Add a simulated market participant

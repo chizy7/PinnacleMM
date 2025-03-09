@@ -7,59 +7,125 @@
 namespace pinnacle {
 namespace strategy {
 
-bool StrategyConfig::validate() const {
-    // Ensure spread parameters are valid
-    if (baseSpreadBps <= 0 || minSpreadBps <= 0 || maxSpreadBps <= 0) {
+bool StrategyConfig::validate(std::string& errorReason) const {
+    // Validate spread parameters
+    if (baseSpreadBps <= 0) {
+        errorReason = "baseSpreadBps must be greater than 0, got " + std::to_string(baseSpreadBps);
+        return false;
+    }
+    if (minSpreadBps <= 0) {
+        errorReason = "minSpreadBps must be greater than 0, got " + std::to_string(minSpreadBps);
+        return false;
+    }
+    if (maxSpreadBps <= 0) {
+        errorReason = "maxSpreadBps must be greater than 0, got " + std::to_string(maxSpreadBps);
+        return false;
+    }
+    if (minSpreadBps > baseSpreadBps) {
+        errorReason = "minSpreadBps (" + std::to_string(minSpreadBps) + ") must be <= baseSpreadBps (" + std::to_string(baseSpreadBps) + ")";
+        return false;
+    }
+    if (baseSpreadBps > maxSpreadBps) {
+        errorReason = "baseSpreadBps (" + std::to_string(baseSpreadBps) + ") must be <= maxSpreadBps (" + std::to_string(maxSpreadBps) + ")";
         return false;
     }
     
-    // Ensure order parameters are valid
-    if (orderQuantity <= 0 || minOrderQuantity <= 0 || maxOrderQuantity <= 0) {
+    // Validate order quantity parameters
+    if (orderQuantity <= 0) {
+        errorReason = "orderQuantity must be greater than 0, got " + std::to_string(orderQuantity);
+        return false;
+    }
+    if (minOrderQuantity <= 0) {
+        errorReason = "minOrderQuantity must be greater than 0, got " + std::to_string(minOrderQuantity);
+        return false;
+    }
+    if (maxOrderQuantity <= 0) {
+        errorReason = "maxOrderQuantity must be greater than 0, got " + std::to_string(maxOrderQuantity);
+        return false;
+    }
+    if (minOrderQuantity > orderQuantity) {
+        errorReason = "minOrderQuantity (" + std::to_string(minOrderQuantity) + ") must be <= orderQuantity (" + std::to_string(orderQuantity) + ")";
+        return false;
+    }
+    if (orderQuantity > maxOrderQuantity) {
+        errorReason = "orderQuantity (" + std::to_string(orderQuantity) + ") must be <= maxOrderQuantity (" + std::to_string(maxOrderQuantity) + ")";
         return false;
     }
     
-    // Ensure timing parameters are valid
-    if (quoteUpdateIntervalMs == 0 || orderTimeoutMs == 0) {
-        return false;
-    }
-    
-    // Ensure position parameters are valid
+    // Validate position parameters
     if (maxPosition <= 0) {
+        errorReason = "maxPosition must be greater than 0, got " + std::to_string(maxPosition);
         return false;
     }
     
-    // Ensure risk parameters are valid
-    if (maxDrawdownPct <= 0 || stopLossPct <= 0 || takeProfitPct <= 0) {
+    // Validate risk parameters
+    if (maxDrawdownPct <= 0) {
+        errorReason = "maxDrawdownPct must be greater than 0, got " + std::to_string(maxDrawdownPct);
+        return false;
+    }
+    if (stopLossPct <= 0) {
+        errorReason = "stopLossPct must be greater than 0, got " + std::to_string(stopLossPct);
+        return false;
+    }
+    if (takeProfitPct <= 0) {
+        errorReason = "takeProfitPct must be greater than 0, got " + std::to_string(takeProfitPct);
         return false;
     }
     
-    // Ensure order book parameters are valid
-    if (volumeDepthFactor < 0 || volumeDepthFactor > 1 ||
-        imbalanceThreshold < 0 || imbalanceThreshold > 1 ||
-        volumeWeightFactor < 0 || volumeWeightFactor > 1) {
+    // Validate timing parameters
+    if (quoteUpdateIntervalMs == 0) {
+        errorReason = "quoteUpdateIntervalMs must be greater than 0";
+        return false;
+    }
+    if (orderTimeoutMs == 0) {
+        errorReason = "orderTimeoutMs must be greater than 0";
+        return false;
+    }
+    if (cancelRetryIntervalMs == 0) {
+        errorReason = "cancelRetryIntervalMs must be greater than 0";
+        return false;
+    }
+    if (tradeMonitoringIntervalMs == 0) {
+        errorReason = "tradeMonitoringIntervalMs must be greater than 0";
         return false;
     }
     
-    // Ensure timing parameters are valid
-    if (quoteUpdateIntervalMs == 0 || orderTimeoutMs == 0 || 
-        cancelRetryIntervalMs == 0 || tradeMonitoringIntervalMs == 0) {
+    // Validate position management parameters
+    if (hedgeThresholdPct <= 0) {
+        errorReason = "hedgeThresholdPct must be greater than 0, got " + std::to_string(hedgeThresholdPct);
+        return false;
+    }
+    if (hedgeThresholdPct > 100) {
+        errorReason = "hedgeThresholdPct must be <= 100, got " + std::to_string(hedgeThresholdPct);
+        return false;
+    }
+    if (hedgeIntervalMs == 0) {
+        errorReason = "hedgeIntervalMs must be greater than 0";
         return false;
     }
     
-    // Ensure position management parameters are valid
-    if (hedgeThresholdPct <= 0 || hedgeThresholdPct > 100 || hedgeIntervalMs == 0) {
+    // Validate market stress parameters
+    if (volatilityThreshold <= 0) {
+        errorReason = "volatilityThreshold must be greater than 0, got " + std::to_string(volatilityThreshold);
+        return false;
+    }
+    if (spreadWidenFactor <= 1) {
+        errorReason = "spreadWidenFactor must be greater than 1, got " + std::to_string(spreadWidenFactor);
+        return false;
+    }
+    if (marketStressCheckMs == 0) {
+        errorReason = "marketStressCheckMs must be greater than 0";
         return false;
     }
     
-    // Ensure market stress parameters are valid
-    if (volatilityThreshold <= 0 || spreadWidenFactor <= 1 || marketStressCheckMs == 0) {
-        return false;
-    }
-    
+    // All checks passed
+    errorReason = "";
     return true;
 }
 
 bool StrategyConfig::loadFromFile(const std::string& filename) {
+    // Suppress unused parameter warning
+    (void)filename;
     // Note: For Phase 1, we're providing a stub implementation
     // In a real implementation, this would parse a JSON file using a library like nlohmann/json
     
@@ -69,6 +135,8 @@ bool StrategyConfig::loadFromFile(const std::string& filename) {
 }
 
 bool StrategyConfig::saveToFile(const std::string& filename) const {
+    // Suppress unused parameter warning
+    (void)filename;
     // Note: For Phase 1, we're providing a stub implementation
     // In a real implementation, this would serialize to JSON using a library like nlohmann/json
     

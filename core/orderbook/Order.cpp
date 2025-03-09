@@ -19,6 +19,11 @@ Order::Order(
     m_quantity(quantity),
     m_timestamp(timestamp) {
     
+    // Validate inputs
+    if (price < 0.0 || quantity < 0.0) {
+        throw std::invalid_argument("price and quantity must be non-negative");
+    }
+    
     // Initialize atomic members
     m_status.store(OrderStatus::NEW, std::memory_order_relaxed);
     m_filledQuantity.store(0.0, std::memory_order_relaxed);
