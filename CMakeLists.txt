@@ -16,6 +16,8 @@ endif()
 # Find required packages
 find_package(Threads REQUIRED)
 find_package(Boost 1.72 REQUIRED COMPONENTS system filesystem program_options)
+find_package(spdlog REQUIRED)
+find_package(fmt REQUIRED)
 
 # Options
 option(BUILD_TESTS "Build test programs" ON)
@@ -27,6 +29,8 @@ option(USE_DPDK "Use DPDK for kernel bypass networking" OFF)
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${Boost_INCLUDE_DIRS}
+    ${spdlog_INCLUDE_DIRS}
+    ${fmt_INCLUDE_DIRS}
 )
 
 # Add TBB if enabled
@@ -106,6 +110,8 @@ target_link_libraries(pinnaclemm
     exchange
     Threads::Threads
     ${Boost_LIBRARIES}
+    spdlog::spdlog
+    fmt::fmt
 )
 
 # Tests

@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y \
     libboost-all-dev \
     libgtest-dev \
     git \
+    libspdlog-dev \
+    libfmt-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Build Google Test
@@ -41,6 +43,8 @@ RUN apt-get update && apt-get install -y \
     libboost-system1.74.0 \
     libboost-filesystem1.74.0 \
     libboost-program-options1.74.0 \
+    libspdlog1 \
+    libfmt8 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory

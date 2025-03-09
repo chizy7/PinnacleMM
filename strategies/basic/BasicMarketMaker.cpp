@@ -5,6 +5,7 @@
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 
 namespace pinnacle {
 namespace strategy {
@@ -12,8 +13,9 @@ namespace strategy {
 BasicMarketMaker::BasicMarketMaker(const std::string& symbol, const StrategyConfig& config)
     : m_symbol(symbol), m_config(config) {
     // Validate configuration
-    if (!config.validate()) {
-        throw std::invalid_argument("Invalid strategy configuration");
+    std::string errorReason;
+    if (!config.validate(errorReason)) {
+        throw std::invalid_argument("Invalid strategy configuration: " + errorReason);
     }
 }
 
@@ -189,7 +191,12 @@ double BasicMarketMaker::getPnL() const {
 
 bool BasicMarketMaker::updateConfig(const StrategyConfig& config) {
     // Validate the new configuration
-    if (!config.validate()) {
+    std::string errorReason;
+    if (!config.validate(errorReason)) {
+        // Log the error reason for debugging
+        // In a production system, this would use a proper logging framework
+        // such as the spdlog we've integrated in main.cpp
+        std::cerr << "Invalid configuration update: " << errorReason << std::endl;
         return false;
     }
     

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstdint>
+#include "../../core/utils/DomainTypes.h"
 
 namespace pinnacle {
 namespace strategy {
@@ -16,24 +17,24 @@ struct StrategyConfig {
     std::string symbol = "BTC-USD";
     
     // Quote parameters
-    double baseSpreadBps = 10.0;        // Base spread in basis points
-    double minSpreadBps = 5.0;          // Minimum spread in basis points
-    double maxSpreadBps = 50.0;         // Maximum spread in basis points
-    double orderQuantity = 0.01;        // Base order quantity
-    double minOrderQuantity = 0.001;    // Minimum order quantity
-    double maxOrderQuantity = 1.0;      // Maximum order quantity
+    double baseSpreadBps = 10.0;        // Base spread in basis points (valid: > 0, minSpreadBps <= baseSpreadBps <= maxSpreadBps)
+    double minSpreadBps = 5.0;          // Minimum spread in basis points (valid: > 0, minSpreadBps <= maxSpreadBps)
+    double maxSpreadBps = 50.0;         // Maximum spread in basis points (valid: > 0, minSpreadBps <= maxSpreadBps)
+    double orderQuantity = 0.01;        // Base order quantity (valid: > 0, minOrderQuantity <= orderQuantity <= maxOrderQuantity)
+    double minOrderQuantity = 0.001;    // Minimum order quantity (valid: > 0, minOrderQuantity <= orderQuantity)
+    double maxOrderQuantity = 1.0;      // Maximum order quantity (valid: > 0, minOrderQuantity <= maxOrderQuantity)
     
     // Market making parameters
     double targetPosition = 0.0;        // Target position (0 = neutral)
     double maxPosition = 10.0;          // Maximum absolute position
-    double inventorySkewFactor = 0.5;   // How much to skew quotes based on inventory (0-1)
+    pinnacle::utils::Factor inventorySkewFactor = pinnacle::utils::Factor(0.5);   // How much to skew quotes based on inventory
     double priceLevelSpacing = 0.1;     // Spacing between price levels as percentage of base spread
     size_t maxLevels = 3;               // Maximum number of price levels to quote
     
     // Order book parameters
-    double volumeDepthFactor = 0.5;     // How much to consider order book depth (0-1)
-    double imbalanceThreshold = 0.3;    // Threshold for order book imbalance (0-1)
-    double volumeWeightFactor = 0.5;    // Weight for volume-based price adjustment (0-1)
+    pinnacle::utils::Factor volumeDepthFactor = pinnacle::utils::Factor(0.5);     // How much to consider order book depth
+    pinnacle::utils::Factor imbalanceThreshold = pinnacle::utils::Factor(0.3);    // Threshold for order book imbalance
+    pinnacle::utils::Factor volumeWeightFactor = pinnacle::utils::Factor(0.5);    // Weight for volume-based price adjustment
     
     // Risk parameters
     double maxDrawdownPct = 5.0;        // Maximum drawdown percentage before stopping
@@ -65,7 +66,9 @@ struct StrategyConfig {
     StrategyConfig() = default;
     
     // Validate the configuration parameters
-    bool validate() const;
+    // @param errorReason If validation fails, this will contain the reason
+    // @return true if configuration is valid, false otherwise
+    bool validate(std::string& errorReason) const;
     
     // Load from JSON file
     bool loadFromFile(const std::string& filename);

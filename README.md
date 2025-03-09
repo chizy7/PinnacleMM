@@ -43,6 +43,8 @@ See the detailed [project roadmap](docs/roadmap.md) for more information.
 - C++20 compatible compiler (GCC 10+, Clang 10+, or MSVC 2019+)
 - CMake 3.14+
 - Boost libraries 1.72+
+- spdlog library (for structured logging)
+- fmt library (for formatting, spdlog dependency)
 
 ### Building from Source
 

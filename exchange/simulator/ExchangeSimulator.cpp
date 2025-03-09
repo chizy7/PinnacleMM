@@ -104,25 +104,10 @@ void ExchangeSimulator::setMarketDataFeed(std::shared_ptr<MarketDataFeed> market
     }
 }
 
-void ExchangeSimulator::setVolatility(double volatility) {
-    // Validate and set volatility
-    m_volatility = std::max(0.0, std::min(volatility, 1.0));
-    
-    // Update price distribution
-    m_priceDistribution = std::normal_distribution<double>(0.0, m_volatility);
-}
-
-void ExchangeSimulator::setDrift(double drift) {
-    // Validate and set drift
-    m_drift = std::max(-1.0, std::min(drift, 1.0));
-}
-
-void ExchangeSimulator::setTickSize(double tickSize) {
-    // Validate and set tick size
-    if (tickSize > 0) {
-        m_tickSize = tickSize;
-    }
-}
+// These methods are now implemented inline in the header file
+// void ExchangeSimulator::setVolatility(double volatility) - implemented inline
+// void ExchangeSimulator::setDrift(double drift) - implemented inline
+// void ExchangeSimulator::setTickSize(double tickSize) - implemented inline
 
 void ExchangeSimulator::addMarketParticipant(const std::string& type, double frequency, double volumeRatio) {
     // Lock for thread safety

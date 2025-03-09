@@ -19,7 +19,7 @@ public:
      * @return Current timestamp in nanoseconds since epoch
      */
     static uint64_t getCurrentNanos() {
-        auto now = std::chrono::high_resolution_clock::now();
+        auto now = std::chrono::steady_clock::now();
         return std::chrono::duration_cast<std::chrono::nanoseconds>(
             now.time_since_epoch()).count();
     }
@@ -29,7 +29,7 @@ public:
      * @return Current timestamp in microseconds since epoch
      */
     static uint64_t getCurrentMicros() {
-        auto now = std::chrono::high_resolution_clock::now();
+        auto now = std::chrono::steady_clock::now();
         return std::chrono::duration_cast<std::chrono::microseconds>(
             now.time_since_epoch()).count();
     }
@@ -39,7 +39,7 @@ public:
      * @return Current timestamp in milliseconds since epoch
      */
     static uint64_t getCurrentMillis() {
-        auto now = std::chrono::high_resolution_clock::now();
+        auto now = std::chrono::steady_clock::now();
         return std::chrono::duration_cast<std::chrono::milliseconds>(
             now.time_since_epoch()).count();
     }
@@ -95,10 +95,10 @@ public:
      */
     template<typename Func>
     static uint64_t measureExecutionTimeNanos(Func&& func) {
-        auto start = std::chrono::high_resolution_clock::now();
+        auto start = std::chrono::steady_clock::now();
         std::forward<Func>(func)();
-        auto end = std::chrono::high_resolution_clock::now();
-        
+        auto end = std::chrono::steady_clock::now();
+
         return std::chrono::duration_cast<std::chrono::nanoseconds>(
             end - start).count();
     }
@@ -110,10 +110,10 @@ public:
      */
     template<typename Func>
     static uint64_t measureExecutionTimeMicros(Func&& func) {
-        auto start = std::chrono::high_resolution_clock::now();
+        auto start = std::chrono::steady_clock::now();
         std::forward<Func>(func)();
-        auto end = std::chrono::high_resolution_clock::now();
-        
+        auto end = std::chrono::steady_clock::now();
+
         return std::chrono::duration_cast<std::chrono::microseconds>(
             end - start).count();
     }
