@@ -1,4 +1,5 @@
 #include "core/orderbook/OrderBook.h"
+#include "core/orderbook/LockFreeOrderBook.h"
 #include "core/utils/TimeUtils.h"
 #include "strategies/basic/BasicMarketMaker.h"
 #include "strategies/config/StrategyConfig.h"
@@ -40,7 +41,8 @@ int main(int argc, char* argv[]) {
             ("mode", po::value<std::string>()->default_value("simulation"), "Trading mode (simulation/live)")
             ("config", po::value<std::string>()->default_value("config/default_config.json"), "Configuration file")
             ("logfile", po::value<std::string>()->default_value("pinnaclemm.log"), "Log file")
-            ("verbose", po::bool_switch()->default_value(false), "Verbose output");
+            ("verbose", po::bool_switch()->default_value(false), "Verbose output")
+            ("lock-free", po::bool_switch()->default_value(true), "Use lock-free data structures");
         
         po::variables_map vm;
         po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -58,6 +60,7 @@ int main(int argc, char* argv[]) {
         std::string configFile = vm["config"].as<std::string>();
         std::string logFile = vm["logfile"].as<std::string>();
         bool verbose = vm["verbose"].as<bool>();
+        bool useLockFree = vm["lock-free"].as<bool>();
         
         // Initialize logger
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
@@ -71,9 +74,20 @@ int main(int argc, char* argv[]) {
         spdlog::set_default_logger(logger);
         
         spdlog::info("Starting PinnacleMM for {} in {} mode", symbol, mode);
+        spdlog::info("Using lock-free data structures: {}", useLockFree ? "enabled" : "disabled");
         
         // Create order book
-        auto orderBook = std::make_shared<pinnacle::OrderBook>(symbol);
+        std::shared_ptr<pinnacle::OrderBook> orderBook;
+
+        if (useLockFree) {
+            // Use lock-free order book
+            spdlog::info("Using lock-free order book implementation");
+            orderBook = std::make_shared<pinnacle::LockFreeOrderBook>(symbol);
+        } else {
+            // Use default order book
+            spdlog::info("Using mutex-based order book implementation");
+            orderBook = std::make_shared<pinnacle::OrderBook>(symbol);
+        }
         
         // Load strategy configuration
         pinnacle::strategy::StrategyConfig config;
