@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(PinnacleMM VERSION 0.1.0 LANGUAGES CXX)
+project(PinnacleMM VERSION 0.2.0 LANGUAGES CXX)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -24,6 +24,7 @@ option(BUILD_TESTS "Build test programs" ON)
 option(BUILD_BENCHMARKS "Build benchmarks" ON)
 option(USE_TBB "Use Intel TBB for parallel algorithms" OFF)
 option(USE_DPDK "Use DPDK for kernel bypass networking" OFF)
+option(USE_LOCK_FREE "Use lock-free data structures" ON)
 
 # Include directories
 include_directories(
@@ -47,6 +48,11 @@ if(USE_DPDK)
     include_directories(${DPDK_INCLUDE_DIRS})
 endif()
 
+# Use lock-free data structures if enabled
+if(USE_LOCK_FREE)
+    add_definitions(-DUSE_LOCK_FREE)
+endif()
+
 # Core library files
 set(CORE_SOURCES
     core/orderbook/Order.cpp
@@ -55,6 +61,8 @@ set(CORE_SOURCES
     core/risk/RiskManager.cpp
     core/utils/TimeUtils.cpp
     core/utils/Config.cpp
+    core/utils/LockFreeOrderBook.cpp 
+    core/orderbook/LockFreeOrderBook.cpp 
 )
 
 # Strategy library files
@@ -130,6 +138,15 @@ if(BUILD_TESTS)
         Threads::Threads
     )
     add_test(NAME OrderBookTests COMMAND orderbook_tests)
+
+    # Lock-free order book tests
+    add_executable(lockfree_orderbook_tests tests/unit/LockFreeOrderBookTests.cpp)
+    target_link_libraries(lockfree_orderbook_tests
+        core
+        ${GTEST_LIBRARIES}
+        Threads::Threads
+    )
+    add_test(NAME LockFreeOrderBookTests COMMAND lockfree_orderbook_tests)
     
     # Execution tests
     add_executable(execution_tests tests/unit/ExecutionTests.cpp)
@@ -175,6 +192,16 @@ if(BUILD_BENCHMARKS)
         benchmark::benchmark
         Threads::Threads
     )
+
+    # Order book benchmarks
+    add_executable(orderbook_benchmark tests/performance/OrderBookBenchmark.cpp)
+    target_link_libraries(orderbook_benchmark
+        core
+        strategy
+        exchange
+        benchmark::benchmark
+        Threads::Threads
+    )
 endif()
 
 # Install targets
@@ -195,3 +222,4 @@ message(STATUS "  Build Tests: ${BUILD_TESTS}")
 message(STATUS "  Build Benchmarks: ${BUILD_BENCHMARKS}")
 message(STATUS "  Use TBB: ${USE_TBB}")
 message(STATUS "  Use DPDK: ${USE_DPDK}")
+message(STATUS "  Use Lock-Free: ${USE_LOCK_FREE}")
