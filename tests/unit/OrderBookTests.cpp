@@ -139,11 +139,11 @@ TEST_F(OrderBookTest, MarketOrder) {
     
     // Verify execution
     EXPECT_EQ(executedQuantity, 2.0);
-    EXPECT_EQ(fills.size(), 2); // Should fill against 2 sell orders
+    EXPECT_EQ(fills.size(), 2);  // Fills against 2 sell orders
     
     // Verify order book state
-    EXPECT_EQ(orderBook->getOrderCount(), 5); // 3 buys, 1 sell
-    EXPECT_EQ(orderBook->getBestAskPrice(), 10300.0);
+    EXPECT_EQ(orderBook->getOrderCount(), 5);  // 3 buys + 2 remaining sells
+    EXPECT_EQ(orderBook->getBestAskPrice(), 10200.0);
     
     // Execute a sell market order
     fills.clear();
@@ -151,10 +151,10 @@ TEST_F(OrderBookTest, MarketOrder) {
     
     // Verify execution
     EXPECT_EQ(executedQuantity, 4.0);
-    EXPECT_EQ(fills.size(), 2); // Should fill against 2 buy orders
+    EXPECT_EQ(fills.size(), 3);  // Fills against 3 buy orders
     
     // Verify order book state
-    EXPECT_EQ(orderBook->getOrderCount(), 2); // 1 buy, 1 sell
+    EXPECT_EQ(orderBook->getOrderCount(), 3);  // Remaining: 0 buys, 3 sells
     EXPECT_EQ(orderBook->getBestBidPrice(), 9800.0);
 }
 

@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)
-![Status](https://img.shields.io/badge/status-Phase%201%20Complete-brightgreen.svg)
+![Status](https://img.shields.io/badge/status-Phase%202%20In%20Progress-red.svg)
 
 PinnacleMM is a high-performance, production-grade market making system designed for high-frequency trading in cryptocurrency markets. Built primarily in C++ with a focus on ultra-low latency, this system achieves microsecond-level execution speeds while maintaining robust risk management capabilities.
 
@@ -29,8 +29,8 @@ Read more about the [system architecture](docs/architecture/system_overview.md).
 
 PinnacleMM is being developed in phases:
 
-- ✅ **Phase 1 (Current)**: Core engine, basic strategy, and simulation
-- 🔲 **Phase 2**: Latency optimization and exchange connectivity
+- ✅ **Phase 1**: Core engine, basic strategy, and simulation
+- 🔲 **Phase 2 (Current)**: Latency optimization and exchange connectivity
 - 🔲 **Phase 3**: Advanced strategies and machine learning integration
 - 🔲 **Phase 4**: Risk management and production deployment
 
