@@ -2,6 +2,7 @@
 
 #include "Order.h"
 #include "../utils/LockFreeQueue.h"
+#include "../persistence/journal/Journal.h"
 
 #include <string>
 #include <unordered_map>
@@ -106,6 +107,10 @@ public:
     // Callback registration for order book events
     using OrderBookUpdateCallback = std::function<void(const OrderBook&)>;
     void registerUpdateCallback(OrderBookUpdateCallback callback);
+
+    // Recovery methods
+    bool recoverFromJournal(std::shared_ptr<persistence::journal::Journal> journal);
+    void createCheckpoint();
     
 private:
     // Symbol for this order book
@@ -138,6 +143,27 @@ private:
     // Internal helper methods for order matching
     bool matchOrder(std::shared_ptr<Order> order);
     bool canMatch(const Order& takerOrder, const Order& makerOrder) const;
+
+    // Persistence-related fields
+    std::shared_ptr<persistence::journal::Journal> m_journal;
+    uint64_t m_lastCheckpointSequence{0};
+
+    // Initialize persistence
+    void initializePersistence();
+
+    // Journal operations
+    void journalAddOrder(std::shared_ptr<Order> order);
+    void journalCancelOrder(const std::string& orderId);
+    void journalExecuteOrder(const std::string& orderId, double quantity);
+    void journalMarketOrder(OrderSide side, double quantity, 
+                        const std::vector<std::pair<std::string, double>>& fills);
+
+    // Internal non-journaling versions for recovery
+    bool addOrderInternal(std::shared_ptr<Order> order);
+    bool cancelOrderInternal(const std::string& orderId);
+    bool executeOrderInternal(const std::string& orderId, double quantity);
+    void executeMarketOrderInternal(OrderSide side, double quantity,
+                                const std::vector<std::pair<std::string, double>>& fills);
 };
 
 /**
