@@ -63,6 +63,10 @@ set(CORE_SOURCES
     core/utils/Config.cpp
     core/utils/LockFreeOrderBook.cpp 
     core/orderbook/LockFreeOrderBook.cpp 
+    core/persistence/PersistenceManager.cpp
+    core/persistence/journal/Journal.cpp
+    core/persistence/journal/JournalEntry.cpp
+    core/persistence/snapshot/SnapshotManager.cpp
 )
 
 # Strategy library files

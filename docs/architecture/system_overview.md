@@ -66,6 +66,21 @@ Handles interaction with exchanges and market data.
 - Handles network I/O efficiently
 - Manages market data flow
 
+### 4. Persistence Layer (Added in Phase 2)
+
+The persistence layer provides data durability and crash recovery capabilities.
+
+**Components:**
+- **Journal**: Records all order book operations in a transaction log
+- **Snapshot Manager**: Creates periodic snapshots of the system state
+- **Recovery Manager**: Restores system state after crashes or restarts
+
+**Key Characteristics:**
+- Uses memory-mapped files for ultra-low latency I/O operations
+- Minimizes performance impact on critical trading paths
+- Enables instant restart without lengthy replay operations
+- Maintains historical order and execution data
+
 ## Data Flow
 
 1. **Market Data Flow**:

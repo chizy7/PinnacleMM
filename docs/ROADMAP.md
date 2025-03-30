@@ -30,13 +30,16 @@ PinnacleMM is an ultra-low latency market making system designed for high-freque
 
 ### Deliverables
 - ✅ Lock-free data structures for all critical paths
-- 🔲 Kernel bypass networking using DPDK
-- 🔲 Memory-mapped file system for data persistence
+- ℹ️ Kernel bypass networking using DPDK (**TODO**: Deferred - requires specialized hardware)
+- ✅ Memory-mapped file system for data persistence
 - 🔲 Real exchange connectors (Coinbase, Kraken, Gemini)
 - 🔲 WebSocket integration for real-time market data
 - 🔲 FIX protocol support for select exchanges
 - 🔲 Advanced order routing logic
 - 🔲 Detailed performance benchmarking suite
+
+### Status Notes
+- **DPDK Implementation**: Implementation of kernel bypass networking using DPDK has been deferred. DPDK requires specialized hardware support that is not available in typical development environments, especially macOS. It also involves system-level modifications that are best implemented in a dedicated Linux environment. This component will be revisited when suitable hardware and environment are available. 
 
 ### Expected Completion
 - 4 weeks

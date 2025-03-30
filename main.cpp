@@ -4,6 +4,7 @@
 #include "strategies/basic/BasicMarketMaker.h"
 #include "strategies/config/StrategyConfig.h"
 #include "exchange/simulator/ExchangeSimulator.h"
+#include "core/persistence/PersistenceManager.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -75,6 +76,15 @@ int main(int argc, char* argv[]) {
         
         spdlog::info("Starting PinnacleMM for {} in {} mode", symbol, mode);
         spdlog::info("Using lock-free data structures: {}", useLockFree ? "enabled" : "disabled");
+
+        // Initialize persistence
+        auto& persistenceManager = pinnacle::persistence::PersistenceManager::getInstance();
+        std::string dataDirectory = "data"; // Default data directory from config
+        if (!persistenceManager.initialize(dataDirectory)) {
+            spdlog::error("Failed to initialize persistence");
+            return 1;
+        }
+        spdlog::info("Persistence initialized with data directory: {}", dataDirectory);
         
         // Create order book
         std::shared_ptr<pinnacle::OrderBook> orderBook;
@@ -119,6 +129,8 @@ int main(int argc, char* argv[]) {
         
         // Main application loop
         uint64_t lastStatsTime = 0;
+        uint64_t lastCheckpointTime = 0; // Checkpoint persistence timing
+
         while (g_running.load()) {
             // Current time
             uint64_t currentTime = pinnacle::utils::TimeUtils::getCurrentMillis();
@@ -138,6 +150,14 @@ int main(int argc, char* argv[]) {
                 spdlog::info("======================");
                 
                 lastStatsTime = currentTime;
+            }
+
+            // Create checkpoint periodically
+            if (currentTime - lastCheckpointTime > 5 * 60 * 1000) { // Every 5 minutes
+                spdlog::info("Creating order book checkpoint...");
+                orderBook->createCheckpoint();
+                lastCheckpointTime = currentTime;
+                spdlog::info("Checkpoint created successfully");
             }
             
             // Sleep to avoid busy-waiting
