@@ -5,6 +5,7 @@
 #include "strategies/config/StrategyConfig.h"
 #include "exchange/simulator/ExchangeSimulator.h"
 #include "core/persistence/PersistenceManager.h"
+#include "exchange/connector/ExchangeConnectorFactory.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -43,7 +44,8 @@ int main(int argc, char* argv[]) {
             ("config", po::value<std::string>()->default_value("config/default_config.json"), "Configuration file")
             ("logfile", po::value<std::string>()->default_value("pinnaclemm.log"), "Log file")
             ("verbose", po::bool_switch()->default_value(false), "Verbose output")
-            ("lock-free", po::bool_switch()->default_value(true), "Use lock-free data structures");
+            ("lock-free", po::bool_switch()->default_value(true), "Use lock-free data structures")
+            ("exchange", po::value<std::string>()->default_value("coinbase"), "Exchange name (coinbase/kraken/gemini/binance/bitstamp)");
         
         po::variables_map vm;
         po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -58,6 +60,7 @@ int main(int argc, char* argv[]) {
         // Get command line parameters
         std::string symbol = vm["symbol"].as<std::string>();
         std::string mode = vm["mode"].as<std::string>();
+        std::string exchange = vm["exchange"].as<std::string>();
         std::string configFile = vm["config"].as<std::string>();
         std::string logFile = vm["logfile"].as<std::string>();
         bool verbose = vm["verbose"].as<bool>();
@@ -118,14 +121,47 @@ int main(int argc, char* argv[]) {
         
         spdlog::info("Strategy started successfully");
         
-        // In simulation mode, start the exchange simulator
+        // In simulation mode, start the exchange simulator - also in live mode
         std::shared_ptr<pinnacle::exchange::ExchangeSimulator> simulator;
-        if (mode == "simulation") {
-            // Configure simulator (placeholder - actual implementation would be more complex)
+
+        if (mode == "live") {
+            // Get master password for secure configuration
+            std::string masterPassword;
+            std::cout << "Enter master password: ";
+            std::getline(std::cin, masterPassword);
+
+            // Initialize exchange connector factory
+            auto& factory = exchange::ExchangeConnectorFactory::getInstance();
+            if (!factory.initialize("config", masterPassword)) {
+                spdlog::error("Failed to initialize exchange connector factory");
+                return 1;
+            }
+
+            // Get market data feed for the specified exchange
+            auto marketDataFeed = factory.getMarketDataFeed(exchange);
+            if (!marketDataFeed) {
+                spdlog::error("Failed to create market data feed");
+                return 1;
+            }
+
+            // Start market data feed
+            if (!marketDataFeed->start()) {
+                spdlog::error("Failed to start market data feed");
+                return 1;
+            }
+
+            spdlog::info("Connected to live exchange: {}", exchange);
+        } else {
             simulator = std::make_shared<pinnacle::exchange::ExchangeSimulator>(orderBook);
             simulator->start();
             spdlog::info("Exchange simulator started");
         }
+        // if (mode == "simulation") {
+        //     // Configure simulator (placeholder - actual implementation would be more complex)
+        //     simulator = std::make_shared<pinnacle::exchange::ExchangeSimulator>(orderBook);
+        //     simulator->start();
+        //     spdlog::info("Exchange simulator started");
+        // }
         
         // Main application loop
         uint64_t lastStatsTime = 0;

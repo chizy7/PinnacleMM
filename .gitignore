@@ -66,3 +66,7 @@ docker-compose.override.yml
 # Custom files
 *.bak
 *.tmp
+
+# Ignore secure configuration files
+config/secure_config.json
+**/secure_config.json
