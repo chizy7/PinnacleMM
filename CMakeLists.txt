@@ -18,6 +18,19 @@ find_package(Threads REQUIRED)
 find_package(Boost 1.72 REQUIRED COMPONENTS system filesystem program_options)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(nlohmann_json REQUIRED)
+
+# WebSocket++ is a header-only library
+find_path(WEBSOCKETPP_INCLUDE_DIRS websocketpp/client.hpp
+    HINTS 
+    /usr/local/include
+    /usr/include
+    /opt/homebrew/include
+)
+if(NOT WEBSOCKETPP_INCLUDE_DIRS)
+    message(FATAL_ERROR "WebSocket++ not found")
+endif()
 
 # Options
 option(BUILD_TESTS "Build test programs" ON)
@@ -32,6 +45,8 @@ include_directories(
     ${Boost_INCLUDE_DIRS}
     ${spdlog_INCLUDE_DIRS}
     ${fmt_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
+    ${WEBSOCKETPP_INCLUDE_DIRS}
 )
 
 # Add TBB if enabled
@@ -79,6 +94,9 @@ set(STRATEGY_SOURCES
 set(EXCHANGE_SOURCES
     exchange/simulator/ExchangeSimulator.cpp
     exchange/simulator/MarketDataFeed.cpp
+    exchange/connector/SecureConfig.cpp
+    exchange/connector/WebSocketMarketDataFeedStub.cpp
+    exchange/connector/ExchangeConnectorFactory.cpp
 )
 
 # Create core library
@@ -86,6 +104,8 @@ add_library(core STATIC ${CORE_SOURCES})
 target_link_libraries(core PUBLIC
     Threads::Threads
     ${Boost_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    nlohmann_json::nlohmann_json
 )
 
 # Create strategy library
@@ -102,6 +122,8 @@ target_link_libraries(exchange PUBLIC
     core
     Threads::Threads
     ${Boost_LIBRARIES}
+    ${OPENSSL_LIBRARIES} 
+    nlohmann_json::nlohmann_json
 )
 
 # Add TBB linking if enabled

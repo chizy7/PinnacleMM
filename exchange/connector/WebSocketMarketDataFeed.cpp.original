@@ -1,0 +1,946 @@
+#include "WebSocketMarketDataFeed.h"
+#include "../../core/utils/TimeUtils.h"
+
+#include <nlohmann/json.hpp>
+#include <openssl/hmac.h>
+#include <iomanip>
+#include <sstream>
+#include <chrono>
+
+namespace pinnacle {
+namespace exchange {
+
+// Helper function
+std::string toLower(const std::string& str) {
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(), 
+                    [](unsigned char c) { return std::tolower(c);});
+    return result;
+}
+
+WebSocketMarketDataFeed::WebSocketMarketDataFeed(
+    Exchange exchange,
+    std::shared_ptr<utils::ApiCredentials> credentials
+) : m_exchange(exchange),
+    m_credentials(credentials) {
+    
+    // Initialize exchange-specific settings
+    initExchangeSpecifics();
+    
+    // Initialize WebSocket client
+    initialize();
+}
+
+WebSocketMarketDataFeed::~WebSocketMarketDataFeed() {
+    // Ensure we're stopped
+    stop();
+}
+
+bool WebSocketMarketDataFeed::start() {
+    // Check if already running
+    if (m_isRunning.load(std::memory_order_acquire)) {
+        return false;
+    }
+    
+    // Reset stop flag
+    m_shouldStop.store(false, std::memory_order_release);
+    
+    try {
+        // Connect WebSocket
+        connectWebSocket();
+        
+        // Start message processing thread
+        m_processingThread = std::thread(&WebSocketMarketDataFeed::processMessages, this);
+        
+        // Mark as running
+        m_isRunning.store(true, std::memory_order_release);
+        
+        // Update status
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            m_statusMessage = "Connected to " + getExchangeName();
+        }
+        
+        return true;
+    } catch (const std::exception& e) {
+        // Update status
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            m_statusMessage = "Failed to connect: " + std::string(e.what());
+        }
+        
+        return false;
+    }
+}
+
+bool WebSocketMarketDataFeed::stop() {
+    // Check if already stopped
+    if (!m_isRunning.load(std::memory_order_acquire)) {
+        return false;
+    }
+    
+    // Set stop flag
+    m_shouldStop.store(true, std::memory_order_release);
+    
+    try {
+        // Disconnect WebSocket
+        disconnectWebSocket();
+        
+        // Wait for message processing thread to exit
+        if (m_processingThread.joinable()) {
+            m_processingThread.join();
+        }
+        
+        // Mark as stopped
+        m_isRunning.store(false, std::memory_order_release);
+        
+        // Update status
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            m_statusMessage = "Disconnected from " + getExchangeName();
+        }
+        
+        return true;
+    } catch (const std::exception& e) {
+        // Update status
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            m_statusMessage = "Failed to disconnect: " + std::string(e.what());
+        }
+        
+        return false;
+    }
+}
+
+bool WebSocketMarketDataFeed::isRunning() const {
+    return m_isRunning.load(std::memory_order_acquire);
+}
+
+bool WebSocketMarketDataFeed::subscribeToMarketUpdates(
+    const std::string& symbol,
+    std::function<void(const MarketUpdate&)> callback
+) {
+    // Acquire lock for callback registration
+    std::lock_guard<std::mutex> lock(m_callbacksMutex);
+    
+    // Add callback to the list for this symbol
+    m_marketUpdateCallbacks[symbol].push_back(std::move(callback));
+    
+    // If we're running, send the subscription message
+    if (m_isRunning.load(std::memory_order_acquire)) {
+        return sendSubscription(symbol);
+    }
+    
+    return true;
+}
+
+bool WebSocketMarketDataFeed::subscribeToOrderBookUpdates(
+    const std::string& symbol,
+    std::function<void(const OrderBookUpdate&)> callback
+) {
+    // Acquire lock for callback registration
+    std::lock_guard<std::mutex> lock(m_callbacksMutex);
+    
+    // Add callback to the list for this symbol
+    m_orderBookUpdateCallbacks[symbol].push_back(std::move(callback));
+    
+    // If we're running, send the subscription message
+    if (m_isRunning.load(std::memory_order_acquire)) {
+        return sendSubscription(symbol);
+    }
+    
+    return true;
+}
+
+bool WebSocketMarketDataFeed::unsubscribeFromMarketUpdates(const std::string& symbol) {
+    // Acquire lock for callback management
+    std::lock_guard<std::mutex> lock(m_callbacksMutex);
+    
+    // Remove all callbacks for this symbol
+    m_marketUpdateCallbacks.erase(symbol);
+    
+    return true;
+}
+
+bool WebSocketMarketDataFeed::unsubscribeFromOrderBookUpdates(const std::string& symbol) {
+    // Acquire lock for callback management
+    std::lock_guard<std::mutex> lock(m_callbacksMutex);
+    
+    // Remove all callbacks for this symbol
+    m_orderBookUpdateCallbacks.erase(symbol);
+    
+    return true;
+}
+
+void WebSocketMarketDataFeed::publishMarketUpdate(const MarketUpdate& update) {
+    // Acquire lock for callback access
+    std::lock_guard<std::mutex> lock(m_callbacksMutex);
+    
+    // Find callbacks for this symbol
+    auto it = m_marketUpdateCallbacks.find(update.symbol);
+    if (it != m_marketUpdateCallbacks.end()) {
+        // Call all registered callbacks
+        for (const auto& callback : it->second) {
+            callback(update);
+        }
+    }
+}
+
+void WebSocketMarketDataFeed::publishOrderBookUpdate(const OrderBookUpdate& update) {
+    // Acquire lock for callback access
+    std::lock_guard<std::mutex> lock(m_callbacksMutex);
+    
+    // Find callbacks for this symbol
+    auto it = m_orderBookUpdateCallbacks.find(update.symbol);
+    if (it != m_orderBookUpdateCallbacks.end()) {
+        // Call all registered callbacks
+        for (const auto& callback : it->second) {
+            callback(update);
+        }
+    }
+}
+
+void WebSocketMarketDataFeed::setConnectionParams(const std::string& endpoint, bool useSSL) {
+    // Only allowed when not running
+    if (!m_isRunning.load(std::memory_order_acquire)) {
+        m_endpoint = endpoint;
+        m_useSSL = useSSL;
+    }
+}
+
+void WebSocketMarketDataFeed::setAuthParams(const std::string& exchangeName) {
+    // Only allowed when not running
+    if (!m_isRunning.load(std::memory_order_acquire)) {
+        m_exchangeName = exchangeName;
+    }
+}
+
+std::string WebSocketMarketDataFeed::getStatusMessage() const {
+    std::lock_guard<std::mutex> lock(m_statusMutex);
+    return m_statusMessage;
+}
+
+void WebSocketMarketDataFeed::initialize() {
+    try {
+        // Initialize WebSocket client
+        m_client.clear_access_channels(websocketpp::log::alevel::all);
+        m_client.clear_error_channels(websocketpp::log::elevel::all);
+        
+        m_client.init_asio();
+        m_client.start_perpetual();
+        
+        // Set handlers
+        m_client.set_open_handler(
+            std::bind(&WebSocketMarketDataFeed::onOpen, this, std::placeholders::_1)
+        );
+        m_client.set_close_handler(
+            std::bind(&WebSocketMarketDataFeed::onClose, this, std::placeholders::_1)
+        );
+        m_client.set_fail_handler(
+            std::bind(&WebSocketMarketDataFeed::onFail, this, std::placeholders::_1)
+        );
+        m_client.set_message_handler(
+            std::bind(&WebSocketMarketDataFeed::onMessage, this, std::placeholders::_1, std::placeholders::_2)
+        );
+        m_client.set_tls_init_handler(
+            std::bind(&WebSocketMarketDataFeed::onTlsInit, this, std::placeholders::_1)
+        );
+        
+        // Create a thread for the WebSocket client's event loop
+        std::thread([this]() {
+            try {
+                m_client.run();
+            } catch (const std::exception& e) {
+                std::lock_guard<std::mutex> lock(m_statusMutex);
+                m_statusMessage = "WebSocket thread error: " + std::string(e.what());
+            }
+        }).detach();
+        
+        // Update status
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            m_statusMessage = "Initialized WebSocket client for " + getExchangeName();
+        }
+    } catch (const std::exception& e) {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Failed to initialize WebSocket client: " + std::string(e.what());
+        throw;
+    }
+}
+
+void WebSocketMarketDataFeed::connectWebSocket() {
+    try {
+        // Create connection
+        websocketpp::lib::error_code ec;
+        websocket_client::connection_ptr con = m_client.get_connection(m_endpoint, ec);
+        
+        if (ec) {
+            throw std::runtime_error("Failed to create connection: " + ec.message());
+        }
+        
+        // Store connection handle
+        m_connection = con->get_handle();
+        
+        // Connect
+        m_client.connect(con);
+        
+        // Update status
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            m_statusMessage = "Connecting to " + m_endpoint;
+        }
+    } catch (const std::exception& e) {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Failed to connect: " + std::string(e.what());
+        throw;
+    }
+}
+
+void WebSocketMarketDataFeed::disconnectWebSocket() {
+    try {
+        // Close connection
+        websocketpp::lib::error_code ec;
+        m_client.close(m_connection, websocketpp::close::status::normal, "Disconnecting", ec);
+        
+        if (ec) {
+            throw std::runtime_error("Failed to close connection: " + ec.message());
+        }
+        
+        // Update status
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            m_statusMessage = "Disconnected from " + m_endpoint;
+        }
+    } catch (const std::exception& e) {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Failed to disconnect: " + std::string(e.what());
+        throw;
+    }
+}
+
+void WebSocketMarketDataFeed::processMessages() {
+    while (!m_shouldStop.load(std::memory_order_acquire)) {
+        // Check for messages
+        std::string message;
+        if (m_messageQueue.tryDequeue(message)) {
+            try {
+                // Parse and handle the message
+                parseMessage(message);
+            } catch (const std::exception& e) {
+                // Update status
+                std::lock_guard<std::mutex> lock(m_statusMutex);
+                m_statusMessage = "Error parsing message: " + std::string(e.what());
+            }
+        }
+        
+        // Sleep for a short interval to avoid busy waiting
+        utils::TimeUtils::sleepForMillis(1);
+    }
+}
+
+void WebSocketMarketDataFeed::onOpen(websocketpp::connection_hdl hdl) {
+    // Update status
+    {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Connected to " + m_endpoint;
+    }
+    
+    try {
+        // Send authentication message if needed
+        websocketpp::lib::error_code ec;
+        
+        // Get API credentials
+        bool hasCredentials = false;
+        
+        if (m_credentials) {
+            hasCredentials = m_credentials->hasCredentials(m_exchangeName);
+        }
+        
+        if (hasCredentials) {
+            // Authenticate
+            std::string authMessage = createAuthenticationMessage();
+            m_client.send(hdl, authMessage, websocketpp::frame::opcode::text, ec);
+            
+            if (ec) {
+                throw std::runtime_error("Failed to send authentication message: " + ec.message());
+            }
+        }
+        
+        // Send subscription messages for all symbols
+        std::vector<std::string> symbols;
+        
+        {
+            std::lock_guard<std::mutex> lock(m_callbacksMutex);
+            
+            // Collect symbols from market update callbacks
+            for (const auto& pair : m_marketUpdateCallbacks) {
+                symbols.push_back(pair.first);
+            }
+            
+            // Collect symbols from order book update callbacks
+            for (const auto& pair : m_orderBookUpdateCallbacks) {
+                // Check if already added
+                if (std::find(symbols.begin(), symbols.end(), pair.first) == symbols.end()) {
+                    symbols.push_back(pair.first);
+                }
+            }
+        }
+        
+        // Send subscription messages
+        for (const auto& symbol : symbols) {
+            sendSubscription(symbol);
+        }
+    } catch (const std::exception& e) {
+        // Update status
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Error in onOpen: " + std::string(e.what());
+    }
+}
+
+void WebSocketMarketDataFeed::onClose(websocketpp::connection_hdl hdl) {
+    // Update status
+    std::lock_guard<std::mutex> lock(m_statusMutex);
+    m_statusMessage = "Disconnected from " + m_endpoint;
+}
+
+void WebSocketMarketDataFeed::onFail(websocketpp::connection_hdl hdl) {
+    try {
+        websocket_client::connection_ptr con = m_client.get_con_from_hdl(hdl);
+        
+        // Update status
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Connection failed: " + con->get_ec().message();
+    } catch (const std::exception& e) {
+        // Update status
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Error in onFail: " + std::string(e.what());
+    }
+}
+
+void WebSocketMarketDataFeed::onMessage(websocketpp::connection_hdl hdl, message_ptr msg) {
+    // Add message to the queue
+    std::string payload = msg->get_payload();
+    
+    if (!m_messageQueue.tryEnqueue(std::move(payload))) {
+        // Queue is full, this shouldn't happen in normal operation
+        // In a production system, we would log this
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Message queue full, dropping message";
+    }
+}
+
+WebSocketMarketDataFeed::context_ptr WebSocketMarketDataFeed::onTlsInit(websocketpp::connection_hdl hdl) {
+    // Initialize TLS context
+    context_ptr ctx = websocketpp::lib::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::tls);
+    
+    try {
+        ctx->set_options(
+            boost::asio::ssl::context::default_workarounds |
+            boost::asio::ssl::context::no_sslv2 |
+            boost::asio::ssl::context::no_sslv3 |
+            boost::asio::ssl::context::single_dh_use
+        );
+        
+        // Set default verify paths (using system CA certificates)
+        ctx->set_default_verify_paths();
+        
+        // Enable peer verification
+        ctx->set_verify_mode(boost::asio::ssl::verify_peer);
+    } catch (const std::exception& e) {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "TLS initialization error: " + std::string(e.what());
+    }
+    
+    return ctx;
+}
+
+void WebSocketMarketDataFeed::parseMessage(const std::string& message) {
+    try {
+        // Parse JSON
+        nlohmann::json json = nlohmann::json::parse(message);
+        
+        // Check message type
+        if (json.contains("type")) {
+            std::string type = json["type"];
+            
+            if (type == "ticker" || type == "match" || type == "trade") {
+                // Market update
+                MarketUpdate update = parseMarketUpdate(message);
+                publishMarketUpdate(update);
+            } else if (type == "snapshot" || type == "l2update") {
+                // Order book update
+                OrderBookUpdate update = parseOrderBookUpdate(message);
+                publishOrderBookUpdate(update);
+            }
+        }
+    } catch (const std::exception& e) {
+        // Update status
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Error parsing message: " + std::string(e.what());
+    }
+}
+
+MarketUpdate WebSocketMarketDataFeed::parseMarketUpdate(const std::string& message) {
+    MarketUpdate update;
+    
+    try {
+        // Parse JSON
+        nlohmann::json json = nlohmann::json::parse(message);
+        
+        // Handle different exchange formats
+        switch (m_exchange) {
+            case Exchange::COINBASE:
+                if (json.contains("product_id") && json.contains("price") && json.contains("size")) {
+                    update.symbol = json["product_id"];
+                    update.price = std::stod(json["price"].get<std::string>());
+                    update.volume = std::stod(json["size"].get<std::string>());
+                    update.timestamp = utils::TimeUtils::getCurrentNanos();
+                    update.isBuy = json.contains("side") ? (json["side"] == "buy") : false;
+                }
+                break;
+                
+            case Exchange::KRAKEN:
+                // Kraken-specific parsing
+                if (json.contains("pair") && json.contains("price") && json.contains("volume")) {
+                    update.symbol = json["pair"];
+                    update.price = std::stod(json["price"].get<std::string>());
+                    update.volume = std::stod(json["volume"].get<std::string>());
+                    update.timestamp = utils::TimeUtils::getCurrentNanos();
+                    update.isBuy = json.contains("direction") ? (json["direction"] == "buy") : false;
+                }
+                break;
+                
+            case Exchange::GEMINI:
+                // Gemini-specific parsing
+                if (json.contains("symbol") && json.contains("price") && json.contains("quantity")) {
+                    update.symbol = json["symbol"];
+                    update.price = std::stod(json["price"].get<std::string>());
+                    update.volume = std::stod(json["quantity"].get<std::string>());
+                    update.timestamp = utils::TimeUtils::getCurrentNanos();
+                    update.isBuy = json.contains("side") ? (json["side"] == "buy") : false;
+                }
+                break;
+                
+            case Exchange::BINANCE:
+                // Binance-specific parsing
+                if (json.contains("s") && json.contains("p") && json.contains("q")) {
+                    update.symbol = json["s"];
+                    update.price = std::stod(json["p"].get<std::string>());
+                    update.volume = std::stod(json["q"].get<std::string>());
+                    update.timestamp = json.contains("T") ? json["T"].get<uint64_t>() * 1000000 : utils::TimeUtils::getCurrentNanos();
+                    update.isBuy = json.contains("m") ? !json["m"].get<bool>() : false;
+                }
+                break;
+                
+            case Exchange::BITSTAMP:
+                // Bitstamp-specific parsing
+                if (json.contains("channel") && json.contains("data")) {
+                    auto data = json["data"];
+                    if (data.contains("price") && data.contains("amount")) {
+                        update.symbol = json["channel"].get<std::string>().substr(json["channel"].get<std::string>().find_last_of('_') + 1);
+                        update.price = std::stod(data["price"].get<std::string>());
+                        update.volume = std::stod(data["amount"].get<std::string>());
+                        update.timestamp = data.contains("timestamp") ? 
+                            data["timestamp"].get<uint64_t>() * 1000000 : utils::TimeUtils::getCurrentNanos();
+                        update.isBuy = data.contains("type") ? (data["type"].get<int>() == 0) : false;
+                    }
+                }
+                break;
+        }
+    } catch (const std::exception& e) {
+        // Update status
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Error parsing market update: " + std::string(e.what());
+    }
+    
+    return update;
+}
+
+OrderBookUpdate WebSocketMarketDataFeed::parseOrderBookUpdate(const std::string& message) {
+    OrderBookUpdate update;
+    
+    try {
+        // Parse JSON
+        nlohmann::json json = nlohmann::json::parse(message);
+        
+        // Handle different exchange formats
+        switch (m_exchange) {
+            case Exchange::COINBASE:
+                if (json.contains("product_id")) {
+                    update.symbol = json["product_id"];
+                    update.timestamp = utils::TimeUtils::getCurrentNanos();
+                    
+                    if (json["type"] == "snapshot" && json.contains("bids") && json.contains("asks")) {
+                        // Full order book snapshot
+                        for (const auto& bid : json["bids"]) {
+                            if (bid.is_array() && bid.size() >= 2) {
+                                update.bids.emplace_back(std::stod(bid[0].get<std::string>()), 
+                                                        std::stod(bid[1].get<std::string>()));
+                            }
+                        }
+                        
+                        for (const auto& ask : json["asks"]) {
+                            if (ask.is_array() && ask.size() >= 2) {
+                                update.asks.emplace_back(std::stod(ask[0].get<std::string>()), 
+                                                        std::stod(ask[1].get<std::string>()));
+                            }
+                        }
+                    } else if (json["type"] == "l2update" && json.contains("changes")) {
+                        // Incremental update
+                        for (const auto& change : json["changes"]) {
+                            if (change.is_array() && change.size() >= 3) {
+                                double price = std::stod(change[1].get<std::string>());
+                                double quantity = std::stod(change[2].get<std::string>());
+                                
+                                if (change[0] == "buy") {
+                                    update.bids.emplace_back(price, quantity);
+                                } else if (change[0] == "sell") {
+                                    update.asks.emplace_back(price, quantity);
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+                
+            case Exchange::KRAKEN:
+                // Kraken-specific parsing
+                if (json.contains("pair") && json.contains("book")) {
+                    update.symbol = json["pair"];
+                    update.timestamp = utils::TimeUtils::getCurrentNanos();
+                    
+                    if (json["book"].contains("bs")) {
+                        for (const auto& bid : json["book"]["bs"]) {
+                            if (bid.is_array() && bid.size() >= 2) {
+                                update.bids.emplace_back(std::stod(bid[0].get<std::string>()), 
+                                                        std::stod(bid[1].get<std::string>()));
+                            }
+                        }
+                    }
+                    
+                    if (json["book"].contains("as")) {
+                        for (const auto& ask : json["book"]["as"]) {
+                            if (ask.is_array() && ask.size() >= 2) {
+                                update.asks.emplace_back(std::stod(ask[0].get<std::string>()), 
+                                                        std::stod(ask[1].get<std::string>()));
+                            }
+                        }
+                    }
+                }
+                break;
+                
+            case Exchange::GEMINI:
+                // Gemini-specific parsing
+                if (json.contains("events")) {
+                    for (const auto& event : json["events"]) {
+                        if (event.contains("type") && event["type"] == "change") {
+                            if (event.contains("price") && event.contains("remaining") && event.contains("side")) {
+                                double price = std::stod(event["price"].get<std::string>());
+                                double quantity = std::stod(event["remaining"].get<std::string>());
+                                
+                                if (event["side"] == "bid") {
+                                    update.bids.emplace_back(price, quantity);
+                                } else if (event["side"] == "ask") {
+                                    update.asks.emplace_back(price, quantity);
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (json.contains("symbol")) {
+                        update.symbol = json["symbol"];
+                    }
+                    
+                    update.timestamp = utils::TimeUtils::getCurrentNanos();
+                }
+                break;
+                
+            case Exchange::BINANCE:
+                // Binance-specific parsing
+                if (json.contains("s")) {
+                    update.symbol = json["s"];
+                    
+                    if (json.contains("b") && json["b"].is_array()) {
+                        for (const auto& bid : json["b"]) {
+                            if (bid.is_array() && bid.size() >= 2) {
+                                update.bids.emplace_back(std::stod(bid[0].get<std::string>()), 
+                                                        std::stod(bid[1].get<std::string>()));
+                            }
+                        }
+                    }
+                    
+                    if (json.contains("a") && json["a"].is_array()) {
+                        for (const auto& ask : json["a"]) {
+                            if (ask.is_array() && ask.size() >= 2) {
+                                update.asks.emplace_back(std::stod(ask[0].get<std::string>()), 
+                                                        std::stod(ask[1].get<std::string>()));
+                            }
+                        }
+                    }
+                    
+                    update.timestamp = json.contains("E") ? json["E"].get<uint64_t>() * 1000000 : utils::TimeUtils::getCurrentNanos();
+                }
+                break;
+                
+            case Exchange::BITSTAMP:
+                // Bitstamp-specific parsing
+                if (json.contains("data") && json["data"].contains("bids") && json["data"].contains("asks")) {
+                    // Extract symbol from channel
+                    if (json.contains("channel")) {
+                        update.symbol = json["channel"].get<std::string>().substr(json["channel"].get<std::string>().find_last_of('_') + 1);
+                    }
+                    
+                    for (const auto& bid : json["data"]["bids"]) {
+                        if (bid.is_array() && bid.size() >= 2) {
+                            update.bids.emplace_back(std::stod(bid[0].get<std::string>()), 
+                                                    std::stod(bid[1].get<std::string>()));
+                        }
+                    }
+                    
+                    for (const auto& ask : json["data"]["asks"]) {
+                        if (ask.is_array() && ask.size() >= 2) {
+                            update.asks.emplace_back(std::stod(ask[0].get<std::string>()), 
+                                                    std::stod(ask[1].get<std::string>()));
+                        }
+                    }
+                    
+                    update.timestamp = json["data"].contains("timestamp") ? 
+                        json["data"]["timestamp"].get<uint64_t>() * 1000000 : utils::TimeUtils::getCurrentNanos();
+                }
+                break;
+        }
+    } catch (const std::exception& e) {
+        // Update status
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Error parsing order book update: " + std::string(e.what());
+    }
+    
+    return update;
+}
+
+bool WebSocketMarketDataFeed::sendSubscription(const std::string& symbol) {
+    // Check if we're connected
+    if (!m_isRunning.load(std::memory_order_acquire)) {
+        return false;
+    }
+    
+    try {
+        // Create subscription message
+        std::string subscriptionMessage = createSubscriptionMessage(symbol);
+        
+        // Send message
+        websocketpp::lib::error_code ec;
+        m_client.send(m_connection, subscriptionMessage, websocketpp::frame::opcode::text, ec);
+        
+        if (ec) {
+            throw std::runtime_error("Failed to send subscription message: " + ec.message());
+        }
+        
+        return true;
+    } catch (const std::exception& e) {
+        // Update status
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Error sending subscription: " + std::string(e.what());
+        return false;
+    }
+}
+
+std::string WebSocketMarketDataFeed::createSubscriptionMessage(const std::string& symbol) {
+    nlohmann::json message;
+    
+    // Create exchange-specific subscription message
+    switch (m_exchange) {
+        case Exchange::COINBASE:
+            message = {
+                {"type", "subscribe"},
+                {"product_ids", {symbol}},
+                {"channels", {"ticker", "level2"}}
+            };
+            break;
+            
+        case Exchange::KRAKEN:
+            message = {
+                {"name", "subscribe"},
+                {"pair", {symbol}},
+                {"subscription", {
+                    {"name", "ticker"}
+                }}
+            };
+            break;
+            
+        case Exchange::GEMINI:
+            // Gemini uses a different format for subscription
+            // The channel is included in the URL
+            return ""; // No subscription message needed
+            
+        case Exchange::BINANCE:
+            message = {
+                {"method", "SUBSCRIBE"},
+                {"params", {
+                    toLower(symbol) + "@ticker",
+                    toLower(symbol) + "@depth"
+                }},
+                {"id", 1}
+            };
+            break;
+            
+            case Exchange::BITSTAMP:
+            message = {
+                {"event", "bts:subscribe"},
+                {"data", {
+                    {"channel", "live_trades_" + toLower(symbol)}
+                }}
+            };
+            break;
+    }
+    
+    return message.dump();
+}
+
+std::string WebSocketMarketDataFeed::createAuthenticationMessage() {
+    nlohmann::json message;
+    
+    // Get API credentials
+    auto apiKey = m_credentials->getApiKey(m_exchangeName);
+    auto apiSecret = m_credentials->getApiSecret(m_exchangeName);
+    auto passphrase = m_credentials->getPassphrase(m_exchangeName);
+    
+    if (!apiKey || !apiSecret) {
+        throw std::runtime_error("Missing API credentials for " + m_exchangeName);
+    }
+    
+    // Create exchange-specific authentication message
+    switch (m_exchange) {
+        case Exchange::COINBASE: {
+            // Coinbase requires a signature
+            uint64_t timestamp = utils::TimeUtils::getCurrentSeconds();
+            std::string timestamp_str = std::to_string(timestamp);
+            std::string message_str = timestamp_str + "GET" + "/users/self/verify";
+            
+            // Create HMAC-SHA256 signature
+            unsigned char hmac[32];
+            unsigned int hmac_len;
+            HMAC(EVP_sha256(), apiSecret->c_str(), apiSecret->size(),
+                 reinterpret_cast<const unsigned char*>(message_str.c_str()), message_str.size(),
+                 hmac, &hmac_len);
+            
+            // Convert to base64
+            std::stringstream ss;
+            ss << std::hex << std::setfill('0');
+            for (unsigned int i = 0; i < hmac_len; i++) {
+                ss << std::setw(2) << static_cast<int>(hmac[i]);
+            }
+            
+            message = {
+                {"type", "authenticate"},
+                {"key", *apiKey},
+                {"signature", ss.str()},
+                {"timestamp", timestamp_str},
+                {"passphrase", passphrase ? *passphrase : ""}
+            };
+            break;
+        }
+            
+        case Exchange::KRAKEN: {
+            // Kraken uses a token-based authentication
+            message = {
+                {"name", "token"},
+                {"token", *apiKey}
+            };
+            break;
+        }
+            
+        case Exchange::GEMINI: {
+            // Gemini uses a different authentication method
+            // Authentication is handled in the URL
+            return "";
+        }
+            
+        case Exchange::BINANCE: {
+            // Binance uses API key in the URL
+            // No message needed
+            return "";
+        }
+            
+        case Exchange::BITSTAMP: {
+            // Bitstamp uses a signature-based authentication
+            uint64_t timestamp = utils::TimeUtils::getCurrentMillis();
+            std::string nonce = std::to_string(timestamp);
+            std::string message_str = nonce + *apiKey;
+            
+            // Create HMAC-SHA256 signature
+            unsigned char hmac[32];
+            unsigned int hmac_len;
+            HMAC(EVP_sha256(), apiSecret->c_str(), apiSecret->size(),
+                 reinterpret_cast<const unsigned char*>(message_str.c_str()), message_str.size(),
+                 hmac, &hmac_len);
+            
+            // Convert to hex
+            std::stringstream ss;
+            ss << std::hex << std::setfill('0');
+            for (unsigned int i = 0; i < hmac_len; i++) {
+                ss << std::setw(2) << static_cast<int>(hmac[i]);
+            }
+            
+            message = {
+                {"event", "bts:authenticate"},
+                {"data", {
+                    {"key", *apiKey},
+                    {"signature", ss.str()},
+                    {"nonce", nonce}
+                }}
+            };
+            break;
+        }
+    }
+    
+    return message.dump();
+}
+
+void WebSocketMarketDataFeed::initExchangeSpecifics() {
+    // Set exchange name
+    m_exchangeName = getExchangeName();
+    
+    // Set default endpoint
+    m_endpoint = getDefaultEndpoint();
+    
+    // Default to using SSL
+    m_useSSL = true;
+}
+
+std::string WebSocketMarketDataFeed::getExchangeName() const {
+    switch (m_exchange) {
+        case Exchange::COINBASE:
+            return "coinbase";
+        case Exchange::KRAKEN:
+            return "kraken";
+        case Exchange::GEMINI:
+            return "gemini";
+        case Exchange::BINANCE:
+            return "binance";
+        case Exchange::BITSTAMP:
+            return "bitstamp";
+        default:
+            return "unknown";
+    }
+}
+
+std::string WebSocketMarketDataFeed::getDefaultEndpoint() const {
+    switch (m_exchange) {
+        case Exchange::COINBASE:
+            return "wss://ws-feed.pro.coinbase.com";
+        case Exchange::KRAKEN:
+            return "wss://ws.kraken.com";
+        case Exchange::GEMINI:
+            return "wss://api.gemini.com/v1/marketdata";
+        case Exchange::BINANCE:
+            return "wss://stream.binance.com:9443/ws";
+        case Exchange::BITSTAMP:
+            return "wss://ws.bitstamp.net";
+        default:
+            return "";
+    }
+}
+
+} // namespace exchange
+} // namespace pinnacle
