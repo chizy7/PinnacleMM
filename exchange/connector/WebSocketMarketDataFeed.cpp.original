@@ -22,7 +22,9 @@ WebSocketMarketDataFeed::WebSocketMarketDataFeed(
     Exchange exchange,
     std::shared_ptr<utils::ApiCredentials> credentials
 ) : m_exchange(exchange),
-    m_credentials(credentials) {
+    m_credentials(credentials),
+    m_io_context(std::make_shared<boost::asio::io_context>()),
+    m_strand(boost::asio::make_strand(*m_io_context)) {
     
     // Initialize exchange-specific settings
     initExchangeSpecifics();
@@ -230,20 +232,25 @@ void WebSocketMarketDataFeed::initialize() {
         m_client.start_perpetual();
         
         // Set handlers
+        using websocketpp::lib::placeholders::_1;
+        using websocketpp::lib::placeholders::_2;
+        
         m_client.set_open_handler(
-            std::bind(&WebSocketMarketDataFeed::onOpen, this, std::placeholders::_1)
+            std::bind(&WebSocketMarketDataFeed::onOpen, this, _1)
         );
         m_client.set_close_handler(
-            std::bind(&WebSocketMarketDataFeed::onClose, this, std::placeholders::_1)
+            std::bind(&WebSocketMarketDataFeed::onClose, this, _1)
         );
         m_client.set_fail_handler(
-            std::bind(&WebSocketMarketDataFeed::onFail, this, std::placeholders::_1)
+            std::bind(&WebSocketMarketDataFeed::onFail, this, _1)
         );
+        
         m_client.set_message_handler(
-            std::bind(&WebSocketMarketDataFeed::onMessage, this, std::placeholders::_1, std::placeholders::_2)
+            wrapWithStrand(std::bind(&WebSocketMarketDataFeed::onMessage, this, _1, _2))
         );
+        
         m_client.set_tls_init_handler(
-            std::bind(&WebSocketMarketDataFeed::onTlsInit, this, std::placeholders::_1)
+            std::bind(&WebSocketMarketDataFeed::onTlsInit, this, _1)
         );
         
         // Create a thread for the WebSocket client's event loop
@@ -895,6 +902,37 @@ std::string WebSocketMarketDataFeed::createAuthenticationMessage() {
     }
     
     return message.dump();
+}
+
+void WebSocketMarketDataFeed::createTimer(long duration) {
+    auto timer = std::make_shared<boost::asio::steady_timer>(m_strand.get_executor());
+    timer->expires_after(std::chrono::milliseconds(duration));
+    
+    timer->async_wait(
+        boost::asio::bind_executor(m_strand, 
+            [this, timer](const boost::system::error_code& ec) {
+                if (ec) return;
+                
+                // Update status with a heartbeat message
+                {
+                    std::lock_guard<std::mutex> lock(m_statusMutex);
+                    m_statusMessage = "Connection heartbeat: " + getExchangeName();
+                }
+                
+                // Send a ping/heartbeat to keep the connection alive
+                try {
+                    websocketpp::lib::error_code error_code;
+                    m_client.ping(m_connection, "", error_code);
+                    
+                    // Schedule the next heartbeat
+                    createTimer(30000); // 30 seconds
+                } catch (const std::exception& e) {
+                    // Log any errors
+                    std::lock_guard<std::mutex> lock(m_statusMutex);
+                    m_statusMessage = "Heartbeat error: " + std::string(e.what());
+                }
+            })
+    );
 }
 
 void WebSocketMarketDataFeed::initExchangeSpecifics() {

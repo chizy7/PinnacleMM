@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
         // Get command line parameters
         std::string symbol = vm["symbol"].as<std::string>();
         std::string mode = vm["mode"].as<std::string>();
-        std::string exchange = vm["exchange"].as<std::string>();
+        std::string exchangeName = vm["exchange"].as<std::string>();
         std::string configFile = vm["config"].as<std::string>();
         std::string logFile = vm["logfile"].as<std::string>();
         bool verbose = vm["verbose"].as<bool>();
@@ -131,14 +131,14 @@ int main(int argc, char* argv[]) {
             std::getline(std::cin, masterPassword);
 
             // Initialize exchange connector factory
-            auto& factory = exchange::ExchangeConnectorFactory::getInstance();
+            auto& factory = pinnacle::exchange::ExchangeConnectorFactory::getInstance();
             if (!factory.initialize("config", masterPassword)) {
                 spdlog::error("Failed to initialize exchange connector factory");
                 return 1;
             }
 
             // Get market data feed for the specified exchange
-            auto marketDataFeed = factory.getMarketDataFeed(exchange);
+            auto marketDataFeed = factory.getMarketDataFeed(exchangeName);
             if (!marketDataFeed) {
                 spdlog::error("Failed to create market data feed");
                 return 1;
@@ -150,7 +150,7 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            spdlog::info("Connected to live exchange: {}", exchange);
+            spdlog::info("Connected to live exchange: {}", exchangeName);
         } else {
             simulator = std::make_shared<pinnacle::exchange::ExchangeSimulator>(orderBook);
             simulator->start();

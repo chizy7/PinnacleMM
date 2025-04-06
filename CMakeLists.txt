@@ -126,6 +126,11 @@ target_link_libraries(exchange PUBLIC
     nlohmann_json::nlohmann_json
 )
 
+# Compile definitions for the stub implementation
+target_compile_definitions(exchange PRIVATE 
+    USE_WEBSOCKET_STUB
+)
+
 # Add TBB linking if enabled
 if(USE_TBB)
     target_link_libraries(core PUBLIC ${TBB_LIBRARIES})

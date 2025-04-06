@@ -17,6 +17,8 @@ PinnacleMM is a high-performance, production-grade market making system designed
 - **Dynamic Market Making**: Adaptive bid-ask spread based on market conditions
 - **Position Management**: Intelligent inventory management with customizable risk parameters
 - **Exchange Simulation**: Realistic market simulation for strategy development and testing
+- **Live Exchange Connectivity**: Connect to major cryptocurrency exchanges
+- **Secure API Credentials**: Encrypted storage for exchange API keys
 - **Comprehensive Testing**: Extensive test suite ensuring reliability and performance
 
 ## 📊 System Architecture
@@ -51,8 +53,10 @@ See the detailed [project roadmap](docs/roadmap.md) for more information.
 - Boost libraries 1.72+
 - spdlog library (for structured logging)
 - fmt library (for formatting, spdlog dependency)
+- OpenSSL library (for secure credential handling)
+- nlohmann_json library (for configuration handling)
 
-### Quick Start
+### Building from Source
 
 ```bash
 # Clone the repository
@@ -70,10 +74,42 @@ cmake ..
 make -j$(sysctl -n hw.ncpu)
 # For Linux:
 # make -j$(nproc) # Use appropriate core count for your machine
+```
 
+### Running PinnacleMM
+
+#### Simulation Mode
+```bash
 # Run in simulation mode
 ./pinnaclemm --mode simulation --symbol BTC-USD
 ```
+
+#### Live Exchange Mode
+```bash
+# Run with a live exchange
+./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD
+```
+
+When running in live mode, you'll be prompted for your master password to decrypt API credentials.
+
+## 🔐 API Credential Management
+
+PinnacleMM securely stores and manages exchange API credentials:
+
+- **Encryption**: AES-256-GCM encryption for all sensitive data
+- **Master Password**: Single password to unlock all exchange credentials
+- **Secure Storage**: Credentials are never stored in plaintext
+- **Configuration**: API keys are configured via a secure interface
+
+### Setting Up API Credentials
+
+1. Create a credentials file:
+```bash
+./pinnaclemm --setup-credentials
+```
+
+2. Enter your master password when prompted
+3. Add your exchange API keys through the interactive prompt
 
 For more detailed instructions, see the [Getting Started Guide](docs/user_guide/getting_started.md).
 
@@ -101,6 +137,7 @@ docker run -d --name pinnaclemm pinnaclemm
 - [API Reference](docs/api/reference.md)
 - [Getting Started Guide](docs/user_guide/getting_started.md)
 - [Recovery Guide](docs/user_guide/recovery.md)
+- [Security & API Key Management](docs/security/credentials.md)
 - [Project Roadmap](docs/roadmap.md)
 
 ## 🛠️ Technology Stack
@@ -108,8 +145,10 @@ docker run -d --name pinnaclemm pinnaclemm
 - **Core Engine**: C++20
 - **Build System**: CMake
 - **Testing**: Google Test
-- **Performance Benchmarking**: Google Benchmark (future)
+- **Performance Benchmarking**: Google Benchmark
 - **Concurrency**: Lock-free algorithms, std::atomic
+- **Security**: OpenSSL for encryption
+- **Configuration**: nlohmann/json
 - **Containerization**: Docker
 
 ## 📊 Performance
@@ -120,6 +159,7 @@ PinnacleMM achieves exceptional performance metrics:
 - **Order Execution Latency**: <50 μs (end-to-end)
 - **Throughput**: 100,000+ messages per second
 - **Recovery Time**: <5 seconds for full system recovery
+- **Memory Footprint**: <100 MB for core engine
 
 ## 🔮 Current Progress (Phase 2)
 

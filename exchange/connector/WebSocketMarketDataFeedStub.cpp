@@ -1,7 +1,9 @@
+#include "WebSocketStub.h"
 #include "WebSocketMarketDataFeed.h"
 #include "../../core/utils/TimeUtils.h"
 
 #include <iostream>
+#include <boost/asio.hpp>
 
 namespace pinnacle {
 namespace exchange {
@@ -10,7 +12,9 @@ WebSocketMarketDataFeed::WebSocketMarketDataFeed(
     Exchange exchange,
     std::shared_ptr<utils::ApiCredentials> credentials
 ) : m_exchange(exchange),
-    m_credentials(credentials) {
+    m_credentials(credentials),
+    m_io_context(std::make_shared<boost::asio::io_context>()),
+    m_strand(m_io_context->get_executor()) {
     
     // Initialize exchange-specific settings
     m_exchangeName = getExchangeName();

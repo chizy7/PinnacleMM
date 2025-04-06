@@ -3,6 +3,7 @@
 #include "../../exchange/simulator/MarketDataFeed.h"
 #include "../../core/utils/LockFreeQueue.h"
 #include "SecureConfig.h"
+#include "WebSocketStub.h"
 
 #include <string>
 #include <memory>
@@ -11,8 +12,6 @@
 #include <mutex>
 #include <functional>
 #include <unordered_map>
-#include <websocketpp/config/asio_client.hpp>
-#include <websocketpp/client.hpp>
 
 namespace pinnacle {
 namespace exchange {
@@ -103,8 +102,12 @@ private:
     
     // WebSocket client
     using websocket_client = websocketpp::client<websocketpp::config::asio_tls_client>;
-    using message_ptr = websocketpp::config::asio_client::message_type::ptr;
+    using message_ptr = websocketpp::config::asio_tls_client::message_type::ptr;
     using context_ptr = websocketpp::lib::shared_ptr<boost::asio::ssl::context>;
+
+    // Add these new variables
+    std::shared_ptr<boost::asio::io_context> m_io_context;
+    boost::asio::strand<boost::asio::io_context::executor_type> m_strand;
     
     websocket_client m_client;
     websocketpp::connection_hdl m_connection;
@@ -148,6 +151,15 @@ private:
     bool sendSubscription(const std::string& symbol);
     std::string createSubscriptionMessage(const std::string& symbol);
     std::string createAuthenticationMessage();
+
+    // Timer creation helper method
+    void createTimer(long duration);
+
+    // Add this helper method
+    template<typename Callback>
+    auto wrapWithStrand(Callback&& cb) {
+        return boost::asio::bind_executor(m_strand, std::forward<Callback>(cb));
+    }
     
     // Exchange-specific methods
     void initExchangeSpecifics();
