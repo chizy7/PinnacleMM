@@ -1,11 +1,28 @@
-# PinnacleMM - Ultra-Low Latency Market Making System
-
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)
-![Status](https://img.shields.io/badge/status-Phase%202%20In%20Progress-red.svg)
-<a href="https://github.com/chizy7/PinnacleMM"><img src="https://tokei.rs/b1/github/chizy7/PinnacleMM?category=code" alt="Lines of Code"></a>
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
-![Performance](https://img.shields.io/badge/latency-microsecond-blue.svg)
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".images/pinnaclemm-high-resolution-logo-transparent.svg">
+    <source media="(prefers-color-scheme: light)" srcset=".images/pinnaclemm-high-resolution-logo-grayscale-transparent.svg">
+    <img alt="PinnacleMM Logo" src=".images/pinnaclemm-high-resolution-logo-transparent.svg" width="550" height="150">
+  </picture>
+  
+  <h1>Ultra-Low Latency Market Making System</h1>
+  
+  <p>
+    <a href="https://github.com/chizy7/PinnacleMM/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+    <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg" alt="C++"></a>
+    <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/status-Phase%202%20In%20Progress-yellowgreen.svg" alt="Status"></a>
+    <a href="https://github.com/chizy7/PinnacleMM"><img src="https://tokei.rs/b1/github/chizy7/PinnacleMM?category=code" alt="Lines of Code"></a>
+    <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build Status"></a>
+    <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/latency-microsecond-blue.svg" alt="Performance"></a>
+  </p>
+  
+  <p>
+    <a href="docs/user_guide/getting_started.md">Getting Started</a>&nbsp;&nbsp;•&nbsp;&nbsp;
+    <a href="docs/architecture/system_overview.md">Architecture</a>&nbsp;&nbsp;•&nbsp;&nbsp;
+    <a href="docs/api/reference.md">API Reference</a>&nbsp;&nbsp;•&nbsp;&nbsp;
+    <a href="docs/exchange/connector_guide.md">Exchange Connectors</a>
+  </p>
+</div>
 
 PinnacleMM is a high-performance, production-grade market making system designed for high-frequency trading in cryptocurrency markets. Built primarily in C++ with a focus on ultra-low latency, this system achieves microsecond-level execution speeds while maintaining robust risk management capabilities.
 
