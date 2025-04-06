@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".images/pinnaclemm-high-resolution-logo-transparent.svg">
     <source media="(prefers-color-scheme: light)" srcset=".images/pinnaclemm-high-resolution-logo-grayscale-transparent.svg">
-    <img alt="PinnacleMM Logo" src=".images/pinnaclemm-high-resolution-logo-transparent.svg" width="550" height="150">
+    <img alt="PinnacleMM Logo" src=".images/pinnaclemm-high-resolution-logo-transparent.svg" width="750" height=100">
   </picture>
   
   <h1>Ultra-Low Latency Market Making System</h1>
