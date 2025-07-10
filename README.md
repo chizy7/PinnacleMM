@@ -59,7 +59,7 @@ PinnacleMM is being developed in phases:
 - 🔲 **Phase 3**: Advanced strategies and machine learning integration
 - 🔲 **Phase 4**: Risk management and production deployment
 
-See the detailed [project roadmap](docs/roadmap.md) for more information.
+See the detailed [project roadmap](docs/ROADMAP.md) for more information. 
 
 ## 🔧 Getting Started
 
@@ -155,7 +155,7 @@ docker run -d --name pinnaclemm pinnaclemm
 - [Getting Started Guide](docs/user_guide/getting_started.md)
 - [Recovery Guide](docs/user_guide/recovery.md)
 - [Security & API Key Management](docs/security/credentials.md)
-- [Project Roadmap](docs/roadmap.md)
+- [Project Roadmap](docs/ROADMAP.md)
 
 ## 🛠️ Technology Stack
 

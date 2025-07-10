@@ -139,33 +139,19 @@ With custom options:
 docker run -d --name pinnaclemm pinnaclemm --symbol ETH-USD --verbose
 ```
 
-## Project Structure (Phase 1) - not entirely accurate - will be updated in Phase 2
+## Repository Structure
 
-The following is a high-level overview of the project structure:
-
-```
-PinnacleMM/
-├── core/                  # Core engine components
-│   ├── orderbook/         # Order book implementation
-│   ├── execution/         # Order execution logic
-│   ├── risk/              # Risk management system
-│   └── utils/             # Utilities and common functions
-├── strategies/            # Market making strategies
-│   ├── basic/             # Basic market making
-│   └── config/            # Strategy configuration
-├── exchange/              # Exchange connectivity
-│   ├── simulator/         # Exchange simulator for testing
-│   └── marketdata/        # Market data handling
-├── tests/                 # Test suite
-│   ├── unit/              # Unit tests
-│   └── performance/       # Performance benchmarks
-├── deployment/            # Deployment configurations
-│   ├── docker/            # Docker configuration
-│   └── ci/                # CI/CD pipeline configuration
-└── docs/                  # Documentation
-    ├── architecture/      # Architecture diagrams
-    └── user_guide/        # User guide
-```
+| Directory | Description |
+|-----------|-------------|
+| `core/` | Core engine components including orderbook, execution, risk management, and utilities |
+| `strategies/` | Market making strategies and configuration |
+| `exchange/` | Exchange connectivity and simulation for testing |
+| `tests/` | Unit tests and performance benchmarks |
+| `docs/` | Project documentation including architecture diagrams and user guides |
+| `config/` | Configuration files and settings |
+| `deployment/` | Docker and CI/CD deployment configurations **{currently local only but dockerfile works}** |
+| `benchmarks/` | Performance benchmarking tools and micro-benchmarks |
+| `research/` | Research and experimental features |
 
 ## Development Workflow
 
