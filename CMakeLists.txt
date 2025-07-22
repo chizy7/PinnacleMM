@@ -6,6 +6,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Set the policy to use the new Boost finding behavior
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
+
 # Set compiler flags
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -march=native")
@@ -15,11 +20,26 @@ endif()
 
 # Find required packages
 find_package(Threads REQUIRED)
-find_package(Boost 1.72 REQUIRED COMPONENTS system filesystem program_options)
+find_package(Boost 1.72 REQUIRED CONFIG COMPONENTS system filesystem program_options)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
+
+# Create OpenSSL targets if they don't exist (for compatibility with older CMake)
+if(OPENSSL_FOUND AND NOT TARGET OpenSSL::SSL)
+    add_library(OpenSSL::SSL UNKNOWN IMPORTED)
+    set_target_properties(OpenSSL::SSL PROPERTIES
+        IMPORTED_LOCATION "${OPENSSL_SSL_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}")
+endif()
+
+if(OPENSSL_FOUND AND NOT TARGET OpenSSL::Crypto)
+    add_library(OpenSSL::Crypto UNKNOWN IMPORTED)
+    set_target_properties(OpenSSL::Crypto PROPERTIES
+        IMPORTED_LOCATION "${OPENSSL_CRYPTO_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}")
+endif()
 
 # WebSocket++ is a header-only library
 find_path(WEBSOCKETPP_INCLUDE_DIRS websocketpp/client.hpp
@@ -42,10 +62,6 @@ option(USE_LOCK_FREE "Use lock-free data structures" ON)
 # Include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${Boost_INCLUDE_DIRS}
-    ${spdlog_INCLUDE_DIRS}
-    ${fmt_INCLUDE_DIRS}
-    ${OPENSSL_INCLUDE_DIR}
     ${WEBSOCKETPP_INCLUDE_DIRS}
 )
 
@@ -103,8 +119,10 @@ set(EXCHANGE_SOURCES
 add_library(core STATIC ${CORE_SOURCES})
 target_link_libraries(core PUBLIC
     Threads::Threads
-    ${Boost_LIBRARIES}
-    ${OPENSSL_LIBRARIES}
+    Boost::system
+    Boost::filesystem
+    OpenSSL::SSL
+    OpenSSL::Crypto
     nlohmann_json::nlohmann_json
 )
 
@@ -113,7 +131,8 @@ add_library(strategy STATIC ${STRATEGY_SOURCES})
 target_link_libraries(strategy PUBLIC
     core
     Threads::Threads
-    ${Boost_LIBRARIES}
+    Boost::system
+    Boost::filesystem
 )
 
 # Create exchange library
@@ -121,8 +140,10 @@ add_library(exchange STATIC ${EXCHANGE_SOURCES})
 target_link_libraries(exchange PUBLIC
     core
     Threads::Threads
-    ${Boost_LIBRARIES}
-    ${OPENSSL_LIBRARIES} 
+    Boost::system
+    Boost::filesystem
+    OpenSSL::SSL
+    OpenSSL::Crypto
     nlohmann_json::nlohmann_json
 )
 
@@ -148,7 +169,9 @@ target_link_libraries(pinnaclemm
     strategy
     exchange
     Threads::Threads
-    ${Boost_LIBRARIES}
+    Boost::system
+    Boost::filesystem
+    Boost::program_options
     spdlog::spdlog
     fmt::fmt
 )

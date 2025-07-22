@@ -6,7 +6,7 @@
 using namespace pinnacle;
 
 // A simple placeholder test to ensure the file compiles
-// You can expand this once ExecutionEngine is implemented
+// TODO: This test will be updated once ExecutionEngine is implemented
 TEST(ExecutionTest, PlaceholderTest) {
     // Simple assertion to make the test pass
     ASSERT_TRUE(true);
@@ -27,7 +27,7 @@ protected:
 };
 
 // Test order execution via the order book directly
-// This will be updated when ExecutionEngine is implemented
+// TODO: This will be updated once ExecutionEngine is implemented
 TEST_F(ExecutionTestFixture, BasicOrderExecution) {
     // Create a buy and sell order
     auto buyOrder = std::make_shared<Order>(
