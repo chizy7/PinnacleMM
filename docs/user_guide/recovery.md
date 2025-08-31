@@ -16,13 +16,15 @@ This ensures that after a crash or unexpected shutdown, the system can recover t
 
 The persistence system creates and uses the following directory structure:
 
-```
-data/
-├── journals/
-│   └── [SYMBOL].journal      # One journal file per trading instrument
-└── snapshots/
-    └── [SYMBOL]/
-        └── [SYMBOL]-[TIMESTAMP].snapshot    # Snapshot files
+```mermaid
+graph TD
+    A["data/"] --> B["journals/"]
+    A["data/"] --> C["snapshots/"]
+
+    B --> D["[SYMBOL].journal"]
+    
+    C --> E["[SYMBOL]/"]
+    E --> F["[SYMBOL]-[TIMESTAMP].snapshot"]
 ```
 
 ## Configuration Options

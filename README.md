@@ -26,7 +26,7 @@
 
 PinnacleMM is a high-performance, production-grade market making system designed for high-frequency trading in cryptocurrency markets. Built primarily in C++ with a focus on ultra-low latency, this system achieves microsecond-level execution speeds while maintaining robust risk management capabilities.
 
-## 🚀 Key Features
+## Key Features
 
 - **Ultra-Low Latency Core**: Optimized C++ engine with lock-free data structures
 - **Nanosecond Precision**: High-resolution timing for accurate execution
@@ -38,7 +38,7 @@ PinnacleMM is a high-performance, production-grade market making system designed
 - **Secure API Credentials**: Encrypted storage for exchange API keys
 - **Comprehensive Testing**: Extensive test suite ensuring reliability and performance
 
-## 📊 System Architecture
+## System Architecture
 
 PinnacleMM follows a modular, layered architecture:
 
@@ -49,7 +49,7 @@ PinnacleMM follows a modular, layered architecture:
 
 Read more about the [system architecture](docs/architecture/system_overview.md).
 
-## 📋 Development Roadmap
+## Development Roadmap
 
 PinnacleMM is being developed in phases:
 
@@ -61,7 +61,7 @@ PinnacleMM is being developed in phases:
 
 See the detailed [project roadmap](docs/ROADMAP.md) for more information. 
 
-## 🔧 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -109,7 +109,7 @@ make -j$(sysctl -n hw.ncpu)
 
 When running in live mode, you'll be prompted for your master password to decrypt API credentials.
 
-## 🔐 API Credential Management
+## API Credential Management
 
 PinnacleMM securely stores and manages exchange API credentials:
 
@@ -130,7 +130,7 @@ PinnacleMM securely stores and manages exchange API credentials:
 
 For more detailed instructions, see the [Getting Started Guide](docs/user_guide/getting_started.md).
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ```bash
 # Build the Docker image
@@ -140,14 +140,14 @@ docker build -t pinnaclemm .
 docker run -d --name pinnaclemm pinnaclemm
 ```
 
-## 🔍 Key Components
+## Key Components
 
 - **Order Book Engine**: Ultra-fast matching engine with lock-free operations
 - **Market Making Strategy**: Adaptive pricing based on market conditions
 - **Persistence System**: Crash recovery with memory-mapped files
 - **Exchange Simulator**: Realistic market simulation for testing
 
-## 📚 Documentation
+## Documentation
 
 - [System Architecture](docs/architecture/system_overview.md)
 - [Persistence System](docs/architecture/persistence.md)
@@ -157,7 +157,7 @@ docker run -d --name pinnaclemm pinnaclemm
 - [Security & API Key Management](docs/security/credentials.md)
 - [Project Roadmap](docs/ROADMAP.md)
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Core Engine**: C++20
 - **Build System**: CMake
@@ -168,7 +168,7 @@ docker run -d --name pinnaclemm pinnaclemm
 - **Configuration**: nlohmann/json
 - **Containerization**: Docker
 
-## 📊 Performance
+## Performance
 
 PinnacleMM achieves exceptional performance metrics:
 
@@ -178,12 +178,12 @@ PinnacleMM achieves exceptional performance metrics:
 - **Recovery Time**: <5 seconds for full system recovery
 - **Memory Footprint**: <100 MB for core engine
 
-## 🔮 Current Progress (Phase 2)
+## Current Progress (Phase 2)
 
 - ✅ Lock-free data structures implemented for ultra-low latency
 - ✅ Memory-mapped persistence system with crash recovery capabilities
 - 🔄 Next: Implementing exchange connectivity and WebSocket integration
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
