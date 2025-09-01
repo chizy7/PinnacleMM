@@ -1,6 +1,7 @@
 #include "ExchangeConnectorFactory.h"
 #include <algorithm>
 #include <mutex>
+#include <spdlog/spdlog.h>
 
 namespace pinnacle {
 namespace exchange {
@@ -98,12 +99,22 @@ std::shared_ptr<MarketDataFeed> ExchangeConnectorFactory::getMarketDataFeed(
     }
     
     // Create new market data feed
+    spdlog::info("Creating WebSocket market data feed for exchange: {}", exchangeName);
     WebSocketMarketDataFeed::Exchange exchangeEnum = getExchangeEnum(exchangeName);
-    auto marketDataFeed = std::make_shared<WebSocketMarketDataFeed>(exchangeEnum, m_apiCredentials);
+    
+    if (!m_apiCredentials) {
+        spdlog::warn("No API credentials available for live trading");
+    } else {
+        spdlog::info("API credentials loaded successfully");
+    }
+    
+    auto webSocketFeed = WebSocketMarketDataFeed::create(exchangeEnum, m_apiCredentials);
+    auto marketDataFeed = std::dynamic_pointer_cast<MarketDataFeed>(webSocketFeed);
     
     // Store in cache
     m_marketDataFeeds[exchangeName] = marketDataFeed;
     
+    spdlog::info("Market data feed created successfully");
     return marketDataFeed;
 }
 

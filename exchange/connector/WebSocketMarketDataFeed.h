@@ -3,7 +3,10 @@
 #include "../../exchange/simulator/MarketDataFeed.h"
 #include "../../core/utils/LockFreeQueue.h"
 #include "SecureConfig.h"
-#include "WebSocketStub.h"
+#include <boost/beast/core.hpp>
+#include <boost/beast/websocket.hpp>
+#include <boost/beast/websocket/ssl.hpp>
+#include <boost/asio/ssl.hpp>
 
 #include <string>
 #include <memory>
@@ -43,6 +46,11 @@ public:
      * @param credentials API credentials for authentication
      */
     WebSocketMarketDataFeed(Exchange exchange, std::shared_ptr<utils::ApiCredentials> credentials);
+    
+    /**
+     * @brief Factory method to create WebSocketMarketDataFeed
+     */
+    static std::shared_ptr<WebSocketMarketDataFeed> create(Exchange exchange, std::shared_ptr<utils::ApiCredentials> credentials);
     
     /**
      * @brief Destructor
@@ -100,27 +108,28 @@ private:
     // API credentials
     std::shared_ptr<utils::ApiCredentials> m_credentials;
     
-    // WebSocket client
-    using websocket_client = websocketpp::client<websocketpp::config::asio_tls_client>;
-    using message_ptr = websocketpp::config::asio_tls_client::message_type::ptr;
-    using context_ptr = websocketpp::lib::shared_ptr<boost::asio::ssl::context>;
+    // WebSocket client using Boost.Beast
+    using tcp = boost::asio::ip::tcp;
+    using ssl_stream = boost::asio::ssl::stream<tcp::socket>;
+    using websocket_stream = boost::beast::websocket::stream<ssl_stream>;
+    using context_ptr = std::shared_ptr<boost::asio::ssl::context>;
 
     // Add these new variables
     std::shared_ptr<boost::asio::io_context> m_io_context;
-    boost::asio::strand<boost::asio::io_context::executor_type> m_strand;
     
-    websocket_client m_client;
-    websocketpp::connection_hdl m_connection;
+    std::unique_ptr<websocket_stream> m_websocket;
+    context_ptr m_ssl_context;
     
     // Connection state
     std::atomic<bool> m_isRunning{false};
     std::atomic<bool> m_shouldStop{false};
     std::string m_statusMessage;
-    std::mutex m_statusMutex;
+    mutable std::mutex m_statusMutex;
     
     // Subscription management
     std::unordered_map<std::string, std::vector<std::function<void(const MarketUpdate&)>>> m_marketUpdateCallbacks;
     std::unordered_map<std::string, std::vector<std::function<void(const OrderBookUpdate&)>>> m_orderBookUpdateCallbacks;
+    std::vector<std::string> m_pendingSubscriptions;
     std::mutex m_callbacksMutex;
     
     // Message processing
@@ -134,13 +143,10 @@ private:
     void processMessages();
     
     // Event handlers
-    void onOpen(websocketpp::connection_hdl hdl);
-    void onClose(websocketpp::connection_hdl hdl);
-    void onFail(websocketpp::connection_hdl hdl);
-    void onMessage(websocketpp::connection_hdl hdl, message_ptr msg);
-    
-    // TLS handlers
-    context_ptr onTlsInit(websocketpp::connection_hdl hdl);
+    void onConnect();
+    void onDisconnect();
+    void onError(const std::string& error);
+    void onMessage(const std::string& message);
     
     // Message parsing
     void parseMessage(const std::string& message);
@@ -149,6 +155,7 @@ private:
     
     // Subscription methods
     bool sendSubscription(const std::string& symbol);
+    bool sendSubscriptionInternal(const std::string& symbol);
     std::string createSubscriptionMessage(const std::string& symbol);
     std::string createAuthenticationMessage();
 
@@ -158,7 +165,7 @@ private:
     // Add this helper method
     template<typename Callback>
     auto wrapWithStrand(Callback&& cb) {
-        return boost::asio::bind_executor(m_strand, std::forward<Callback>(cb));
+        return std::forward<Callback>(cb);
     }
     
     // Exchange-specific methods

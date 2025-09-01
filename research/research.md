@@ -1,3 +1,3 @@
-# TODO - Will contain my research
+# PinnacleMM Research 
 
-This file will be updated most likely at the end of phase 4
+This document is a collection of research notes for the PinnacleMM.

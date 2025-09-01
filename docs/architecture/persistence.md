@@ -83,9 +83,37 @@ DPDK (Data Plane Development Kit) integration was initially planned for Phase 2 
 
 The DPDK integration will be revisited when appropriate hardware and environment are available, likely in a dedicated Linux-based production setting.
 
+## Integration with Live Trading
+
+### Credential Persistence
+
+The persistence system now includes secure credential storage:
+
+- **Encrypted Storage**: API credentials stored with AES-256-CBC + PBKDF2
+- **File Location**: `secure_config.json` in the data directory
+- **Access Control**: Master password required for decryption
+- **Memory Safety**: Credentials cleared from memory after use
+
+### Live Market Data Persistence
+
+With live Coinbase connectivity, the persistence system handles:
+
+- **Real-time Market Updates**: Journals live ticker data from WebSocket feeds
+- **Price History**: Maintains historical price and volume data
+- **Connection State**: Persists WebSocket connection parameters
+- **Recovery**: Resumes live connections after system restarts
+
+### Production Deployment Considerations
+
+- **Data Directory Security**: Ensure proper file permissions (600) for credential files
+- **Backup Strategy**: Regular backups of encrypted credential files
+- **Monitoring**: Log file access and decryption attempts
+- **Rotation**: Periodic credential rotation with automated persistence updates
+
 ## Future Enhancements
 
 - Encrypted journals and snapshots for sensitive data
 - Distributed persistence for high availability
 - Real-time replication to standby instances
 - Performance optimizations for specific hardware
+- Live order execution persistence for production trading

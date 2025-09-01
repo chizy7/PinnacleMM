@@ -51,7 +51,7 @@ The connector system currently supports (or plans to support) these exchanges:
 
 | Exchange   | Status      | Market Data | Order Execution |
 |------------|-------------|-------------|-----------------|
-| Coinbase   | Implemented | Yes         | Partial         |
+| Coinbase   | ✅ Production | ✅ Live Ticker | Partial         |
 | Kraken     | Planned     | Planned     | Planned         |
 | Gemini     | Planned     | Planned     | Planned         |
 | Binance    | Planned     | Planned     | Planned         |
@@ -232,10 +232,46 @@ public:
 
 The WebSocket implementation handles real-time data streams from exchanges:
 
-1. **Core Connection**: Uses WebSocket++ for connection management
-2. **Message Processing**: Processes JSON messages from exchanges
+1. **Core Connection**: Uses Boost.Beast WebSocket with SSL/TLS for secure connections
+2. **Message Processing**: Processes JSON messages from exchanges (e.g., Coinbase ticker format)
 3. **Reconnection Logic**: Automatically reconnects on disconnection
 4. **Rate Limiting**: Respects exchange rate limits
+5. **Live Data Processing**: Successfully processes real-time market data from Coinbase Pro
+
+### Coinbase Pro WebSocket Implementation
+
+The live Coinbase connector uses the following endpoint and message format:
+
+```cpp
+// Connection endpoint
+const std::string COINBASE_WS_ENDPOINT = "wss://ws-feed.exchange.coinbase.com";
+
+// Subscription message
+{
+    "type": "subscribe",
+    "product_ids": ["BTC-USD"],
+    "channels": ["ticker"]
+}
+
+// Example ticker message received:
+{
+    "type": "ticker",
+    "sequence": 123456789,
+    "product_id": "BTC-USD",
+    "price": "109231.23",
+    "open_24h": "108500.00",
+    "volume_24h": "4554.12345678",
+    "low_24h": "107800.00",
+    "high_24h": "110000.00",
+    "volume_30d": "125432.987654321",
+    "best_bid": "109230.50",
+    "best_ask": "109231.75",
+    "side": "buy",
+    "time": "2025-09-01T20:17:57.483000Z",
+    "trade_id": 987654321,
+    "last_size": "0.02345678"
+}
+```
 
 ### WebSocket Stub for Testing
 
@@ -358,22 +394,39 @@ int main() {
 }
 ```
 
+### Live Market Data Testing
+
+To test with live market data from Coinbase:
+
+1. **Setup credentials** (one-time):
+   ```bash
+   ./pinnaclemm --setup-credentials
+   ```
+
+2. **Run with live data**:
+   ```bash
+   ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
+   ```
+
+3. **Example live output**:
+   ```
+   [2025-09-01 20:17:57.483] Connected to live exchange: coinbase
+   [2025-09-01 20:17:57.484] Live BTC Price: $109,231.23, Volume: 0.02345678
+   [2025-09-01 20:17:57.521] Live BTC Price: $109,229.75, Volume: 0.01234567
+   ```
+
 ### Using the WebSocket Stub for Testing
 
-To use the WebSocket stub implementation for testing:
+For development without live connections:
 
 1. Build with the `USE_WEBSOCKET_STUB` flag enabled:
    ```bash
    cmake .. -DUSE_WEBSOCKET_STUB=ON
    ```
 
-2. The application will use the stub implementation automatically:
-   ```cpp
-   // This will use the stub implementation when USE_WEBSOCKET_STUB is defined
-   auto marketDataFeed = std::make_shared<WebSocketMarketDataFeed>(
-       WebSocketMarketDataFeed::Exchange::COINBASE, 
-       credentials
-   );
+2. The application will use simulation automatically:
+   ```bash
+   ./pinnaclemm --mode simulation --symbol BTC-USD
    ```
 
 ## Rate Limiting
@@ -453,15 +506,23 @@ Planned improvements to the exchange connector system:
 
 1. **Connection Failures**
    - Check network connectivity
-   - Verify API credentials
+   - Verify API credentials with `./pinnaclemm --setup-credentials`
    - Ensure rate limits aren't exceeded
+   - For Coinbase: Verify endpoint `wss://ws-feed.exchange.coinbase.com` is accessible
 
 2. **Missing Market Data**
-   - Verify subscription parameters
-   - Check exchange status
-   - Ensure the symbol format is correct for the exchange
+   - Verify subscription parameters ("ticker" channel is public, "level2" requires auth)
+   - Check exchange status at status pages
+   - Ensure the symbol format is correct for the exchange (e.g., "BTC-USD" for Coinbase)
+   - Run with `--verbose` to see detailed WebSocket messages
 
 3. **Authentication Issues**
-   - Verify API key permissions
-   - Check system clock synchronization
-   - Ensure credentials are not expired
+   - Run `./pinnaclemm --setup-credentials` to reset credentials
+   - Check master password is correct
+   - For Coinbase ticker data: No authentication required
+   - For advanced features: Verify API key permissions include market data access
+
+4. **Live Data Issues**
+   - **"Failed to load secure config"**: Run setup-credentials first
+   - **Empty order book**: Normal for ticker-only data; full order book requires authentication
+   - **WebSocket disconnections**: Automatic reconnection implemented, monitor logs

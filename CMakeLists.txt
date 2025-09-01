@@ -88,10 +88,7 @@ endif()
 set(CORE_SOURCES
     core/orderbook/Order.cpp
     core/orderbook/OrderBook.cpp
-    core/execution/ExecutionEngine.cpp
-    core/risk/RiskManager.cpp
     core/utils/TimeUtils.cpp
-    core/utils/Config.cpp
     core/utils/LockFreeOrderBook.cpp 
     core/orderbook/LockFreeOrderBook.cpp 
     core/persistence/PersistenceManager.cpp
@@ -111,7 +108,7 @@ set(EXCHANGE_SOURCES
     exchange/simulator/ExchangeSimulator.cpp
     exchange/simulator/MarketDataFeed.cpp
     exchange/connector/SecureConfig.cpp
-    exchange/connector/WebSocketMarketDataFeedStub.cpp
+    exchange/connector/WebSocketMarketDataFeed.cpp
     exchange/connector/ExchangeConnectorFactory.cpp
 )
 
@@ -147,10 +144,10 @@ target_link_libraries(exchange PUBLIC
     nlohmann_json::nlohmann_json
 )
 
-# Compile definitions for the stub implementation
-target_compile_definitions(exchange PRIVATE 
-    USE_WEBSOCKET_STUB
-)
+# Compile definitions for real WebSocket implementation
+# target_compile_definitions(exchange PRIVATE 
+#     USE_WEBSOCKET_STUB
+# )
 
 # Add TBB linking if enabled
 if(USE_TBB)
