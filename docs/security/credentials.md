@@ -183,6 +183,48 @@ If you're contributing to PinnacleMM, follow these guidelines:
 4. **Error messages**: Don't expose sensitive information in error messages
 5. **Input validation**: Validate all user input before processing
 
+## Live Trading with Real Market Data
+
+**Current Implementation Status**: Production-ready for Coinbase
+
+PinnacleMM now supports live market data from Coinbase Pro WebSocket feeds:
+
+- **Real-time ticker updates**: Live BTC-USD prices (~$109,200+)
+- **WebSocket connectivity**: Secure SSL/TLS connection using Boost.Beast
+- **Data processing**: Multiple market updates per second with volume data
+- **Automatic reconnection**: Robust connection handling for 24/7 operation
+
+### Getting Coinbase Pro API Credentials
+
+1. **Create Coinbase Account**: Sign up at [coinbase.com](https://coinbase.com) or [pro.coinbase.com](https://pro.coinbase.com)
+2. **Generate API Key**: Go to Settings → API → Create API Key
+3. **Set Permissions**: Enable "View" permissions (no trading permissions needed for market data)
+4. **Note Important**: Coinbase Pro is now Coinbase Advanced Trade, but the WebSocket feeds still work
+5. **Save Credentials**: Record your API Key, Secret, and Passphrase securely
+
+**Note**: For ticker data (current implementation), API credentials are optional as the ticker channel is public. However, credentials are required for order book data (level2/level3 channels) and order execution.
+
+### Quick Start with Live Data
+
+1. **Setup** (one-time):
+   ```bash
+   ./pinnaclemm --setup-credentials
+   ```
+
+2. **Run live**:
+   ```bash
+   ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
+   ```
+
+3. **Monitor**: Watch real-time price feeds and trading activity
+
+### Security Notes for Live Trading
+
+- **Credential Encryption**: All API keys encrypted with AES-256-CBC + PBKDF2
+- **Master Password**: Required for each live session, never stored
+- **Minimal Permissions**: Only "View" permissions needed for market data
+- **No Trading**: Current implementation is market data only (no order execution)
+
 ## Future Security Enhancements
 
 Planned security improvements include:

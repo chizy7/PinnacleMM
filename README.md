@@ -34,8 +34,8 @@ PinnacleMM is a high-performance, production-grade market making system designed
 - **Dynamic Market Making**: Adaptive bid-ask spread based on market conditions
 - **Position Management**: Intelligent inventory management with customizable risk parameters
 - **Exchange Simulation**: Realistic market simulation for strategy development and testing
-- **Live Exchange Connectivity**: Connect to major cryptocurrency exchanges
-- **Secure API Credentials**: Encrypted storage for exchange API keys
+- **Live Exchange Connectivity**: Real-time connection to Coinbase Pro WebSocket feeds
+- **Secure API Credentials**: AES-256 encrypted storage with master password protection
 - **Comprehensive Testing**: Extensive test suite ensuring reliability and performance
 
 ## System Architecture
@@ -97,14 +97,20 @@ make -j$(sysctl -n hw.ncpu)
 
 #### Simulation Mode
 ```bash
-# Run in simulation mode
+# Run in simulation mode (no API keys needed)
 ./pinnaclemm --mode simulation --symbol BTC-USD
 ```
 
 #### Live Exchange Mode
 ```bash
-# Run with a live exchange
+# First-time setup: Configure API credentials
+./pinnaclemm --setup-credentials
+
+# Run with live Coinbase market data
 ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD
+
+# With verbose logging to see real-time market data
+./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
 ```
 
 When running in live mode, you'll be prompted for your master password to decrypt API credentials.
@@ -113,20 +119,32 @@ When running in live mode, you'll be prompted for your master password to decryp
 
 PinnacleMM securely stores and manages exchange API credentials:
 
-- **Encryption**: AES-256-GCM encryption for all sensitive data
+- **Encryption**: AES-256-CBC encryption with PBKDF2 key derivation
 - **Master Password**: Single password to unlock all exchange credentials
-- **Secure Storage**: Credentials are never stored in plaintext
-- **Configuration**: API keys are configured via a secure interface
+- **Secure Storage**: Credentials encrypted in `config/secure_config.json`
+- **Interactive Setup**: User-friendly credential configuration interface
 
 ### Setting Up API Credentials
 
-1. Create a credentials file:
+1. **Run credential setup**:
 ```bash
 ./pinnaclemm --setup-credentials
 ```
 
-2. Enter your master password when prompted
-3. Add your exchange API keys through the interactive prompt
+2. **Enter master password** (choose a strong password - this encrypts all API keys)
+
+3. **Configure exchange credentials**:
+   - **Coinbase Pro**: API Key + API Secret + Passphrase
+   - **Other exchanges**: API Key + API Secret (+ optional passphrase)
+
+4. **Verify setup**:
+```bash
+./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
+```
+
+### Supported Exchanges
+- ✅ **Coinbase Pro**: Live market data via WebSocket
+- 🔄 **Kraken, Gemini, Binance, Bitstamp**: Framework ready, connectors in development
 
 For more detailed instructions, see the [Getting Started Guide](docs/user_guide/getting_started.md).
 
@@ -178,11 +196,15 @@ PinnacleMM achieves exceptional performance metrics:
 - **Recovery Time**: <5 seconds for full system recovery
 - **Memory Footprint**: <100 MB for core engine
 
-## Current Progress (Phase 2)
+## Current Progress (Phase 2 - COMPLETED)
 
 - ✅ Lock-free data structures implemented for ultra-low latency
 - ✅ Memory-mapped persistence system with crash recovery capabilities
-- 🔄 Next: Implementing exchange connectivity and WebSocket integration
+- ✅ **NEW**: Live Coinbase Pro WebSocket integration with real-time market data
+- ✅ **NEW**: Secure API credential management with AES-256 encryption
+- ✅ **NEW**: Interactive credential setup utility
+- ✅ **NEW**: Real-time ticker data processing ($109K+ BTC prices)
+- 🔄 **Next**: Full order book data (requires Coinbase authentication) and order execution
 
 ## License
 

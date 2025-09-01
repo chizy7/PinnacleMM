@@ -392,13 +392,77 @@ The main program entry point accepts the following command-line arguments:
 ```
 Options:
   --help                      Show help message
+  --setup-credentials         Interactive API credential setup
   --symbol arg (=BTC-USD)     Trading symbol
   --mode arg (=simulation)    Trading mode (simulation/live)
+  --exchange arg              Exchange name (coinbase/kraken/gemini/binance/bitstamp)
   --config arg (=config/default_config.json)
                               Configuration file
   --logfile arg (=pinnaclemm.log)
                               Log file
-  --verbose                   Verbose output
+  --verbose                   Verbose output with real-time market data
+  --lock-free                 Use lock-free data structures (default: enabled)
+```
+
+## Live Trading Integration
+
+### Setting Up API Credentials
+
+PinnacleMM includes secure credential management for live exchange connectivity:
+
+```cpp
+// Setup credentials interactively
+#include "exchange/connector/SecureConfig.h"
+
+bool setupCredentials() {
+    auto credentials = std::make_shared<pinnacle::utils::ApiCredentials>();
+    
+    // Interactive setup with encryption
+    std::string masterPassword;
+    std::cout << "Create master password: ";
+    std::getline(std::cin, masterPassword);
+    
+    // Add exchange credentials
+    std::string apiKey, apiSecret, passphrase;
+    std::cout << "API Key: ";
+    std::getline(std::cin, apiKey);
+    std::cout << "API Secret: ";
+    std::getline(std::cin, apiSecret);
+    std::cout << "API Passphrase: ";
+    std::getline(std::cin, passphrase);
+    
+    credentials->setCredentials("coinbase", apiKey, apiSecret, passphrase);
+    return credentials->saveToFile("secure_config.json", masterPassword);
+}
+```
+
+### Live Market Data Connection
+
+```cpp
+#include "exchange/connector/WebSocketMarketDataFeed.h"
+
+// Connect to live Coinbase market data
+auto credentials = std::make_shared<pinnacle::utils::ApiCredentials>();
+if (!credentials->loadFromFile("secure_config.json", masterPassword)) {
+    std::cerr << "Failed to load credentials" << std::endl;
+    return false;
+}
+
+auto marketDataFeed = std::make_shared<pinnacle::exchange::WebSocketMarketDataFeed>(
+    pinnacle::exchange::Exchange::COINBASE,
+    credentials
+);
+
+// Subscribe to real-time ticker updates
+marketDataFeed->subscribeToMarketUpdates("BTC-USD", [](const auto& update) {
+    std::cout << "Live BTC Price: $" << update.price 
+              << ", Volume: " << update.volume << std::endl;
+});
+
+if (marketDataFeed->start()) {
+    std::cout << "Connected to live Coinbase market data" << std::endl;
+    // Receives real-time updates (e.g., BTC ~$109,200+)
+}
 ```
 
 ## Example Usage

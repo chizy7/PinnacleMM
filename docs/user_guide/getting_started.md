@@ -71,22 +71,52 @@ Or run a specific test:
 
 ### Running in Simulation Mode
 
-The simplest way to start is with the simulation mode:
+The simplest way to start is with the simulation mode (no API keys needed):
 
 ```bash
 ./pinnaclemm --mode simulation --symbol BTC-USD
 ```
 
+### Running with Live Market Data
+
+**First-time setup** - Configure your exchange API credentials:
+
+```bash
+./pinnaclemm --setup-credentials
+```
+
+Follow the interactive prompts to:
+1. Set a master password (encrypts all API keys)
+2. Enter your Coinbase Pro API credentials
+3. Optionally configure other exchanges
+
+**Run with live Coinbase market data**:
+
+```bash
+./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD
+```
+
+**With verbose logging** to see real-time market updates:
+
+```bash
+./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
+```
+
+You'll see live BTC prices (currently ~$109,200+) and real-time trading activity.
+
 ### Command Line Options
 
 PinnacleMM supports the following command line options:
 
-- `--help`: Show help message.
-- `--symbol <symbol>`: Trading symbol (default: BTC-USD).
-- `--mode <mode>`: Trading mode (simulation/live) (default: simulation).
-- `--config <file>`: Configuration file (default: config/default_config.json).
-- `--logfile <file>`: Log file (default: pinnaclemm.log).
-- `--verbose`: Enable verbose output.
+- `--help`: Show help message
+- `--setup-credentials`: Interactive API credential setup
+- `--symbol <symbol>`: Trading symbol (default: BTC-USD)
+- `--mode <mode>`: Trading mode (simulation/live) (default: simulation)
+- `--exchange <name>`: Exchange name (coinbase/kraken/gemini/binance/bitstamp)
+- `--config <file>`: Configuration file (default: config/default_config.json)
+- `--logfile <file>`: Log file (default: pinnaclemm.log)
+- `--verbose`: Enable verbose output with real-time market data
+- `--lock-free`: Use lock-free data structures (default: enabled)
 
 ### Example Configuration
 
@@ -171,18 +201,38 @@ docker run -d --name pinnaclemm pinnaclemm --symbol ETH-USD --verbose
 
 ### Runtime Issues
 
+- **"Failed to load secure config"**: Run `./pinnaclemm --setup-credentials` first
+- **"Authentication failure"**: Check your API credentials and master password
+- **WebSocket connection issues**: Verify internet connection and exchange endpoints
 - **Simulation Not Starting**: Check the log file for detailed error messages
 - **Performance Problems**: Try running with `--verbose` for more detailed output
-- **Segmentation Faults**: These often indicate memory issues, run with a debugger
+- **Empty order book in live mode**: Normal for ticker-only data; order book requires level2 authentication
+
+## Live Trading Setup
+
+### Getting Coinbase Pro API Credentials
+
+1. **Create Coinbase Pro Account**: Sign up at [pro.coinbase.com](https://pro.coinbase.com)
+2. **Generate API Key**: Go to Settings → API → Create API Key
+3. **Set Permissions**: Enable "View" permissions (no trading permissions needed for market data)
+4. **Save Credentials**: Note your API Key, Secret, and Passphrase
+
+### Security Best Practices
+
+- **Strong Master Password**: Use a unique, strong password for credential encryption
+- **API Key Permissions**: Limit to "View" only for market data
+- **IP Restrictions**: Set IP restrictions on your Coinbase API keys
+- **Regular Rotation**: Rotate API credentials periodically
 
 ## Next Steps
 
 After getting PinnacleMM up and running, you might want to:
 
-1. **Explore the Code**: Understand how the different components work together
-2. **Modify Strategy Parameters**: Experiment with different market making parameters
-3. **Run Simulations**: Test the system with different market conditions
-4. **Implement Custom Strategies**: Create your own market making strategies
+1. **Test Live Market Data**: Verify real-time price feeds with `--verbose`
+2. **Explore the Code**: Understand how the different components work together
+3. **Modify Strategy Parameters**: Experiment with different market making parameters
+4. **Run Performance Benchmarks**: Test the ultra-low latency capabilities
+5. **Implement Custom Strategies**: Create your own market making strategies
 
 ## Support
 

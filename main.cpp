@@ -6,11 +6,13 @@
 #include "exchange/simulator/ExchangeSimulator.h"
 #include "core/persistence/PersistenceManager.h"
 #include "exchange/connector/ExchangeConnectorFactory.h"
+#include "exchange/connector/SecureConfig.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -29,6 +31,94 @@ void signalHandler(int signal) {
     g_running.store(false);
 }
 
+// Credential setup function
+int setupCredentials() {
+    std::cout << "=== PinnacleMM API Credential Setup ===" << std::endl;
+    std::cout << std::endl;
+    
+    // Get master password
+    std::string masterPassword;
+    std::cout << "Enter master password (used to encrypt all API credentials): ";
+    std::getline(std::cin, masterPassword);
+    
+    if (masterPassword.empty()) {
+        std::cerr << "Error: Master password cannot be empty" << std::endl;
+        return 1;
+    }
+    
+    // Initialize secure config
+    pinnacle::utils::SecureConfig secureConfig;
+    pinnacle::utils::ApiCredentials apiCredentials(secureConfig);
+    
+    // Setup exchange credentials
+    std::vector<std::string> exchanges = {"coinbase", "kraken", "gemini", "binance", "bitstamp"};
+    
+    for (const auto& exchange : exchanges) {
+        std::cout << std::endl;
+        std::cout << "--- " << exchange << " Configuration ---" << std::endl;
+        
+        std::string choice;
+        std::cout << "Configure " << exchange << " credentials? (y/n): ";
+        std::getline(std::cin, choice);
+        
+        if (choice == "y" || choice == "Y" || choice == "yes" || choice == "Yes") {
+            std::string apiKey, apiSecret, passphrase;
+            
+            std::cout << "Enter API Key: ";
+            std::getline(std::cin, apiKey);
+            
+            std::cout << "Enter API Secret: ";
+            std::getline(std::cin, apiSecret);
+            
+            if (exchange == "coinbase" || exchange == "gemini") {
+                std::cout << "Enter Passphrase (required for " << exchange << "): ";
+                std::getline(std::cin, passphrase);
+            } else {
+                std::cout << "Enter Passphrase (optional, press Enter to skip): ";
+                std::getline(std::cin, passphrase);
+            }
+            
+            // Set credentials
+            std::optional<std::string> passphraseOpt = passphrase.empty() ? std::nullopt : std::make_optional(passphrase);
+            if (apiCredentials.setCredentials(exchange, apiKey, apiSecret, passphraseOpt)) {
+                std::cout << "✓ " << exchange << " credentials configured successfully" << std::endl;
+            } else {
+                std::cerr << "✗ Failed to configure " << exchange << " credentials" << std::endl;
+            }
+        } else {
+            std::cout << "Skipping " << exchange << " configuration" << std::endl;
+        }
+    }
+    
+    // Save configuration
+    std::cout << std::endl;
+    std::cout << "Saving encrypted configuration..." << std::endl;
+    
+    // Ensure config directory exists
+    std::string configPath = "config";
+    if (!boost::filesystem::exists(configPath)) {
+        try {
+            boost::filesystem::create_directories(configPath);
+        } catch (const std::exception& e) {
+            std::cerr << "Failed to create config directory: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+    
+    std::string secureConfigPath = configPath + "/secure_config.json";
+    if (secureConfig.saveToFile(secureConfigPath, masterPassword)) {
+        std::cout << "✓ Configuration saved to " << secureConfigPath << std::endl;
+        std::cout << std::endl;
+        std::cout << "Setup complete! You can now run PinnacleMM in live mode:" << std::endl;
+        std::cout << "  ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD" << std::endl;
+    } else {
+        std::cerr << "✗ Failed to save configuration" << std::endl;
+        return 1;
+    }
+    
+    return 0;
+}
+
 int main(int argc, char* argv[]) {
     try {
         // Set up signal handlers
@@ -45,7 +135,8 @@ int main(int argc, char* argv[]) {
             ("logfile", po::value<std::string>()->default_value("pinnaclemm.log"), "Log file")
             ("verbose", po::bool_switch()->default_value(false), "Verbose output")
             ("lock-free", po::bool_switch()->default_value(true), "Use lock-free data structures")
-            ("exchange", po::value<std::string>()->default_value("coinbase"), "Exchange name (coinbase/kraken/gemini/binance/bitstamp)");
+            ("exchange", po::value<std::string>()->default_value("coinbase"), "Exchange name (coinbase/kraken/gemini/binance/bitstamp)")
+            ("setup-credentials", "Setup API credentials for exchanges");
         
         po::variables_map vm;
         po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -55,6 +146,11 @@ int main(int argc, char* argv[]) {
         if (vm.count("help")) {
             std::cout << desc << std::endl;
             return 0;
+        }
+        
+        // Handle credential setup
+        if (vm.count("setup-credentials")) {
+            return setupCredentials();
         }
         
         // Get command line parameters
@@ -143,6 +239,40 @@ int main(int argc, char* argv[]) {
                 spdlog::error("Failed to create market data feed");
                 return 1;
             }
+
+            // Subscribe to market data and connect to order book
+            marketDataFeed->subscribeToOrderBookUpdates(symbol, 
+                [orderBook, symbol](const pinnacle::exchange::OrderBookUpdate& update) {
+                    // Update order book with real market data
+                    for (const auto& bid : update.bids) {
+                        if (bid.second > 0) {
+                            auto order = std::make_shared<pinnacle::Order>(
+                                "market_bid_" + std::to_string(bid.first),
+                                symbol,
+                                pinnacle::OrderSide::BUY,
+                                pinnacle::OrderType::LIMIT,
+                                bid.first,
+                                bid.second,
+                                pinnacle::utils::TimeUtils::getCurrentNanos()
+                            );
+                            orderBook->addOrder(order);
+                        }
+                    }
+                    for (const auto& ask : update.asks) {
+                        if (ask.second > 0) {
+                            auto order = std::make_shared<pinnacle::Order>(
+                                "market_ask_" + std::to_string(ask.first),
+                                symbol,
+                                pinnacle::OrderSide::SELL,
+                                pinnacle::OrderType::LIMIT,
+                                ask.first,
+                                ask.second,
+                                pinnacle::utils::TimeUtils::getCurrentNanos()
+                            );
+                            orderBook->addOrder(order);
+                        }
+                    }
+                });
 
             // Start market data feed
             if (!marketDataFeed->start()) {
