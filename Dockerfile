@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
     git \
     libspdlog-dev \
     libfmt-dev \
+    libssl-dev \
+    nlohmann-json3-dev \
+    libwebsocketpp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Build Google Test
@@ -45,6 +48,7 @@ RUN apt-get update && apt-get install -y \
     libboost-program-options1.74.0 \
     libspdlog1 \
     libfmt8 \
+    libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
