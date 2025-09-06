@@ -7,6 +7,7 @@
 #include <limits>
 #include <stdexcept>
 #include <iostream>
+#include <sstream>
 
 namespace pinnacle {
 
