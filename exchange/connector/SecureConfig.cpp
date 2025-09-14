@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iomanip>
 #include <random>
+#include <atomic>
 #include <nlohmann/json.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -42,15 +43,18 @@ bool SecureConfig::loadFromFile(const std::string& filename, const std::string& 
     }
     
     // Read encrypted JSON data
-    auto encryptedData = readEncryptedJson(filename);
-    if (!encryptedData) {
+    auto encryptedDataWithSalt = readEncryptedJson(filename);
+    if (!encryptedDataWithSalt) {
         return false;
     }
+    
+    const auto& encryptedData = encryptedDataWithSalt->first;
+    const auto& salt = encryptedDataWithSalt->second;
     
     // Decrypt data
     std::string decryptedData;
     try {
-        decryptedData = decryptValue(*encryptedData, masterPassword);
+        decryptedData = decryptValue(encryptedData, masterPassword, salt);
     } catch (const std::exception&) {
         return false;
     }
@@ -100,16 +104,17 @@ bool SecureConfig::saveToFile(const std::string& filename, const std::string& ma
     // Convert to string
     std::string jsonStr = json.dump();
     
-    // Encrypt data
+    // Generate salt and encrypt data
+    auto salt = generateSalt();
     std::string encryptedData;
     try {
-        encryptedData = encryptValue(jsonStr, masterPassword);
+        encryptedData = encryptValue(jsonStr, masterPassword, salt);
     } catch (const std::exception&) {
         return false;
     }
     
     // Write to file
-    if (!writeEncryptedJson(filename, encryptedData)) {
+    if (!writeEncryptedJson(filename, encryptedData, salt)) {
         return false;
     }
     
@@ -169,8 +174,8 @@ void SecureConfig::clear() {
     // Securely clear memory for sensitive entries
     for (auto& pair : m_entries) {
         if (pair.second.sensitive) {
-            // Overwrite with zeros
-            std::memset(&pair.second.value[0], 0, pair.second.value.size());
+            // Secure overwrite with zeros
+            secureMemzero(&pair.second.value[0], pair.second.value.size());
         }
     }
     
@@ -183,7 +188,7 @@ bool SecureConfig::isModified() const {
     return m_modified;
 }
 
-std::string SecureConfig::encryptValue(const std::string& value, const std::string& password) const {
+std::string SecureConfig::encryptValue(const std::string& value, const std::string& password, const std::vector<unsigned char>& salt) const {
     // Generate a random 16-byte IV
     unsigned char iv[16];
     if (RAND_bytes(iv, sizeof(iv)) != 1) {
@@ -191,7 +196,7 @@ std::string SecureConfig::encryptValue(const std::string& value, const std::stri
     }
     
     // Derive a 32-byte key from the password
-    auto key = deriveKeyFromPassword(password);
+    auto key = deriveKeyFromPassword(password, salt);
     
     // Create and initialize the context
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
@@ -279,7 +284,7 @@ std::string SecureConfig::encryptValue(const std::string& value, const std::stri
     return base64;
 }
 
-std::string SecureConfig::decryptValue(const std::string& encryptedValue, const std::string& password) const {
+std::string SecureConfig::decryptValue(const std::string& encryptedValue, const std::string& password, const std::vector<unsigned char>& salt) const {
     // Decode Base64
     static const std::string base64_chars = 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -340,7 +345,7 @@ std::string SecureConfig::decryptValue(const std::string& encryptedValue, const 
     std::vector<unsigned char> ciphertext(data.begin() + 16, data.end());
     
     // Derive key from password
-    auto key = deriveKeyFromPassword(password);
+    auto key = deriveKeyFromPassword(password, salt);
     
     // Create and initialize the context
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
@@ -382,7 +387,7 @@ std::string SecureConfig::decryptValue(const std::string& encryptedValue, const 
     return std::string(reinterpret_cast<char*>(plaintext.data()), plaintext_len);
 }
 
-bool SecureConfig::writeEncryptedJson(const std::string& filename, const std::string& encryptedData) const {
+bool SecureConfig::writeEncryptedJson(const std::string& filename, const std::string& encryptedData, const std::vector<unsigned char>& salt) const {
     try {
         // Create JSON object
         nlohmann::json json;
@@ -390,8 +395,52 @@ bool SecureConfig::writeEncryptedJson(const std::string& filename, const std::st
         // Add timestamp
         json["timestamp"] = utils::TimeUtils::getCurrentISOTimestamp();
         
-        // Add encrypted data
+        // Add encrypted data and salt
         json["data"] = encryptedData;
+        
+        // Encode salt as base64 for JSON storage
+        std::string saltBase64;
+        static const std::string base64_chars = 
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        
+        int i = 0;
+        unsigned char char_array_3[3];
+        unsigned char char_array_4[4];
+        
+        for (const auto& byte : salt) {
+            char_array_3[i++] = byte;
+            if (i == 3) {
+                char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+                char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+                char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+                char_array_4[3] = char_array_3[2] & 0x3f;
+                
+                for (i = 0; i < 4; i++) {
+                    saltBase64 += base64_chars[char_array_4[i]];
+                }
+                i = 0;
+            }
+        }
+        
+        if (i) {
+            for (int j = i; j < 3; j++) {
+                char_array_3[j] = '\0';
+            }
+            
+            char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+            char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+            char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+            
+            for (int j = 0; j < i + 1; j++) {
+                saltBase64 += base64_chars[char_array_4[j]];
+            }
+            
+            while (i++ < 3) {
+                saltBase64 += '=';
+            }
+        }
+        
+        json["salt"] = saltBase64;
         
         // Write to file
         std::ofstream file(filename);
@@ -406,7 +455,7 @@ bool SecureConfig::writeEncryptedJson(const std::string& filename, const std::st
     }
 }
 
-std::optional<std::string> SecureConfig::readEncryptedJson(const std::string& filename) const {
+std::optional<std::pair<std::string, std::vector<unsigned char>>> SecureConfig::readEncryptedJson(const std::string& filename) const {
     try {
         // Open file
         std::ifstream file(filename);
@@ -423,20 +472,72 @@ std::optional<std::string> SecureConfig::readEncryptedJson(const std::string& fi
             return std::nullopt;
         }
         
-        return json["data"].get<std::string>();
+        // Extract salt (backward compatibility: use default salt if not present)
+        std::vector<unsigned char> salt;
+        if (json.contains("salt") && json["salt"].is_string()) {
+            // Decode base64 salt
+            std::string saltBase64 = json["salt"].get<std::string>();
+            static const std::string base64_chars = 
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            
+            int in_len = static_cast<int>(saltBase64.size());
+            int i = 0;
+            int in_ = 0;
+            unsigned char char_array_4[4], char_array_3[3];
+            
+            while (in_len-- && (saltBase64[in_] != '=') && 
+                   (isalnum(saltBase64[in_]) || (saltBase64[in_] == '+') || (saltBase64[in_] == '/'))) {
+                char_array_4[i++] = saltBase64[in_];
+                in_++;
+                if (i == 4) {
+                    for (i = 0; i < 4; i++) {
+                        char_array_4[i] = static_cast<unsigned char>(base64_chars.find(char_array_4[i]));
+                    }
+                    
+                    char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+                    char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+                    char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+                    
+                    for (i = 0; i < 3; i++) {
+                        salt.push_back(char_array_3[i]);
+                    }
+                    i = 0;
+                }
+            }
+            
+            if (i) {
+                for (int j = i; j < 4; j++) {
+                    char_array_4[j] = 0;
+                }
+                
+                for (int j = 0; j < 4; j++) {
+                    char_array_4[j] = static_cast<unsigned char>(base64_chars.find(char_array_4[j]));
+                }
+                
+                char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+                char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+                char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+                
+                for (int j = 0; j < i - 1; j++) {
+                    salt.push_back(char_array_3[j]);
+                }
+            }
+        } else {
+            // Backward compatibility: use fixed salt for old files
+            const std::string fixedSalt = "PinnacleMM_SecureConfig_Salt";
+            salt.assign(fixedSalt.begin(), fixedSalt.end());
+        }
+        
+        return std::make_pair(json["data"].get<std::string>(), salt);
     } catch (const std::exception&) {
         return std::nullopt;
     }
 }
 
-std::vector<unsigned char> SecureConfig::deriveKeyFromPassword(const std::string& password) const {
+std::vector<unsigned char> SecureConfig::deriveKeyFromPassword(const std::string& password, const std::vector<unsigned char>& salt) const {
     // Use PBKDF2 to derive a key from the password
-    const int iterations = 10000;
+    const int iterations = 100000;  // Increased from 10,000 to 100,000 for better security
     const int key_length = 32; // 256 bits
-    
-    // Generate a fixed salt for key derivation
-    // In a real-world application, this should be a per-file salt stored in the file
-    const std::string salt = "PinnacleMM_SecureConfig_Salt";
     
     // Allocate memory for the key
     std::vector<unsigned char> key(key_length);
@@ -444,14 +545,40 @@ std::vector<unsigned char> SecureConfig::deriveKeyFromPassword(const std::string
     // Derive the key
     if (PKCS5_PBKDF2_HMAC(
             password.c_str(), static_cast<int>(password.size()),
-            reinterpret_cast<const unsigned char*>(salt.c_str()), static_cast<int>(salt.size()),
+            salt.data(), static_cast<int>(salt.size()),
             iterations,
             EVP_sha256(),
             key_length, key.data()) != 1) {
-        throw std::runtime_error("Failed to derive key from password");
+        throw std::runtime_error("Key derivation failed");
     }
     
     return key;
+}
+
+std::vector<unsigned char> SecureConfig::generateSalt() const {
+    const int salt_length = 32; // 256 bits
+    std::vector<unsigned char> salt(salt_length);
+    
+    if (RAND_bytes(salt.data(), salt_length) != 1) {
+        throw std::runtime_error("Failed to generate random salt");
+    }
+    
+    return salt;
+}
+
+void SecureConfig::secureMemzero(void* ptr, size_t len) const {
+    if (ptr == nullptr || len == 0) {
+        return;
+    }
+    
+    // Use volatile to prevent compiler optimization
+    volatile unsigned char* vptr = static_cast<volatile unsigned char*>(ptr);
+    for (size_t i = 0; i < len; ++i) {
+        vptr[i] = 0;
+    }
+    
+    // Memory barrier to ensure the clearing is not optimized away
+    std::atomic_thread_fence(std::memory_order_acq_rel);
 }
 
 // ApiCredentials implementation

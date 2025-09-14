@@ -43,7 +43,8 @@ flowchart TD
 1. **ExchangeConnector**: The main interface for interacting with exchanges
 2. **WebSocketMarketDataFeed**: Real-time market data via WebSockets
 3. **ExchangeConnectorFactory**: Creates appropriate connector types
-4. **SecureConfig**: Handles API credentials securely
+4. **SecureConfig**: Enhanced API credentials encryption with unique salt generation
+5. **Security Infrastructure**: Comprehensive security utilities for enterprise protection
 
 ## Supported Exchanges
 
@@ -51,7 +52,7 @@ The connector system currently supports (or plans to support) these exchanges:
 
 | Exchange   | Status      | Market Data | Order Execution |
 |------------|-------------|-------------|-----------------|
-| Coinbase   | ✅ Production | ✅ Live Ticker | Partial         |
+| Coinbase   | Production | Live Ticker | Partial         |
 | Kraken     | Planned     | Planned     | Planned         |
 | Gemini     | Planned     | Planned     | Planned         |
 | Binance    | Planned     | Planned     | Planned         |
@@ -230,13 +231,15 @@ public:
 
 ## WebSocket Implementation
 
-The WebSocket implementation handles real-time data streams from exchanges:
+The WebSocket implementation handles real-time data streams from exchanges with comprehensive security:
 
 1. **Core Connection**: Uses Boost.Beast WebSocket with SSL/TLS for secure connections
-2. **Message Processing**: Processes JSON messages from exchanges (e.g., Coinbase ticker format)
-3. **Reconnection Logic**: Automatically reconnects on disconnection
-4. **Rate Limiting**: Respects exchange rate limits
-5. **Live Data Processing**: Successfully processes real-time market data from Coinbase Pro
+2. **Certificate Pinning**: SSL certificate validation to prevent man-in-the-middle attacks
+3. **Message Processing**: Processes JSON messages from exchanges with input validation
+4. **Reconnection Logic**: Automatically reconnects on disconnection with security checks
+5. **Rate Limiting**: Multi-strategy rate limiting (sliding window, token bucket) to prevent abuse
+6. **Live Data Processing**: Successfully processes real-time market data from Coinbase Pro
+7. **Audit Logging**: All network events logged for security monitoring
 
 ### Coinbase Pro WebSocket Implementation
 
@@ -490,15 +493,49 @@ bool sendRequest(const std::string& request) {
 }
 ```
 
+## Security Architecture
+
+The exchange connector system implements comprehensive security measures:
+
+### Credential Security
+
+- **Enhanced Encryption**: AES-256-CBC with unique salt generation + 100,000 PBKDF2 iterations
+- **Secure Input**: Cross-platform password masking preventing credential exposure
+- **Memory Safety**: Volatile memory clearing after use to prevent credential leakage
+- **Access Control**: Master password authentication required for all credential operations
+
+### Network Security
+
+- **Certificate Pinning**: SSL certificate validation for all WebSocket connections
+- **Input Validation**: Comprehensive validation of all incoming market data and messages
+- **Rate Limiting**: Multi-strategy rate limiting to prevent API abuse and DoS attacks
+- **Connection Monitoring**: Real-time monitoring of connection health and security events
+
+### Audit and Monitoring
+
+- **Security Event Logging**: All authentication, connection, and data events logged
+- **Failed Access Monitoring**: Failed credential attempts and connection failures tracked
+- **Real-time Alerts**: Security violations trigger immediate alerts
+- **Compliance**: Structured logging for regulatory compliance and audit trails
+
+### Threat Protection
+
+- **Injection Prevention**: All JSON message parsing protected against injection attacks
+- **Man-in-the-Middle Protection**: Certificate pinning prevents MITM attacks
+- **Replay Attack Prevention**: Timestamp validation and nonce generation
+- **Data Tampering Detection**: Message integrity validation using checksums
+
 ## Future Enhancements
 
 Planned improvements to the exchange connector system:
 
-1. **FIX Protocol Support**: Add support for FIX protocol connections
-2. **Connection Pooling**: Manage multiple connections for high throughput
-3. **Smart Order Routing**: Intelligently route orders across exchanges
-4. **Cross-Exchange Arbitrage**: Leverage price differences between exchanges
-5. **Performance Monitoring**: Detailed performance metrics and monitoring
+1. **FIX Protocol Support**: Add support for FIX protocol connections with enhanced security
+2. **Connection Pooling**: Manage multiple secure connections for high throughput
+3. **Smart Order Routing**: Intelligently route orders across exchanges with security validation
+4. **Cross-Exchange Arbitrage**: Leverage price differences between exchanges securely
+5. **Performance Monitoring**: Detailed performance metrics and security monitoring
+6. **Zero-Trust Architecture**: Complete zero-trust security model for all exchange interactions
+7. **Hardware Security**: Integration with hardware security modules (HSMs) for key storage
 
 ## Troubleshooting
 
@@ -517,12 +554,19 @@ Planned improvements to the exchange connector system:
    - Run with `--verbose` to see detailed WebSocket messages
 
 3. **Authentication Issues**
-   - Run `./pinnaclemm --setup-credentials` to reset credentials
-   - Check master password is correct
+   - Run `./pinnaclemm --setup-credentials` to reset credentials with secure input
+   - Check master password is correct (secure input with terminal masking)
    - For Coinbase ticker data: No authentication required
    - For advanced features: Verify API key permissions include market data access
+   - **"Key derivation failed"**: Config file may be corrupted; delete and recreate credentials
 
-4. **Live Data Issues**
-   - **"Failed to load secure config"**: Run setup-credentials first
+4. **Security Issues**
+   - **Certificate validation errors**: Certificate pinning may be blocking connection; check audit logs
+   - **Rate limit exceeded**: Wait for cooldown period or check rate limiting configuration
+   - **Input validation failures**: Check audit logs for injection attempt details
+   - **Authentication failures**: Check master password and credential integrity
+
+5. **Live Data Issues**
+   - **"Failed to load secure config"**: Run setup-credentials first with secure input
    - **Empty order book**: Normal for ticker-only data; full order book requires authentication
-   - **WebSocket disconnections**: Automatic reconnection implemented, monitor logs
+   - **WebSocket disconnections**: Automatic reconnection implemented with security checks, monitor audit logs

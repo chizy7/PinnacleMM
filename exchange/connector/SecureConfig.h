@@ -108,15 +108,21 @@ private:
     mutable std::mutex m_mutex;
     
     // Encryption/Decryption helpers
-    std::string encryptValue(const std::string& value, const std::string& password) const;
-    std::string decryptValue(const std::string& encryptedValue, const std::string& password) const;
+    std::string encryptValue(const std::string& value, const std::string& password, const std::vector<unsigned char>& salt) const;
+    std::string decryptValue(const std::string& encryptedValue, const std::string& password, const std::vector<unsigned char>& salt) const;
     
     // File format helpers
-    bool writeEncryptedJson(const std::string& filename, const std::string& encryptedData) const;
-    std::optional<std::string> readEncryptedJson(const std::string& filename) const;
+    bool writeEncryptedJson(const std::string& filename, const std::string& encryptedData, const std::vector<unsigned char>& salt) const;
+    std::optional<std::pair<std::string, std::vector<unsigned char>>> readEncryptedJson(const std::string& filename) const;
     
     // Generate secure encryption key from password
-    std::vector<unsigned char> deriveKeyFromPassword(const std::string& password) const;
+    std::vector<unsigned char> deriveKeyFromPassword(const std::string& password, const std::vector<unsigned char>& salt) const;
+    
+    // Generate random salt
+    std::vector<unsigned char> generateSalt() const;
+    
+    // Secure memory clearing
+    void secureMemzero(void* ptr, size_t len) const;
 };
 
 /**

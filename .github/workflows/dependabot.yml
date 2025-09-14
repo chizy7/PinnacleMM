@@ -1,0 +1,36 @@
+name: Dependabot Auto-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check if PR is from Dependabot
+      id: check-author
+      run: |
+        if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
+          echo "is_dependabot=true" >> $GITHUB_OUTPUT
+        else
+          echo "is_dependabot=false" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Auto-approve Dependabot PRs
+      if: steps.check-author.outputs.is_dependabot == 'true'
+      run: |
+        gh pr review --approve "${{ github.event.pull_request.number }}"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Auto-merge Dependabot PRs
+      if: steps.check-author.outputs.is_dependabot == 'true'
+      run: |
+        gh pr merge --auto --squash "${{ github.event.pull_request.number }}"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,170 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        build_type: [Debug, Release]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential libboost-all-dev libssl-dev nlohmann-json3-dev libgtest-dev libbenchmark-dev
+        
+    - name: Setup dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install cmake boost openssl nlohmann-json googletest google-benchmark
+        
+    - name: Configure CMake
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON
+        
+    - name: Build
+      run: |
+        cmake --build build --config ${{ matrix.build_type }} -j$(nproc || sysctl -n hw.ncpu)
+        
+    - name: Run Unit Tests
+      run: |
+        cd build
+        ./orderbook_tests
+        ./lockfree_orderbook_tests
+        ./strategy_tests
+        ./execution_tests
+        ./fix_basic_test
+        ./routing_test
+        
+    - name: Run Performance Benchmarks (Release only)
+      if: matrix.build_type == 'Release'
+      run: |
+        cd build
+        ./latency_benchmark --benchmark_min_time=1s
+        ./throughput_benchmark --benchmark_min_time=1s
+        ./orderbook_benchmark --benchmark_min_time=1s
+        ./routing_benchmark --benchmark_min_time=1s
+        
+    - name: Test Credential Setup
+      run: |
+        cd build
+        echo "test123" | ./pinnaclemm --setup-credentials
+        ls -la ../config/secure_config.json
+        
+    - name: Upload build artifacts
+      if: matrix.build_type == 'Release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: pinnaclemm-${{ runner.os }}-release
+        path: |
+          build/pinnaclemm
+          build/*_benchmark
+          build/*_test*
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: cpp
+        
+    - name: Setup dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential libboost-all-dev libssl-dev nlohmann-json3-dev
+        
+    - name: Build for analysis
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build -j$(nproc)
+        
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  docker-build:
+    name: Docker Build and Test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: false
+        tags: pinnaclemm:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: Test Docker image - Simulation mode
+      run: |
+        docker run --rm pinnaclemm:test --mode simulation --symbol BTC-USD &
+        CONTAINER_PID=$!
+        sleep 5
+        kill $CONTAINER_PID || true
+        
+    - name: Test Docker image - Help command
+      run: |
+        docker run --rm pinnaclemm:test --help
+        
+    - name: Test Docker image - Credential setup
+      run: |
+        docker run --rm -i pinnaclemm:test --setup-credentials <<< "test123"
+        
+    - name: Export Docker image for release
+      if: github.ref == 'refs/heads/main'
+      run: |
+        docker save pinnaclemm:test | gzip > pinnaclemm-docker-image.tar.gz
+        
+    - name: Upload Docker image artifact
+      if: github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-image
+        path: pinnaclemm-docker-image.tar.gz
+        retention-days: 30
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install clang-format and clang-tidy
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format clang-tidy
+        
+    - name: Check code formatting
+      run: |
+        find . -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
+        
+    - name: Run static analysis (clang-tidy)
+      run: |
+        sudo apt-get install -y cmake build-essential libboost-all-dev libssl-dev nlohmann-json3-dev
+        cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        run-clang-tidy -p build || true  # Allow to fail for now

@@ -1,6 +1,7 @@
 #include "core/orderbook/OrderBook.h"
 #include "core/orderbook/LockFreeOrderBook.h"
 #include "core/utils/TimeUtils.h"
+#include "core/utils/SecureInput.h"
 #include "strategies/basic/BasicMarketMaker.h"
 #include "strategies/config/StrategyConfig.h"
 #include "exchange/simulator/ExchangeSimulator.h"
@@ -36,10 +37,9 @@ int setupCredentials() {
     std::cout << "=== PinnacleMM API Credential Setup ===" << std::endl;
     std::cout << std::endl;
     
-    // Get master password
-    std::string masterPassword;
-    std::cout << "Enter master password (used to encrypt all API credentials): ";
-    std::getline(std::cin, masterPassword);
+    // Get master password securely
+    std::string masterPassword = pinnacle::utils::SecureInput::readPassword(
+        "Enter master password (used to encrypt all API credentials): ");
     
     if (masterPassword.empty()) {
         std::cerr << "Error: Master password cannot be empty" << std::endl;
@@ -67,15 +67,14 @@ int setupCredentials() {
             std::cout << "Enter API Key: ";
             std::getline(std::cin, apiKey);
             
-            std::cout << "Enter API Secret: ";
-            std::getline(std::cin, apiSecret);
+            apiSecret = pinnacle::utils::SecureInput::readPassword("Enter API Secret: ");
             
             if (exchange == "coinbase" || exchange == "gemini") {
-                std::cout << "Enter Passphrase (required for " << exchange << "): ";
-                std::getline(std::cin, passphrase);
+                passphrase = pinnacle::utils::SecureInput::readPassword(
+                    "Enter Passphrase (required for " + exchange + "): ");
             } else {
-                std::cout << "Enter Passphrase (optional, press Enter to skip): ";
-                std::getline(std::cin, passphrase);
+                passphrase = pinnacle::utils::SecureInput::readPassword(
+                    "Enter Passphrase (optional, press Enter to skip): ");
             }
             
             // Set credentials
@@ -94,8 +93,14 @@ int setupCredentials() {
     std::cout << std::endl;
     std::cout << "Saving encrypted configuration..." << std::endl;
     
-    // Ensure config directory exists
-    std::string configPath = "config";
+    // Ensure config directory exists (always use project root config)
+    boost::filesystem::path projectRoot = boost::filesystem::current_path();
+    // If we're in build directory, go up one level to project root
+    if (projectRoot.filename() == "build") {
+        projectRoot = projectRoot.parent_path();
+    }
+    std::string configPath = (projectRoot / "config").string();
+    
     if (!boost::filesystem::exists(configPath)) {
         try {
             boost::filesystem::create_directories(configPath);
@@ -222,13 +227,19 @@ int main(int argc, char* argv[]) {
 
         if (mode == "live") {
             // Get master password for secure configuration
-            std::string masterPassword;
-            std::cout << "Enter master password: ";
-            std::getline(std::cin, masterPassword);
+            std::string masterPassword = pinnacle::utils::SecureInput::readPassword(
+                "Enter master password: ");
 
-            // Initialize exchange connector factory
+            // Initialize exchange connector factory (always use project root config)
+            boost::filesystem::path projectRoot = boost::filesystem::current_path();
+            // If we're in build directory, go up one level to project root
+            if (projectRoot.filename() == "build") {
+                projectRoot = projectRoot.parent_path();
+            }
+            std::string configPath = (projectRoot / "config").string();
+            
             auto& factory = pinnacle::exchange::ExchangeConnectorFactory::getInstance();
-            if (!factory.initialize("config", masterPassword)) {
+            if (!factory.initialize(configPath, masterPassword)) {
                 spdlog::error("Failed to initialize exchange connector factory");
                 return 1;
             }

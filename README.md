@@ -40,7 +40,7 @@ PinnacleMM is a high-performance, production-grade market making system designed
 - **FIX Protocol Support**: Professional-grade FIX connectivity for institutional exchanges
 - **Advanced Order Routing**: Smart order routing with 4 algorithms (BEST_PRICE, TWAP, VWAP, MARKET_IMPACT)
 - **Multi-Venue Execution**: Intelligent order distribution across multiple exchanges
-- **Secure API Credentials**: AES-256 encrypted storage with master password protection
+- **Enterprise Security**: AES-256-CBC encryption with unique salts, 100,000 PBKDF2 iterations, secure password input, comprehensive input validation, audit logging, rate limiting, and certificate pinning
 - **Comprehensive Testing**: Extensive test suite ensuring reliability and performance
 
 ## System Architecture
@@ -177,17 +177,22 @@ PinnacleMM securely stores and manages exchange API credentials:
 
 1. **Run credential setup**:
 ```bash
+./run-native.sh --setup-credentials
+# or manually:
 ./pinnaclemm --setup-credentials
 ```
 
-2. **Enter master password** (choose a strong password - this encrypts all API keys)
+2. **Enter master password** (secure input with hidden characters - this encrypts all API keys with AES-256-CBC + unique salt + 100,000 PBKDF2 iterations)
 
 3. **Configure exchange credentials**:
    - **Coinbase Pro**: API Key + API Secret + Passphrase
    - **Other exchanges**: API Key + API Secret (+ optional passphrase)
+   - All inputs are validated and sanitized before encryption
 
 4. **Verify setup**:
 ```bash
+./run-native.sh -m live -v
+# or manually:
 ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
 ```
 
@@ -229,8 +234,11 @@ For more detailed instructions, see the [Getting Started Guide](docs/user_guide/
 ./run-native.sh benchmark           # Run performance benchmarks
 
 # Setup
-./run-native.sh --setup-credentials # Configure API credentials
+./run-native.sh --setup-credentials # Configure API credentials (secure input)
 ./run-native.sh --help              # Show help
+
+# Cleanup
+./cleanup.sh                        # Interactive cleanup utility
 ```
 
 **Features:**
@@ -277,9 +285,26 @@ For more detailed instructions, see the [Getting Started Guide](docs/user_guide/
 ./run-docker.sh stop                # Stop trading
 ```
 
+### Using Pre-built Images (GitHub Container Registry)
+```bash
+# Pull the latest image
+docker pull ghcr.io/chizy7/pinnaclemm:latest
+
+# Run simulation mode
+docker run --rm ghcr.io/chizy7/pinnaclemm:latest
+
+# Setup credentials for live trading
+docker run -it --rm -v $(pwd)/config:/app/config \
+  ghcr.io/chizy7/pinnaclemm:latest --setup-credentials
+
+# Run live mode with credentials
+docker run -it --rm -v $(pwd)/config:/app/config \
+  ghcr.io/chizy7/pinnaclemm:latest --mode live --exchange coinbase --symbol BTC-USD --verbose
+```
+
 ### Manual Docker Commands
 ```bash
-# Build the Docker image
+# Build the Docker image locally
 docker build -t pinnaclemm .
 
 # Run simulation mode
@@ -323,6 +348,7 @@ docker run -it --name pinnaclemm-live \
 - **Security**: OpenSSL for encryption
 - **Configuration**: nlohmann/json
 - **Containerization**: Docker
+- **Security**: AES-256-CBC encryption, PBKDF2 key derivation, input validation, audit logging, rate limiting
 
 ## Performance
 
@@ -353,7 +379,15 @@ PinnacleMM achieves exceptional performance metrics:
   - End-to-end routing: 1.88μs average latency
   - System throughput: 640k+ operations/second
   - Nanosecond-precision performance metrics
-- **Secure API credential management** with AES-256 encryption
+- **Enhanced Security Infrastructure**: 
+  - AES-256-CBC encryption with unique random salts (replacing fixed salt vulnerability)
+  - PBKDF2 key derivation increased from 10,000 to 100,000 iterations
+  - Secure password input with terminal masking
+  - Comprehensive input validation framework preventing injection attacks
+  - Certificate pinning for WebSocket SSL connections
+  - Audit logging system for security events
+  - Rate limiting with configurable policies
+  - Secure memory clearing to prevent credential leakage
 - **Interactive credential setup utility**
 - **Real-time ticker data processing** ($109K+ BTC prices)
 - 🔄 **Next**: Full order book data (requires Coinbase authentication) and live FIX trading

@@ -62,15 +62,40 @@ Handles interaction with exchanges and market data.
 - **Exchange Connectors**: Live connectivity to cryptocurrency exchanges (Coinbase Pro production-ready)
 - **Market Data Feed**: Processes and distributes market data
 - **Order Execution**: Handles order submission and confirmation
-- **Secure Config**: Encrypted API credential management
+- **Secure Config**: Enhanced encrypted API credential management with unique salt generation
+- **Security Infrastructure**: Comprehensive security utilities for enterprise-grade protection
 
 **Key Characteristics:**
 - Abstracts exchange-specific differences
 - Handles network I/O efficiently with Boost.Beast WebSocket + SSL/TLS
 - Manages live market data flow from real exchanges
-- Secure credential storage with AES-256-CBC encryption
+- Enterprise-grade security with multiple protection layers
+- Secure credential storage with AES-256-CBC encryption + unique salts + 100,000 PBKDF2 iterations
+- Comprehensive input validation preventing injection attacks
+- Certificate pinning for WebSocket SSL connections
+- Audit logging and rate limiting for security monitoring
 
-### 4. Persistence Layer (Added in Phase 2)
+### 4. Security Layer (Added in Phase 2)
+
+The security layer provides enterprise-grade protection for all system operations.
+
+**Components:**
+- **SecureInput**: Cross-platform secure password input with terminal masking
+- **InputValidator**: Comprehensive validation framework preventing injection attacks
+- **CertificatePinner**: SSL certificate pinning for WebSocket connections
+- **AuditLogger**: Security event logging with structured JSON format
+- **RateLimiter**: Multi-strategy rate limiting (sliding window, token bucket)
+- **SecureConfig**: Enhanced credential encryption with unique salt generation
+
+**Key Characteristics:**
+- Defense-in-depth security architecture
+- Zero-trust input validation for all user data
+- Cryptographic protection using industry-standard algorithms
+- Real-time security monitoring and alerting
+- Cross-platform compatibility (macOS, Linux, Windows)
+- Minimal performance impact on trading operations
+
+### 5. Persistence Layer (Added in Phase 2)
 
 The persistence layer provides data durability and crash recovery capabilities.
 
@@ -101,11 +126,14 @@ The persistence layer provides data durability and crash recovery capabilities.
    - Orders are executed or prepared for exchange submission
 
 3. **Credential Security Flow**:
-   - Master password prompts user authentication
-   - PBKDF2 derives encryption key from password + salt
-   - AES-256-CBC decrypts stored API credentials
+   - SecureInput prompts user authentication with terminal masking
+   - InputValidator validates all user inputs before processing
+   - PBKDF2 derives encryption key from password + unique random salt (100,000 iterations)
+   - AES-256-CBC decrypts stored API credentials using salt-specific keys
+   - CertificatePinner validates SSL connections before credential transmission
    - Credentials are provided to exchange connectors securely
-   - Memory is cleared after use to prevent exposure
+   - AuditLogger records all security events for monitoring
+   - Memory is cleared using volatile operations to prevent exposure
 
 4. **Order Execution Flow**:
    - Orders are validated by the Core Engine
@@ -117,10 +145,11 @@ The persistence layer provides data durability and crash recovery capabilities.
 
 PinnacleMM uses a multithreaded design for optimal performance:
 
-1. **Market Data Thread**: Processes incoming market data
+1. **Market Data Thread**: Processes incoming market data with rate limiting
 2. **Strategy Thread**: Runs the market making algorithm
-3. **Execution Thread**: Handles order execution
-4. **Monitoring Thread**: Tracks system performance
+3. **Execution Thread**: Handles order execution with input validation
+4. **Monitoring Thread**: Tracks system performance and security events
+5. **Security Thread**: Manages audit logging and certificate validation
 
 Threads communicate using lock-free queues to minimize contention.
 
@@ -145,12 +174,20 @@ Threads communicate using lock-free queues to minimize contention.
 
 - Lock-free data structures for all critical paths
 - Memory-mapped file system for data persistence
-- Secure API credentials management with AES-256-CBC encryption + PBKDF2
+- **Enhanced Security Infrastructure**: Enterprise-grade security system
+  - AES-256-CBC encryption with unique salt generation (replacing fixed salt vulnerability)
+  - PBKDF2 key derivation increased from 10,000 to 100,000 iterations
+  - Secure password input with cross-platform terminal masking
+  - Comprehensive input validation framework preventing injection attacks
+  - Certificate pinning for WebSocket SSL connections
+  - Audit logging system for security event monitoring
+  - Rate limiting with sliding window and token bucket algorithms
+  - Secure memory clearing to prevent credential leakage
 - WebSocket integration for real-time market data using Boost.Beast
 - **Live Exchange Connectivity**: Production-ready Coinbase Pro connector
   - Real-time ticker data processing (BTC-USD ~$109,200+)
-  - Secure WebSocket connection with SSL/TLS
-  - Interactive credential setup utility
+  - Secure WebSocket connection with SSL/TLS and certificate pinning
+  - Interactive credential setup utility with secure input
   - Multiple market updates per second with automatic reconnection
 
 **System Status**: Production-ready for live cryptocurrency market making operations

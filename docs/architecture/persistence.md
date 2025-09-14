@@ -87,12 +87,15 @@ The DPDK integration will be revisited when appropriate hardware and environment
 
 ### Credential Persistence
 
-The persistence system now includes secure credential storage:
+The persistence system now includes enhanced secure credential storage:
 
-- **Encrypted Storage**: API credentials stored with AES-256-CBC + PBKDF2
+- **Enhanced Encryption**: API credentials stored with AES-256-CBC + unique salt generation + 100,000 PBKDF2 iterations
 - **File Location**: `secure_config.json` in the data directory
-- **Access Control**: Master password required for decryption
-- **Memory Safety**: Credentials cleared from memory after use
+- **Access Control**: Master password required for decryption with secure input masking
+- **Input Validation**: All credential inputs validated before encryption to prevent injection attacks
+- **Memory Safety**: Credentials cleared from memory using volatile operations after use
+- **Audit Trail**: All credential access attempts logged for security monitoring
+- **Integrity Protection**: File tampering detection through checksum validation
 
 ### Live Market Data Persistence
 
@@ -106,14 +109,21 @@ With live Coinbase connectivity, the persistence system handles:
 ### Production Deployment Considerations
 
 - **Data Directory Security**: Ensure proper file permissions (600) for credential files
-- **Backup Strategy**: Regular backups of encrypted credential files
-- **Monitoring**: Log file access and decryption attempts
-- **Rotation**: Periodic credential rotation with automated persistence updates
+- **Backup Strategy**: Regular backups of encrypted credential files with salt preservation
+- **Monitoring**: Comprehensive audit logging of all file access and decryption attempts
+- **Rotation**: Periodic credential rotation with automated persistence updates and new salt generation
+- **Rate Limiting**: API access rate limiting to prevent brute force attacks
+- **Certificate Validation**: SSL certificate pinning for all WebSocket connections
+- **Input Sanitization**: All user inputs validated and sanitized before persistence
+- **Memory Protection**: Sensitive data cleared from memory using secure erasure techniques
 
 ## Future Enhancements
 
-- Encrypted journals and snapshots for sensitive data
-- Distributed persistence for high availability
-- Real-time replication to standby instances
-- Performance optimizations for specific hardware
-- Live order execution persistence for production trading
+- **Enhanced Encryption**: Encrypted journals and snapshots for sensitive data
+- **Distributed Security**: Distributed persistence for high availability with synchronized security policies
+- **Real-time Replication**: Secure replication to standby instances with encrypted channels
+- **Hardware Security**: Integration with hardware security modules (HSMs) for key storage
+- **Performance Optimizations**: Security-aware optimizations for specific hardware
+- **Live Order Execution**: Secure persistence for production trading with audit trails
+- **Zero-Trust Architecture**: Complete zero-trust security model for all persistence operations
+- **Quantum-Resistant Cryptography**: Future-proofing against quantum computing threats

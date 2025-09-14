@@ -1,0 +1,232 @@
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for proper versioning
+        
+    - name: Setup Node.js for semantic-release
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install semantic-release
+      run: |
+        npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+        
+    - name: Setup dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential libboost-all-dev libssl-dev nlohmann-json3-dev libgtest-dev libbenchmark-dev
+        
+    - name: Build Release
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON
+        cmake --build build --config Release -j$(nproc)
+        
+    - name: Run Full Test Suite
+      run: |
+        cd build
+        ./orderbook_tests
+        ./lockfree_orderbook_tests
+        ./strategy_tests
+        ./execution_tests
+        ./fix_basic_test
+        ./routing_test
+        
+    - name: Generate Performance Report
+      run: |
+        cd build
+        echo "# Performance Benchmarks - $(date)" > ../performance_report.md
+        echo "" >> ../performance_report.md
+        echo "## Latency Benchmarks" >> ../performance_report.md
+        ./latency_benchmark --benchmark_format=console 2>&1 | tee -a ../performance_report.md || true
+        echo "" >> ../performance_report.md
+        echo "## Throughput Benchmarks" >> ../performance_report.md
+        ./throughput_benchmark --benchmark_format=console 2>&1 | tee -a ../performance_report.md || true
+        echo "" >> ../performance_report.md
+        echo "## Order Routing Benchmarks" >> ../performance_report.md
+        ./routing_benchmark --benchmark_format=console 2>&1 | tee -a ../performance_report.md || true
+        
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=ref,event=branch
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=sha
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+        
+    - name: Test Docker image
+      run: |
+        docker run --rm ghcr.io/${{ github.repository }}:latest --help
+        
+    - name: Package Release Assets
+      run: |
+        mkdir -p release_assets
+        cp build/pinnaclemm release_assets/
+        cp build/*_benchmark release_assets/ || true
+        cp build/*_test* release_assets/ || true
+        cp README.md release_assets/
+        cp performance_report.md release_assets/
+        
+        # Create Docker usage instructions
+        cat > release_assets/DOCKER_USAGE.md << 'EOF'
+        # Docker Usage
+        
+        ## Pull the image
+        ```bash
+        docker pull ghcr.io/${{ github.repository }}:latest
+        ```
+        
+        ## Run in simulation mode
+        ```bash
+        docker run --rm ghcr.io/${{ github.repository }}:latest
+        ```
+        
+        ## Run with custom parameters
+        ```bash
+        docker run --rm ghcr.io/${{ github.repository }}:latest --mode simulation --symbol ETH-USD --verbose
+        ```
+        
+        ## Setup credentials (for live trading)
+        ```bash
+        docker run -it --rm -v $(pwd)/config:/app/config ghcr.io/${{ github.repository }}:latest --setup-credentials
+        ```
+        
+        ## Run in live mode
+        ```bash
+        docker run -it --rm -v $(pwd)/config:/app/config ghcr.io/${{ github.repository }}:latest --mode live --exchange coinbase --symbol BTC-USD --verbose
+        ```
+        EOF
+        
+        tar -czf pinnaclemm-linux-x64.tar.gz -C release_assets .
+        
+    - name: Create semantic release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cat > .releaserc.json << 'EOF'
+        {
+          "branches": ["main"],
+          "plugins": [
+            "@semantic-release/commit-analyzer",
+            "@semantic-release/release-notes-generator",
+            [
+              "@semantic-release/changelog",
+              {
+                "changelogFile": "CHANGELOG.md"
+              }
+            ],
+            [
+              "@semantic-release/github",
+              {
+                "assets": [
+                  {
+                    "path": "pinnaclemm-linux-x64.tar.gz",
+                    "label": "PinnacleMM Linux x64"
+                  },
+                  {
+                    "path": "performance_report.md",
+                    "label": "Performance Report"
+                  },
+                  {
+                    "path": "release_assets/DOCKER_USAGE.md",
+                    "label": "Docker Usage Guide"
+                  }
+                ]
+              }
+            ],
+            [
+              "@semantic-release/git",
+              {
+                "assets": ["CHANGELOG.md"],
+                "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+              }
+            ]
+          ]
+        }
+        EOF
+        semantic-release
+
+  performance-baseline:
+    name: Update Performance Baseline
+    runs-on: ubuntu-latest
+    needs: release
+    if: success()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Setup dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential libboost-all-dev libssl-dev nlohmann-json3-dev libbenchmark-dev
+        
+    - name: Build and benchmark
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_BENCHMARKS=ON
+        cmake --build build --config Release -j$(nproc)
+        
+    - name: Generate baseline
+      run: |
+        cd build
+        ./latency_benchmark --benchmark_format=json > ../docs/performance_baseline.json
+        
+    - name: Commit baseline update
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add docs/performance_baseline.json
+        git diff --staged --quiet || git commit -m "chore: update performance baseline [skip ci]"
+        git push

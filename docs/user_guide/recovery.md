@@ -118,13 +118,38 @@ On Linux systems, additional performance can be gained by:
 - Configuring higher limits for memory-mapped regions
 - Using direct I/O for snapshots if available
 
+## Security Considerations for Recovery
+
+The recovery system includes several security measures to protect sensitive data:
+
+### Encrypted Credential Recovery
+
+- **Secure Storage**: API credentials remain encrypted during recovery operations
+- **Master Password**: Required to decrypt credentials after system restart
+- **Salt Preservation**: Unique salts are preserved during backup and recovery
+- **Memory Safety**: Temporary decryption keys are securely cleared after recovery
+
+### Audit Trail Recovery
+
+- **Security Events**: All security events are journaled and recovered after crashes
+- **Authentication Logs**: Failed and successful authentication attempts are preserved
+- **Access Logs**: API access patterns and rate limiting data are recovered
+
+### Recovery Security Best Practices
+
+1. **Secure Backups**: Encrypt backup files containing sensitive data
+2. **Access Control**: Restrict file permissions on recovery directories (600/700)
+3. **Monitor Recovery**: Log and monitor all recovery operations for security events
+4. **Validate Integrity**: Verify checksums of recovered credential files
+
 ## Data Backup
 
 Although the persistence system provides crash recovery, it is not a replacement for proper backups:
 
-1. Regularly back up the entire data directory
+1. Regularly back up the entire data directory with encryption
 2. Consider incremental backups of journal files
-3. Test recovery from backups periodically
+3. Securely backup encrypted credential files with salt preservation
+4. Test recovery from backups periodically in secure environments
 
 ## Note on DPDK Integration
 

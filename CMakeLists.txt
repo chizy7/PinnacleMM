@@ -103,6 +103,11 @@ set(CORE_SOURCES
     core/orderbook/Order.cpp
     core/orderbook/OrderBook.cpp
     core/utils/TimeUtils.cpp
+    core/utils/SecureInput.cpp
+    core/utils/InputValidator.cpp
+    core/utils/CertificatePinner.cpp
+    core/utils/AuditLogger.cpp
+    core/utils/RateLimiter.cpp
     core/utils/LockFreeOrderBook.cpp 
     core/orderbook/LockFreeOrderBook.cpp 
     core/persistence/PersistenceManager.cpp
