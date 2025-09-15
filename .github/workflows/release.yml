@@ -28,7 +28,7 @@ jobs:
         fetch-depth: 0  # Fetch full history for proper versioning
 
     - name: Setup Node.js for semantic-release
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: '20'
 
