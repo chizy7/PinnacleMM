@@ -270,28 +270,38 @@ if(BUILD_TESTS)
         ON
         CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
+
+    # Create aliases for consistent naming
+    if(TARGET gtest AND NOT TARGET GTest::gtest)
+      add_library(GTest::gtest ALIAS gtest)
+    endif()
+    if(TARGET gtest_main AND NOT TARGET GTest::gtest_main)
+      add_library(GTest::gtest_main ALIAS gtest_main)
+    endif()
   endif()
 
   # Order book tests
   add_executable(orderbook_tests tests/unit/OrderBookTests.cpp)
-  target_link_libraries(orderbook_tests core gtest_main gtest Threads::Threads)
+  target_link_libraries(orderbook_tests core GTest::gtest_main GTest::gtest
+                        Threads::Threads)
   add_test(NAME OrderBookTests COMMAND orderbook_tests)
 
   # Lock-free order book tests
   add_executable(lockfree_orderbook_tests tests/unit/LockFreeOrderBookTests.cpp)
-  target_link_libraries(lockfree_orderbook_tests core gtest_main gtest
-                        Threads::Threads)
+  target_link_libraries(lockfree_orderbook_tests core GTest::gtest_main
+                        GTest::gtest Threads::Threads)
   add_test(NAME LockFreeOrderBookTests COMMAND lockfree_orderbook_tests)
 
   # Execution tests
   add_executable(execution_tests tests/unit/ExecutionTests.cpp)
-  target_link_libraries(execution_tests core gtest_main gtest Threads::Threads)
+  target_link_libraries(execution_tests core GTest::gtest_main GTest::gtest
+                        Threads::Threads)
   add_test(NAME ExecutionTests COMMAND execution_tests)
 
   # Strategy tests
   add_executable(strategy_tests tests/unit/StrategyTests.cpp)
-  target_link_libraries(strategy_tests core strategy gtest_main gtest
-                        Threads::Threads)
+  target_link_libraries(strategy_tests core strategy GTest::gtest_main
+                        GTest::gtest Threads::Threads)
   add_test(NAME StrategyTests COMMAND strategy_tests)
 
   # FIX Protocol tests - Tests factory patterns, configuration, and core FIX

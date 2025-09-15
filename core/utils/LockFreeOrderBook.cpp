@@ -537,6 +537,7 @@ double LockFreeOrderBook::executeMarketOrder(
       auto orders = level->getOrders();
       std::vector<std::string> filledOrders;
       double levelExecutedQty = 0.0;
+      (void)levelExecutedQty; // Used for potential future logging
 
       for (auto& order : orders) {
         if (remainingQty <= 0)
@@ -580,6 +581,7 @@ double LockFreeOrderBook::executeMarketOrder(
       auto orders = level->getOrders();
       std::vector<std::string> filledOrders;
       double levelExecutedQty = 0.0;
+      (void)levelExecutedQty; // Used for potential future logging
 
       for (auto& order : orders) {
         if (remainingQty <= 0)

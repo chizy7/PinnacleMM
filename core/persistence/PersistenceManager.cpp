@@ -111,7 +111,8 @@ void PersistenceManager::performMaintenance() {
   // Get config values for maintenance
   int keepSnapshots = 5; // Default value, should be loaded from config
   uint64_t compactionThreshold =
-      1000000; // Default value, should be loaded from config
+      1000000;               // Default value, should be loaded from config
+  (void)compactionThreshold; // TODO: Implement journal compaction logic
 
   // Perform journal compaction
   for (const auto& pair : m_journals) {

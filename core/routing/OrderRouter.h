@@ -114,7 +114,8 @@ public:
 class TWAPStrategy : public RoutingStrategy {
 private:
   int m_numSlices;
-  std::chrono::seconds m_sliceInterval;
+  [[maybe_unused]] std::chrono::seconds
+      m_sliceInterval; // Reserved for future TWAP timing
 
 public:
   explicit TWAPStrategy(int numSlices = 10, std::chrono::seconds sliceInterval =
