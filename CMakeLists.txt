@@ -20,11 +20,65 @@ endif()
 
 # Find required packages
 find_package(Threads REQUIRED)
-find_package(Boost 1.72 REQUIRED CONFIG COMPONENTS system filesystem program_options)
-find_package(spdlog REQUIRED)
-find_package(fmt REQUIRED)
+
+# Handle Boost with better compatibility
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+
+# First try the modern CONFIG mode
+find_package(Boost 1.72 QUIET CONFIG COMPONENTS system filesystem program_options)
+if(NOT Boost_FOUND)
+    # Fallback to legacy FindBoost module
+    find_package(Boost 1.72 REQUIRED COMPONENTS system filesystem program_options)
+endif()
+
+# Create modern targets if they don't exist (for legacy FindBoost)
+if(Boost_FOUND AND NOT TARGET Boost::system)
+    add_library(Boost::system INTERFACE IMPORTED)
+    target_link_libraries(Boost::system INTERFACE ${Boost_SYSTEM_LIBRARY})
+    target_include_directories(Boost::system INTERFACE ${Boost_INCLUDE_DIRS})
+endif()
+
+if(Boost_FOUND AND NOT TARGET Boost::filesystem)
+    add_library(Boost::filesystem INTERFACE IMPORTED)
+    target_link_libraries(Boost::filesystem INTERFACE ${Boost_FILESYSTEM_LIBRARY})
+    target_include_directories(Boost::filesystem INTERFACE ${Boost_INCLUDE_DIRS})
+endif()
+
+if(Boost_FOUND AND NOT TARGET Boost::program_options)
+    add_library(Boost::program_options INTERFACE IMPORTED)
+    target_link_libraries(Boost::program_options INTERFACE ${Boost_PROGRAM_OPTIONS_LIBRARY})
+    target_include_directories(Boost::program_options INTERFACE ${Boost_INCLUDE_DIRS})
+endif()
+
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
+
+# Handle spdlog and fmt with fallback to FetchContent
+include(FetchContent)
+
+find_package(spdlog QUIET)
+if(NOT spdlog_FOUND)
+    message(STATUS "spdlog not found, downloading...")
+    FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG v1.12.0
+    )
+    FetchContent_MakeAvailable(spdlog)
+endif()
+
+find_package(fmt QUIET)
+if(NOT fmt_FOUND)
+    message(STATUS "fmt not found, downloading...")
+    FetchContent_Declare(
+        fmt
+        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+        GIT_TAG 10.1.1
+    )
+    FetchContent_MakeAvailable(fmt)
+endif()
 
 # Create OpenSSL targets if they don't exist (for compatibility with older CMake)
 if(OPENSSL_FOUND AND NOT TARGET OpenSSL::SSL)
