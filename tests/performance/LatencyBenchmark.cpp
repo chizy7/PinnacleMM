@@ -1,12 +1,32 @@
 #include "../../core/orderbook/OrderBook.h"
+#include "../../core/persistence/PersistenceManager.h"
 #include "../../core/utils/TimeUtils.h"
 
 #include <benchmark/benchmark.h>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
 
 using namespace pinnacle;
+
+// Global persistence initialization for benchmarks
+class BenchmarkEnvironment : public benchmark::Environment {
+public:
+  void SetUp() override {
+    auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
+    std::filesystem::create_directories(tempDir);
+    auto& persistenceManager = persistence::PersistenceManager::getInstance();
+    persistenceManager.initialize(tempDir.string());
+  }
+
+  void TearDown() override {
+    auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
+    if (std::filesystem::exists(tempDir)) {
+      std::filesystem::remove_all(tempDir);
+    }
+  }
+};
 
 // Benchmark for measuring order addition latency
 static void BM_OrderAddLatency(benchmark::State& state) {
@@ -56,4 +76,10 @@ static void BM_OrderBookQueryLatency(benchmark::State& state) {
 BENCHMARK(BM_OrderAddLatency);
 BENCHMARK(BM_OrderBookQueryLatency);
 
-BENCHMARK_MAIN();
+int main(int argc, char** argv) {
+  benchmark::RegisterGlobalEnvironment(new BenchmarkEnvironment);
+  benchmark::Initialize(&argc, argv);
+  benchmark::RunSpecifiedBenchmarks();
+  benchmark::Shutdown();
+  return 0;
+}

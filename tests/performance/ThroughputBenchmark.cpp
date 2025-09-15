@@ -1,13 +1,33 @@
 #include "../../core/orderbook/OrderBook.h"
+#include "../../core/persistence/PersistenceManager.h"
 #include "../../core/utils/TimeUtils.h"
 
 #include <benchmark/benchmark.h>
+#include <filesystem>
 #include <memory>
 #include <random>
 #include <string>
 #include <vector>
 
 using namespace pinnacle;
+
+// Global persistence initialization for benchmarks
+class BenchmarkEnvironment : public benchmark::Environment {
+public:
+  void SetUp() override {
+    auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
+    std::filesystem::create_directories(tempDir);
+    auto& persistenceManager = persistence::PersistenceManager::getInstance();
+    persistenceManager.initialize(tempDir.string());
+  }
+
+  void TearDown() override {
+    auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
+    if (std::filesystem::exists(tempDir)) {
+      std::filesystem::remove_all(tempDir);
+    }
+  }
+};
 
 // Benchmark for measuring order throughput (adds/cancels per second)
 static void BM_OrderThroughput(benchmark::State& state) {
@@ -81,4 +101,10 @@ static void BM_MarketOrderThroughput(benchmark::State& state) {
 BENCHMARK(BM_OrderThroughput)->Arg(10)->Arg(100);
 BENCHMARK(BM_MarketOrderThroughput)->Arg(10)->Arg(100);
 
-BENCHMARK_MAIN();
+int main(int argc, char** argv) {
+  benchmark::RegisterGlobalEnvironment(new BenchmarkEnvironment);
+  benchmark::Initialize(&argc, argv);
+  benchmark::RunSpecifiedBenchmarks();
+  benchmark::Shutdown();
+  return 0;
+}
