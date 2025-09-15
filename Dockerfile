@@ -18,7 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nlohmann-json3-dev \
     libwebsocketpp-dev \
     pkg-config \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ldconfig
 
 # Set GCC 11 as default compiler for C++20 support
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 \
@@ -31,6 +32,13 @@ ENV CC=/usr/bin/gcc-11
 ENV CXX=/usr/bin/g++-11
 ENV OPENSSL_ROOT_DIR=/usr
 ENV PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig
+
+# Ensure OpenSSL libraries are properly linked
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN ldconfig && \
+    pkg-config --exists openssl || echo "OpenSSL pkg-config not found" && \
+    find /usr -name "libssl*" -type f 2>/dev/null | head -10 && \
+    find /usr -name "libcrypto*" -type f 2>/dev/null | head -10
 
 # Build Google Test
 WORKDIR /usr/src/googletest
@@ -58,7 +66,10 @@ WORKDIR /app/build
 RUN cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_BENCHMARKS=OFF \
     -DCMAKE_CXX_COMPILER=/usr/bin/g++-11 \
     -DCMAKE_C_COMPILER=/usr/bin/gcc-11 \
-    -DCMAKE_CXX_FLAGS="-Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare" && \
+    -DCMAKE_CXX_FLAGS="-Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare" \
+    -DOPENSSL_ROOT_DIR=/usr \
+    -DOPENSSL_INCLUDE_DIR=/usr/include \
+    -DPkgConfig_EXECUTABLE=/usr/bin/pkg-config && \
     make -j"$(nproc)"
 
 # Create runtime image
