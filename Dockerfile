@@ -49,7 +49,7 @@ WORKDIR /app
 COPY . .
 
 # Build the project with tests disabled
-RUN mkdir -p build
+RUN rm -rf build && mkdir -p build
 WORKDIR /app/build
 RUN cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_BENCHMARKS=OFF \
     -DCMAKE_CXX_COMPILER=/usr/bin/g++-11 \
