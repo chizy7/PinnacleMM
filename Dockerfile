@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libspdlog-dev \
     libfmt-dev \
     libssl-dev \
+    libssl3 \
+    libcrypto++8 \
     nlohmann-json3-dev \
     libwebsocketpp-dev \
     pkg-config \
@@ -27,6 +29,8 @@ ENV CMAKE_CXX_STANDARD=20
 ENV CMAKE_CXX_STANDARD_REQUIRED=ON
 ENV CC=/usr/bin/gcc-11
 ENV CXX=/usr/bin/g++-11
+ENV OPENSSL_ROOT_DIR=/usr
+ENV PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig
 
 # Build Google Test
 WORKDIR /usr/src/googletest
