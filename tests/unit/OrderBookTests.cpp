@@ -1,7 +1,9 @@
 #include "../../core/orderbook/OrderBook.h"
+#include "../../core/persistence/PersistenceManager.h"
 #include "../../core/utils/TimeUtils.h"
 
 #include <chrono>
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
@@ -13,9 +15,23 @@ using namespace pinnacle;
 // Test fixture for OrderBook tests
 class OrderBookTest : public ::testing::Test {
 protected:
-  void SetUp() override { orderBook = std::make_shared<OrderBook>("BTC-USD"); }
+  void SetUp() override {
+    // Initialize persistence manager with a temporary directory
+    tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_test";
+    std::filesystem::create_directories(tempDir);
+    auto& persistenceManager = persistence::PersistenceManager::getInstance();
+    persistenceManager.initialize(tempDir.string());
 
-  void TearDown() override { orderBook->clear(); }
+    orderBook = std::make_shared<OrderBook>("BTC-USD");
+  }
+
+  void TearDown() override {
+    orderBook->clear();
+    // Clean up temporary directory
+    if (std::filesystem::exists(tempDir)) {
+      std::filesystem::remove_all(tempDir);
+    }
+  }
 
   // Helper to create a buy order
   std::shared_ptr<Order> createBuyOrder(double price, double quantity) {
@@ -35,6 +51,7 @@ protected:
 
   std::shared_ptr<OrderBook> orderBook;
   int orderIdCounter = 1;
+  std::filesystem::path tempDir;
 };
 
 // Test adding orders
