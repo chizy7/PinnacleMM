@@ -8,7 +8,7 @@
 namespace pinnacle {
 namespace persistence {
 
-PersistenceManager &PersistenceManager::getInstance() {
+PersistenceManager& PersistenceManager::getInstance() {
   static PersistenceManager instance;
   return instance;
 }
@@ -22,7 +22,7 @@ PersistenceManager::~PersistenceManager() {
   shutdown();
 }
 
-bool PersistenceManager::initialize(const std::string &dataDirectory) {
+bool PersistenceManager::initialize(const std::string& dataDirectory) {
   m_dataDirectory = dataDirectory;
 
   // Create necessary directories
@@ -37,7 +37,7 @@ bool PersistenceManager::initialize(const std::string &dataDirectory) {
 }
 
 std::shared_ptr<journal::Journal>
-PersistenceManager::getJournal(const std::string &symbol) {
+PersistenceManager::getJournal(const std::string& symbol) {
   // Lock for thread safety
   std::lock_guard<std::mutex> lock(m_journalsMutex);
 
@@ -59,7 +59,7 @@ PersistenceManager::getJournal(const std::string &symbol) {
     m_journals[symbol] = journal;
 
     return journal;
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << "Failed to create journal for " << symbol << ": " << e.what()
               << std::endl;
     return nullptr;
@@ -67,7 +67,7 @@ PersistenceManager::getJournal(const std::string &symbol) {
 }
 
 std::shared_ptr<snapshot::SnapshotManager>
-PersistenceManager::getSnapshotManager(const std::string &symbol) {
+PersistenceManager::getSnapshotManager(const std::string& symbol) {
   // Lock for thread safety
   std::lock_guard<std::mutex> lock(m_snapshotManagersMutex);
 
@@ -89,7 +89,7 @@ PersistenceManager::getSnapshotManager(const std::string &symbol) {
     m_snapshotManagers[symbol] = snapshotManager;
 
     return snapshotManager;
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << "Failed to create snapshot manager for " << symbol << ": "
               << e.what() << std::endl;
     return nullptr;
@@ -114,8 +114,8 @@ void PersistenceManager::performMaintenance() {
       1000000; // Default value, should be loaded from config
 
   // Perform journal compaction
-  for (const auto &pair : m_journals) {
-    const std::string &symbol = pair.first;
+  for (const auto& pair : m_journals) {
+    const std::string& symbol = pair.first;
     auto journal = pair.second;
 
     // Get snapshot manager
@@ -140,7 +140,7 @@ void PersistenceManager::performMaintenance() {
 
 void PersistenceManager::shutdown() {
   // Flush all journals
-  for (const auto &pair : m_journals) {
+  for (const auto& pair : m_journals) {
     pair.second->flush();
   }
 
@@ -161,7 +161,7 @@ bool PersistenceManager::createDirectories() {
     std::filesystem::create_directories(m_dataDirectory + "/snapshots");
 
     return true;
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << "Failed to create directories: " << e.what() << std::endl;
     return false;
   }

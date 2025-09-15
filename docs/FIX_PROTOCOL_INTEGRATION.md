@@ -37,7 +37,7 @@ PinnacleMM now supports FIX (Financial Information eXchange) protocol for connec
 
 ### Planned Implementation
 - 🔄 **Coinbase Pro** - FIX 4.4 support for institutional clients
-- 🔄 **Kraken** - FIX 4.4 support for institutional clients  
+- 🔄 **Kraken** - FIX 4.4 support for institutional clients
 - 🔄 **Binance** - FIX 4.4 support for institutional clients
 
 ## Usage Examples
@@ -64,10 +64,10 @@ auto connector = factory.createConnector(
 );
 
 // Subscribe to market data
-connector->subscribeToMarketUpdates("AAPL", 
+connector->subscribeToMarketUpdates("AAPL",
     [](const MarketUpdate& update) {
-        std::cout << "Price: " << update.lastPrice 
-                  << " Bid: " << update.bid 
+        std::cout << "Price: " << update.lastPrice
+                  << " Bid: " << update.bid
                   << " Ask: " << update.ask << std::endl;
     }
 );

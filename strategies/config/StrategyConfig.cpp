@@ -7,7 +7,7 @@
 namespace pinnacle {
 namespace strategy {
 
-bool StrategyConfig::validate(std::string &errorReason) const {
+bool StrategyConfig::validate(std::string& errorReason) const {
   // Validate spread parameters
   if (baseSpreadBps <= 0) {
     errorReason = "baseSpreadBps must be greater than 0, got " +
@@ -145,7 +145,7 @@ bool StrategyConfig::validate(std::string &errorReason) const {
   return true;
 }
 
-bool StrategyConfig::loadFromFile(const std::string &filename) {
+bool StrategyConfig::loadFromFile(const std::string& filename) {
   // Suppress unused parameter warning
   (void)filename;
   // Note: For Phase 1, we're providing a stub implementation
@@ -157,7 +157,7 @@ bool StrategyConfig::loadFromFile(const std::string &filename) {
   return true;
 }
 
-bool StrategyConfig::saveToFile(const std::string &filename) const {
+bool StrategyConfig::saveToFile(const std::string& filename) const {
   // Suppress unused parameter warning
   (void)filename;
   // Note: For Phase 1, we're providing a stub implementation

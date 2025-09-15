@@ -41,47 +41,47 @@ bool WebSocketMarketDataFeed::isRunning() const {
 }
 
 bool WebSocketMarketDataFeed::subscribeToMarketUpdates(
-    const std::string &symbol,
-    std::function<void(const MarketUpdate &)> callback) {
+    const std::string& symbol,
+    std::function<void(const MarketUpdate&)> callback) {
   std::cout << "Mock subscription to market updates for " << symbol
             << std::endl;
   return true;
 }
 
 bool WebSocketMarketDataFeed::subscribeToOrderBookUpdates(
-    const std::string &symbol,
-    std::function<void(const OrderBookUpdate &)> callback) {
+    const std::string& symbol,
+    std::function<void(const OrderBookUpdate&)> callback) {
   std::cout << "Mock subscription to order book updates for " << symbol
             << std::endl;
   return true;
 }
 
 bool WebSocketMarketDataFeed::unsubscribeFromMarketUpdates(
-    const std::string &symbol) {
+    const std::string& symbol) {
   return true;
 }
 
 bool WebSocketMarketDataFeed::unsubscribeFromOrderBookUpdates(
-    const std::string &symbol) {
+    const std::string& symbol) {
   return true;
 }
 
-void WebSocketMarketDataFeed::publishMarketUpdate(const MarketUpdate &update) {
+void WebSocketMarketDataFeed::publishMarketUpdate(const MarketUpdate& update) {
   // Mock implementation
 }
 
 void WebSocketMarketDataFeed::publishOrderBookUpdate(
-    const OrderBookUpdate &update) {
+    const OrderBookUpdate& update) {
   // Mock implementation
 }
 
-void WebSocketMarketDataFeed::setConnectionParams(const std::string &endpoint,
+void WebSocketMarketDataFeed::setConnectionParams(const std::string& endpoint,
                                                   bool useSSL) {
   m_endpoint = endpoint;
   m_useSSL = useSSL;
 }
 
-void WebSocketMarketDataFeed::setAuthParams(const std::string &exchangeName) {
+void WebSocketMarketDataFeed::setAuthParams(const std::string& exchangeName) {
   m_exchangeName = exchangeName;
 }
 
@@ -137,20 +137,20 @@ WebSocketMarketDataFeed::context_ptr
 WebSocketMarketDataFeed::onTlsInit(websocketpp::connection_hdl hdl) {
   return nullptr;
 }
-void WebSocketMarketDataFeed::parseMessage(const std::string &message) {}
+void WebSocketMarketDataFeed::parseMessage(const std::string& message) {}
 MarketUpdate
-WebSocketMarketDataFeed::parseMarketUpdate(const std::string &message) {
+WebSocketMarketDataFeed::parseMarketUpdate(const std::string& message) {
   return MarketUpdate();
 }
 OrderBookUpdate
-WebSocketMarketDataFeed::parseOrderBookUpdate(const std::string &message) {
+WebSocketMarketDataFeed::parseOrderBookUpdate(const std::string& message) {
   return OrderBookUpdate();
 }
-bool WebSocketMarketDataFeed::sendSubscription(const std::string &symbol) {
+bool WebSocketMarketDataFeed::sendSubscription(const std::string& symbol) {
   return true;
 }
 std::string
-WebSocketMarketDataFeed::createSubscriptionMessage(const std::string &symbol) {
+WebSocketMarketDataFeed::createSubscriptionMessage(const std::string& symbol) {
   return "";
 }
 std::string WebSocketMarketDataFeed::createAuthenticationMessage() {

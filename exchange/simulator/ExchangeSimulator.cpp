@@ -112,7 +112,7 @@ void ExchangeSimulator::setMarketDataFeed(
 // void ExchangeSimulator::setDrift(double drift) - implemented inline
 // void ExchangeSimulator::setTickSize(double tickSize) - implemented inline
 
-void ExchangeSimulator::addMarketParticipant(const std::string &type,
+void ExchangeSimulator::addMarketParticipant(const std::string& type,
                                              double frequency,
                                              double volumeRatio) {
   // Lock for thread safety
@@ -163,16 +163,16 @@ void ExchangeSimulator::marketDataLoop() {
         update.timestamp = utils::TimeUtils::getCurrentNanos();
 
         // Extract bids and asks
-        const auto &bids = snapshot->getBids();
-        const auto &asks = snapshot->getAsks();
+        const auto& bids = snapshot->getBids();
+        const auto& asks = snapshot->getAsks();
 
         // Add bids to update
-        for (const auto &level : bids) {
+        for (const auto& level : bids) {
           update.bids.emplace_back(level.price, level.totalQuantity);
         }
 
         // Add asks to update
-        for (const auto &level : asks) {
+        for (const auto& level : asks) {
           update.asks.emplace_back(level.price, level.totalQuantity);
         }
 
@@ -195,7 +195,7 @@ void ExchangeSimulator::participantLoop() {
     std::lock_guard<std::mutex> lock(m_participantsMutex);
 
     // Check each participant
-    for (auto &participant : m_participants) {
+    for (auto& participant : m_participants) {
       // Check if it's time for activity
       if (currentTime >= participant.nextActivityTime) {
         // Perform activity based on participant type
@@ -288,8 +288,8 @@ void ExchangeSimulator::simulateMarketOrder(OrderSide side, double quantity) {
     double volumeWeightedPrice = 0.0;
     double totalVolume = 0.0;
 
-    for (const auto &fill : fills) {
-      const std::string &orderId = fill.first;
+    for (const auto& fill : fills) {
+      const std::string& orderId = fill.first;
       double fillQuantity = fill.second;
 
       auto order = m_orderBook->getOrder(orderId);
@@ -349,15 +349,15 @@ void ExchangeSimulator::simulateOrderCancellation() {
   std::vector<std::string> orderIds;
 
   // Add bid orders
-  for (const auto &level : snapshot->getBids()) {
-    for (const auto &order : level.orders) {
+  for (const auto& level : snapshot->getBids()) {
+    for (const auto& order : level.orders) {
       orderIds.push_back(order->getOrderId());
     }
   }
 
   // Add ask orders
-  for (const auto &level : snapshot->getAsks()) {
-    for (const auto &order : level.orders) {
+  for (const auto& level : snapshot->getAsks()) {
+    for (const auto& order : level.orders) {
       orderIds.push_back(order->getOrderId());
     }
   }

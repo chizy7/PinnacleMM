@@ -7,12 +7,12 @@
 namespace pinnacle {
 namespace utils {
 
-AuditLogger &AuditLogger::getInstance() {
+AuditLogger& AuditLogger::getInstance() {
   static AuditLogger instance;
   return instance;
 }
 
-bool AuditLogger::initialize(const std::string &logPath, size_t maxFileSize,
+bool AuditLogger::initialize(const std::string& logPath, size_t maxFileSize,
                              size_t maxFiles) {
   try {
     // Create directory if it doesn't exist
@@ -37,13 +37,13 @@ bool AuditLogger::initialize(const std::string &logPath, size_t maxFileSize,
 
     return true;
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("Failed to initialize audit logger: {}", e.what());
     return false;
   }
 }
 
-void AuditLogger::logEvent(const AuditEvent &event) {
+void AuditLogger::logEvent(const AuditEvent& event) {
   if (!m_enabled || !m_logger) {
     return;
   }
@@ -59,13 +59,13 @@ void AuditLogger::logEvent(const AuditEvent &event) {
       spdlog::warn("SECURITY EVENT: {}", event.description);
     }
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("Failed to log audit event: {}", e.what());
   }
 }
 
-void AuditLogger::logAuthentication(bool success, const std::string &userId,
-                                    const std::string &source) {
+void AuditLogger::logAuthentication(bool success, const std::string& userId,
+                                    const std::string& source) {
   AuditEvent event(success ? AuditEventType::AUTHENTICATION_SUCCESS
                            : AuditEventType::AUTHENTICATION_FAILURE,
                    "Authentication attempt", success);
@@ -75,8 +75,8 @@ void AuditLogger::logAuthentication(bool success, const std::string &userId,
   logEvent(event);
 }
 
-void AuditLogger::logCredentialAccess(const std::string &userId,
-                                      const std::string &credentialType,
+void AuditLogger::logCredentialAccess(const std::string& userId,
+                                      const std::string& credentialType,
                                       bool success) {
   AuditEvent event(AuditEventType::CREDENTIAL_ACCESS,
                    "Credential access attempt", success);
@@ -87,9 +87,9 @@ void AuditLogger::logCredentialAccess(const std::string &userId,
   logEvent(event);
 }
 
-void AuditLogger::logNetworkConnection(const std::string &destination,
+void AuditLogger::logNetworkConnection(const std::string& destination,
                                        bool success,
-                                       const std::string &protocol) {
+                                       const std::string& protocol) {
   AuditEvent event(AuditEventType::NETWORK_CONNECTION,
                    "Network connection attempt", success);
   event.target = destination;
@@ -98,10 +98,10 @@ void AuditLogger::logNetworkConnection(const std::string &destination,
   logEvent(event);
 }
 
-void AuditLogger::logOrderActivity(const std::string &userId,
-                                   const std::string &orderId,
-                                   const std::string &action,
-                                   const std::string &symbol, bool success) {
+void AuditLogger::logOrderActivity(const std::string& userId,
+                                   const std::string& orderId,
+                                   const std::string& action,
+                                   const std::string& symbol, bool success) {
   AuditEventType eventType;
   if (action == "submit") {
     eventType = AuditEventType::ORDER_SUBMISSION;
@@ -126,9 +126,9 @@ void AuditLogger::logOrderActivity(const std::string &userId,
   logEvent(event);
 }
 
-void AuditLogger::logConfigAccess(const std::string &userId,
-                                  const std::string &configPath,
-                                  const std::string &action, bool success) {
+void AuditLogger::logConfigAccess(const std::string& userId,
+                                  const std::string& configPath,
+                                  const std::string& action, bool success) {
   AuditEventType eventType = (action == "write" || action == "modify")
                                  ? AuditEventType::CONFIG_MODIFICATION
                                  : AuditEventType::CONFIG_ACCESS;
@@ -145,9 +145,9 @@ void AuditLogger::logConfigAccess(const std::string &userId,
   logEvent(event);
 }
 
-void AuditLogger::logSuspiciousActivity(const std::string &description,
-                                        const std::string &source,
-                                        const std::string &severity) {
+void AuditLogger::logSuspiciousActivity(const std::string& description,
+                                        const std::string& source,
+                                        const std::string& severity) {
   AuditEvent event(AuditEventType::SUSPICIOUS_ACTIVITY, description, false);
   event.source = source;
 
@@ -159,7 +159,7 @@ void AuditLogger::logSuspiciousActivity(const std::string &description,
   logEvent(event);
 }
 
-void AuditLogger::logSystemEvent(const std::string &eventDesc, bool success) {
+void AuditLogger::logSystemEvent(const std::string& eventDesc, bool success) {
   AuditEventType eventType =
       success ? AuditEventType::SYSTEM_START : AuditEventType::ERROR_CONDITION;
   AuditEvent event(eventType, eventDesc, success);
@@ -167,8 +167,8 @@ void AuditLogger::logSystemEvent(const std::string &eventDesc, bool success) {
   logEvent(event);
 }
 
-void AuditLogger::setCurrentSession(const std::string &userId,
-                                    const std::string &sessionId) {
+void AuditLogger::setCurrentSession(const std::string& userId,
+                                    const std::string& sessionId) {
   m_currentUserId = userId;
   m_currentSessionId = sessionId;
 
@@ -221,7 +221,7 @@ std::string AuditLogger::eventTypeToString(AuditEventType type) {
   }
 }
 
-std::string AuditLogger::formatEventAsJson(const AuditEvent &event) {
+std::string AuditLogger::formatEventAsJson(const AuditEvent& event) {
   nlohmann::json json;
 
   json["timestamp"] = getCurrentTimestamp();
@@ -237,7 +237,7 @@ std::string AuditLogger::formatEventAsJson(const AuditEvent &event) {
   if (!event.additionalData.empty()) {
     try {
       json["additional_data"] = nlohmann::json::parse(event.additionalData);
-    } catch (const std::exception &) {
+    } catch (const std::exception&) {
       json["additional_data_raw"] = event.additionalData;
     }
   }

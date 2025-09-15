@@ -34,8 +34,8 @@ SecureConfig::~SecureConfig() {
   EVP_cleanup();
 }
 
-bool SecureConfig::loadFromFile(const std::string &filename,
-                                const std::string &masterPassword) {
+bool SecureConfig::loadFromFile(const std::string& filename,
+                                const std::string& masterPassword) {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   // Check if file exists
@@ -49,14 +49,14 @@ bool SecureConfig::loadFromFile(const std::string &filename,
     return false;
   }
 
-  const auto &encryptedData = encryptedDataWithSalt->first;
-  const auto &salt = encryptedDataWithSalt->second;
+  const auto& encryptedData = encryptedDataWithSalt->first;
+  const auto& salt = encryptedDataWithSalt->second;
 
   // Decrypt data
   std::string decryptedData;
   try {
     decryptedData = decryptValue(encryptedData, masterPassword, salt);
-  } catch (const std::exception &) {
+  } catch (const std::exception&) {
     return false;
   }
 
@@ -69,7 +69,7 @@ bool SecureConfig::loadFromFile(const std::string &filename,
 
     // Load entries
     for (auto it = json.begin(); it != json.end(); ++it) {
-      const std::string &key = it.key();
+      const std::string& key = it.key();
 
       // Check if this is a sensitive entry
       bool sensitive = false;
@@ -86,20 +86,20 @@ bool SecureConfig::loadFromFile(const std::string &filename,
 
     m_modified = false;
     return true;
-  } catch (const std::exception &) {
+  } catch (const std::exception&) {
     return false;
   }
 }
 
-bool SecureConfig::saveToFile(const std::string &filename,
-                              const std::string &masterPassword) {
+bool SecureConfig::saveToFile(const std::string& filename,
+                              const std::string& masterPassword) {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   // Create JSON
   nlohmann::json json;
 
   // Add entries
-  for (const auto &pair : m_entries) {
+  for (const auto& pair : m_entries) {
     json[pair.first] = pair.second.value;
   }
 
@@ -111,7 +111,7 @@ bool SecureConfig::saveToFile(const std::string &filename,
   std::string encryptedData;
   try {
     encryptedData = encryptValue(jsonStr, masterPassword, salt);
-  } catch (const std::exception &) {
+  } catch (const std::exception&) {
     return false;
   }
 
@@ -124,7 +124,7 @@ bool SecureConfig::saveToFile(const std::string &filename,
   return true;
 }
 
-void SecureConfig::setValue(const std::string &key, const std::string &value) {
+void SecureConfig::setValue(const std::string& key, const std::string& value) {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   // Check if this is a sensitive entry
@@ -142,7 +142,7 @@ void SecureConfig::setValue(const std::string &key, const std::string &value) {
 }
 
 std::optional<std::string>
-SecureConfig::getValue(const std::string &key) const {
+SecureConfig::getValue(const std::string& key) const {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   auto it = m_entries.find(key);
@@ -153,12 +153,12 @@ SecureConfig::getValue(const std::string &key) const {
   return std::nullopt;
 }
 
-bool SecureConfig::hasKey(const std::string &key) const {
+bool SecureConfig::hasKey(const std::string& key) const {
   std::lock_guard<std::mutex> lock(m_mutex);
   return m_entries.find(key) != m_entries.end();
 }
 
-bool SecureConfig::removeKey(const std::string &key) {
+bool SecureConfig::removeKey(const std::string& key) {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   auto it = m_entries.find(key);
@@ -175,7 +175,7 @@ void SecureConfig::clear() {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   // Securely clear memory for sensitive entries
-  for (auto &pair : m_entries) {
+  for (auto& pair : m_entries) {
     if (pair.second.sensitive) {
       // Secure overwrite with zeros
       secureMemzero(&pair.second.value[0], pair.second.value.size());
@@ -192,9 +192,9 @@ bool SecureConfig::isModified() const {
 }
 
 std::string
-SecureConfig::encryptValue(const std::string &value,
-                           const std::string &password,
-                           const std::vector<unsigned char> &salt) const {
+SecureConfig::encryptValue(const std::string& value,
+                           const std::string& password,
+                           const std::vector<unsigned char>& salt) const {
   // Generate a random 16-byte IV
   unsigned char iv[16];
   if (RAND_bytes(iv, sizeof(iv)) != 1) {
@@ -205,7 +205,7 @@ SecureConfig::encryptValue(const std::string &value,
   auto key = deriveKeyFromPassword(password, salt);
 
   // Create and initialize the context
-  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
   if (!ctx) {
     throw std::runtime_error("Failed to create encryption context");
   }
@@ -224,7 +224,7 @@ SecureConfig::encryptValue(const std::string &value,
 
   // Encrypt the plaintext
   if (EVP_EncryptUpdate(ctx, ciphertext.data(), &ciphertext_len,
-                        reinterpret_cast<const unsigned char *>(value.data()),
+                        reinterpret_cast<const unsigned char*>(value.data()),
                         static_cast<int>(value.size())) != 1) {
     EVP_CIPHER_CTX_free(ctx);
     throw std::runtime_error("Failed to encrypt data");
@@ -258,7 +258,7 @@ SecureConfig::encryptValue(const std::string &value,
   unsigned char char_array_3[3];
   unsigned char char_array_4[4];
 
-  for (const auto &byte : result) {
+  for (const auto& byte : result) {
     char_array_3[i++] = byte;
     if (i == 3) {
       char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
@@ -299,9 +299,9 @@ SecureConfig::encryptValue(const std::string &value,
 }
 
 std::string
-SecureConfig::decryptValue(const std::string &encryptedValue,
-                           const std::string &password,
-                           const std::vector<unsigned char> &salt) const {
+SecureConfig::decryptValue(const std::string& encryptedValue,
+                           const std::string& password,
+                           const std::vector<unsigned char>& salt) const {
   // Decode Base64
   static const std::string base64_chars =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -371,7 +371,7 @@ SecureConfig::decryptValue(const std::string &encryptedValue,
   auto key = deriveKeyFromPassword(password, salt);
 
   // Create and initialize the context
-  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
   if (!ctx) {
     throw std::runtime_error("Failed to create decryption context");
   }
@@ -410,12 +410,12 @@ SecureConfig::decryptValue(const std::string &encryptedValue,
   EVP_CIPHER_CTX_free(ctx);
 
   // Convert to string
-  return std::string(reinterpret_cast<char *>(plaintext.data()), plaintext_len);
+  return std::string(reinterpret_cast<char*>(plaintext.data()), plaintext_len);
 }
 
 bool SecureConfig::writeEncryptedJson(
-    const std::string &filename, const std::string &encryptedData,
-    const std::vector<unsigned char> &salt) const {
+    const std::string& filename, const std::string& encryptedData,
+    const std::vector<unsigned char>& salt) const {
   try {
     // Create JSON object
     nlohmann::json json;
@@ -435,7 +435,7 @@ bool SecureConfig::writeEncryptedJson(
     unsigned char char_array_3[3];
     unsigned char char_array_4[4];
 
-    for (const auto &byte : salt) {
+    for (const auto& byte : salt) {
       char_array_3[i++] = byte;
       if (i == 3) {
         char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
@@ -482,13 +482,13 @@ bool SecureConfig::writeEncryptedJson(
 
     file << json.dump(4); // Pretty print with 4-space indent
     return true;
-  } catch (const std::exception &) {
+  } catch (const std::exception&) {
     return false;
   }
 }
 
 std::optional<std::pair<std::string, std::vector<unsigned char>>>
-SecureConfig::readEncryptedJson(const std::string &filename) const {
+SecureConfig::readEncryptedJson(const std::string& filename) const {
   try {
     // Open file
     std::ifstream file(filename);
@@ -569,13 +569,13 @@ SecureConfig::readEncryptedJson(const std::string &filename) const {
     }
 
     return std::make_pair(json["data"].get<std::string>(), salt);
-  } catch (const std::exception &) {
+  } catch (const std::exception&) {
     return std::nullopt;
   }
 }
 
 std::vector<unsigned char> SecureConfig::deriveKeyFromPassword(
-    const std::string &password, const std::vector<unsigned char> &salt) const {
+    const std::string& password, const std::vector<unsigned char>& salt) const {
   // Use PBKDF2 to derive a key from the password
   const int iterations =
       100000; // Increased from 10,000 to 100,000 for better security
@@ -605,13 +605,13 @@ std::vector<unsigned char> SecureConfig::generateSalt() const {
   return salt;
 }
 
-void SecureConfig::secureMemzero(void *ptr, size_t len) const {
+void SecureConfig::secureMemzero(void* ptr, size_t len) const {
   if (ptr == nullptr || len == 0) {
     return;
   }
 
   // Use volatile to prevent compiler optimization
-  volatile unsigned char *vptr = static_cast<volatile unsigned char *>(ptr);
+  volatile unsigned char* vptr = static_cast<volatile unsigned char*>(ptr);
   for (size_t i = 0; i < len; ++i) {
     vptr[i] = 0;
   }
@@ -621,12 +621,12 @@ void SecureConfig::secureMemzero(void *ptr, size_t len) const {
 }
 
 // ApiCredentials implementation
-ApiCredentials::ApiCredentials(SecureConfig &config) : m_config(config) {}
+ApiCredentials::ApiCredentials(SecureConfig& config) : m_config(config) {}
 
 bool ApiCredentials::setCredentials(
-    const std::string &exchange, const std::string &apiKey,
-    const std::string &apiSecret,
-    const std::optional<std::string> &passphrase) {
+    const std::string& exchange, const std::string& apiKey,
+    const std::string& apiSecret,
+    const std::optional<std::string>& passphrase) {
   // Construct key prefixes
   std::string baseKey = API_KEY_PREFIX + exchange + ".";
   std::string apiKeyKey = baseKey + "apiKey";
@@ -648,31 +648,31 @@ bool ApiCredentials::setCredentials(
 }
 
 std::optional<std::string>
-ApiCredentials::getApiKey(const std::string &exchange) const {
+ApiCredentials::getApiKey(const std::string& exchange) const {
   std::string key = API_KEY_PREFIX + exchange + ".apiKey";
   return m_config.getValue(key);
 }
 
 std::optional<std::string>
-ApiCredentials::getApiSecret(const std::string &exchange) const {
+ApiCredentials::getApiSecret(const std::string& exchange) const {
   std::string key = API_KEY_PREFIX + exchange + ".apiSecret";
   return m_config.getValue(key);
 }
 
 std::optional<std::string>
-ApiCredentials::getPassphrase(const std::string &exchange) const {
+ApiCredentials::getPassphrase(const std::string& exchange) const {
   std::string key = API_KEY_PREFIX + exchange + ".passphrase";
   return m_config.getValue(key);
 }
 
-bool ApiCredentials::hasCredentials(const std::string &exchange) const {
+bool ApiCredentials::hasCredentials(const std::string& exchange) const {
   std::string apiKeyKey = API_KEY_PREFIX + exchange + ".apiKey";
   std::string apiSecretKey = API_KEY_PREFIX + exchange + ".apiSecret";
 
   return m_config.hasKey(apiKeyKey) && m_config.hasKey(apiSecretKey);
 }
 
-bool ApiCredentials::removeCredentials(const std::string &exchange) {
+bool ApiCredentials::removeCredentials(const std::string& exchange) {
   std::string baseKey = API_KEY_PREFIX + exchange + ".";
   std::string apiKeyKey = baseKey + "apiKey";
   std::string apiSecretKey = baseKey + "apiSecret";

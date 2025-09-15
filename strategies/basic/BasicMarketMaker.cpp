@@ -11,8 +11,8 @@
 namespace pinnacle {
 namespace strategy {
 
-BasicMarketMaker::BasicMarketMaker(const std::string &symbol,
-                                   const StrategyConfig &config)
+BasicMarketMaker::BasicMarketMaker(const std::string& symbol,
+                                   const StrategyConfig& config)
     : m_symbol(symbol), m_config(config) {
   // Validate configuration
   std::string errorReason;
@@ -35,7 +35,7 @@ bool BasicMarketMaker::initialize(std::shared_ptr<OrderBook> orderBook) {
   m_orderBook = orderBook;
 
   // Register for order book updates
-  m_orderBook->registerUpdateCallback([this](const OrderBook &orderBook) {
+  m_orderBook->registerUpdateCallback([this](const OrderBook& orderBook) {
     this->onOrderBookUpdate(orderBook);
   });
 
@@ -90,7 +90,7 @@ bool BasicMarketMaker::isRunning() const {
   return m_isRunning.load(std::memory_order_acquire);
 }
 
-void BasicMarketMaker::onOrderBookUpdate(const OrderBook &orderBook) {
+void BasicMarketMaker::onOrderBookUpdate(const OrderBook& orderBook) {
   // Create an order book update event
   Event event;
   event.type = EventType::ORDER_BOOK_UPDATE;
@@ -98,7 +98,7 @@ void BasicMarketMaker::onOrderBookUpdate(const OrderBook &orderBook) {
   // event.data = std::make_shared<OrderBook>(orderBook);
   // Store a pointer to the existing OrderBook instead of copying it
   event.data = std::shared_ptr<void>(std::shared_ptr<OrderBook>{},
-                                     const_cast<OrderBook *>(&orderBook));
+                                     const_cast<OrderBook*>(&orderBook));
 
   // Add to event queue
   if (!m_eventQueue.tryEnqueue(event)) {
@@ -110,7 +110,7 @@ void BasicMarketMaker::onOrderBookUpdate(const OrderBook &orderBook) {
   m_eventCondition.notify_one();
 }
 
-void BasicMarketMaker::onTrade(const std::string &symbol, double price,
+void BasicMarketMaker::onTrade(const std::string& symbol, double price,
                                double quantity, OrderSide side,
                                uint64_t timestamp) {
   // Ignore trades for other symbols
@@ -140,7 +140,7 @@ void BasicMarketMaker::onTrade(const std::string &symbol, double price,
   m_eventCondition.notify_one();
 }
 
-void BasicMarketMaker::onOrderUpdate(const std::string &orderId,
+void BasicMarketMaker::onOrderUpdate(const std::string& orderId,
                                      OrderStatus status, double filledQuantity,
                                      uint64_t timestamp) {
   // Create an order update event
@@ -202,7 +202,7 @@ double BasicMarketMaker::getPnL() const {
   return m_pnl.load(std::memory_order_relaxed);
 }
 
-bool BasicMarketMaker::updateConfig(const StrategyConfig &config) {
+bool BasicMarketMaker::updateConfig(const StrategyConfig& config) {
   // Validate the new configuration
   std::string errorReason;
   if (!config.validate(errorReason)) {
@@ -295,7 +295,7 @@ void BasicMarketMaker::processEvents() {
 
       auto it = m_activeOrders.find(updateInfo->orderId);
       if (it != m_activeOrders.end()) {
-        OrderInfo &orderInfo = it->second;
+        OrderInfo& orderInfo = it->second;
 
         // Calculate fill delta
         double fillDelta =
@@ -414,12 +414,12 @@ void BasicMarketMaker::cancelAllOrders() {
 
   // Copy order IDs to avoid iterator invalidation
   std::vector<std::string> orderIds;
-  for (const auto &pair : m_activeOrders) {
+  for (const auto& pair : m_activeOrders) {
     orderIds.push_back(pair.first);
   }
 
   // Cancel each order
-  for (const auto &orderId : orderIds) {
+  for (const auto& orderId : orderIds) {
     // In a real system, we would call the exchange API here
     m_orderBook->cancelOrder(orderId);
   }

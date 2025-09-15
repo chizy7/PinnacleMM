@@ -62,7 +62,7 @@ void testTWAPStrategy() {
   assert(results.size() == 5); // Should create 5 slices
 
   double totalQuantity = 0;
-  for (const auto &result : results) {
+  for (const auto& result : results) {
     totalQuantity += result.order.getQuantity();
     assert(result.targetVenue == "Coinbase");
   }
@@ -98,7 +98,7 @@ void testVWAPStrategy() {
   assert(!results.empty());
 
   double totalAllocated = 0;
-  for (const auto &result : results) {
+  for (const auto& result : results) {
     totalAllocated += result.order.getQuantity();
     std::cout << "  Venue: " << result.targetVenue
               << ", Quantity: " << result.order.getQuantity() << std::endl;
@@ -135,7 +135,7 @@ void testMarketImpactStrategy() {
 
   assert(!results.empty());
 
-  for (const auto &result : results) {
+  for (const auto& result : results) {
     std::cout << "  Venue: " << result.targetVenue
               << ", Quantity: " << result.order.getQuantity() << std::endl;
   }
@@ -241,7 +241,7 @@ void testOrderRouterMultipleStrategies() {
   std::vector<std::string> strategies = {"BEST_PRICE", "TWAP", "VWAP",
                                          "MARKET_IMPACT"};
 
-  for (const auto &strategy : strategies) {
+  for (const auto& strategy : strategies) {
     router.setRoutingStrategy(strategy);
 
     Order testOrder("ORDER_" + strategy, "BTC-USD", OrderSide::BUY,
@@ -285,7 +285,7 @@ int main() {
     std::cout << "\n All OrderRouter tests passed successfully!" << std::endl;
     return 0;
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << "\n Test failed with exception: " << e.what() << std::endl;
     return 1;
   } catch (...) {

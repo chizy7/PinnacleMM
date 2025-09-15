@@ -29,18 +29,18 @@ public:
   ~InteractiveBrokersFixConnector() override;
 
   // Order execution interface
-  bool sendNewOrderSingle(const pinnacle::Order &order) override;
-  bool cancelOrder(const std::string &orderId) override;
-  bool replaceOrder(const std::string &orderId,
-                    const pinnacle::Order &newOrder) override;
+  bool sendNewOrderSingle(const pinnacle::Order& order) override;
+  bool cancelOrder(const std::string& orderId) override;
+  bool replaceOrder(const std::string& orderId,
+                    const pinnacle::Order& newOrder) override;
 
 protected:
   // FIX message handlers
   void onLogon() override;
   void onLogout() override;
-  void onMarketDataMessage(const hffix::message_reader &msg) override;
-  void onExecutionReport(const hffix::message_reader &msg) override;
-  void onOrderCancelReject(const hffix::message_reader &msg) override;
+  void onMarketDataMessage(const hffix::message_reader& msg) override;
+  void onExecutionReport(const hffix::message_reader& msg) override;
+  void onOrderCancelReject(const hffix::message_reader& msg) override;
 
 private:
   /**
@@ -51,33 +51,33 @@ private:
   /**
    * @brief Create IB-specific market data request
    */
-  hffix::message_writer createIBMarketDataRequest(const std::string &symbol,
+  hffix::message_writer createIBMarketDataRequest(const std::string& symbol,
                                                   char subscriptionRequestType);
 
   /**
    * @brief Parse IB market data snapshot
    */
-  void parseMarketDataSnapshot(const hffix::message_reader &msg);
+  void parseMarketDataSnapshot(const hffix::message_reader& msg);
 
   /**
    * @brief Parse IB market data incremental refresh
    */
-  void parseMarketDataIncrementalRefresh(const hffix::message_reader &msg);
+  void parseMarketDataIncrementalRefresh(const hffix::message_reader& msg);
 
   /**
    * @brief Convert IB symbol format to internal format
    */
-  std::string convertIBSymbolToInternal(const std::string &ibSymbol);
+  std::string convertIBSymbolToInternal(const std::string& ibSymbol);
 
   /**
    * @brief Convert internal symbol format to IB format
    */
-  std::string convertInternalSymbolToIB(const std::string &internalSymbol);
+  std::string convertInternalSymbolToIB(const std::string& internalSymbol);
 
   /**
    * @brief IB-specific order handling
    */
-  void handleExecutionReport(const hffix::message_reader &msg);
+  void handleExecutionReport(const hffix::message_reader& msg);
 
   /**
    * @brief Subscribe to market data after logon

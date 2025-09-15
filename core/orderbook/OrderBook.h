@@ -37,7 +37,7 @@ struct PriceLevel {
   void addOrder(std::shared_ptr<Order> order);
 
   // Remove an order from this price level
-  bool removeOrder(const std::string &orderId);
+  bool removeOrder(const std::string& orderId);
 
   // Update total quantity
   void updateTotalQuantity();
@@ -52,28 +52,28 @@ struct PriceLevel {
 class OrderBook {
 public:
   // Constructor
-  explicit OrderBook(const std::string &symbol);
+  explicit OrderBook(const std::string& symbol);
 
   // Destructor
   ~OrderBook() = default;
 
   // Deleted copy and move operations to prevent accidental copies
-  OrderBook(const OrderBook &) = delete;
-  OrderBook &operator=(const OrderBook &) = delete;
-  OrderBook(OrderBook &&) = delete;
-  OrderBook &operator=(OrderBook &&) = delete;
+  OrderBook(const OrderBook&) = delete;
+  OrderBook& operator=(const OrderBook&) = delete;
+  OrderBook(OrderBook&&) = delete;
+  OrderBook& operator=(OrderBook&&) = delete;
 
   // Core order book functionality
   bool addOrder(std::shared_ptr<Order> order);
-  bool cancelOrder(const std::string &orderId);
-  bool executeOrder(const std::string &orderId, double quantity);
+  bool cancelOrder(const std::string& orderId);
+  bool executeOrder(const std::string& orderId, double quantity);
 
   // Market order execution
   double executeMarketOrder(OrderSide side, double quantity,
-                            std::vector<std::pair<std::string, double>> &fills);
+                            std::vector<std::pair<std::string, double>>& fills);
 
   // Order book queries
-  std::shared_ptr<Order> getOrder(const std::string &orderId) const;
+  std::shared_ptr<Order> getOrder(const std::string& orderId) const;
   double getBestBidPrice() const;
   double getBestAskPrice() const;
   double getMidPrice() const;
@@ -104,10 +104,10 @@ public:
   void clear();
 
   // Get the symbol for this order book
-  const std::string &getSymbol() const { return m_symbol; }
+  const std::string& getSymbol() const { return m_symbol; }
 
   // Callback registration for order book events
-  using OrderBookUpdateCallback = std::function<void(const OrderBook &)>;
+  using OrderBookUpdateCallback = std::function<void(const OrderBook&)>;
   void registerUpdateCallback(OrderBookUpdateCallback callback);
 
   // Recovery methods
@@ -145,7 +145,7 @@ private:
 
   // Internal helper methods for order matching
   bool matchOrder(std::shared_ptr<Order> order);
-  bool canMatch(const Order &takerOrder, const Order &makerOrder) const;
+  bool canMatch(const Order& takerOrder, const Order& makerOrder) const;
 
   // Persistence-related fields
   std::shared_ptr<persistence::journal::Journal> m_journal;
@@ -156,19 +156,19 @@ private:
 
   // Journal operations
   void journalAddOrder(std::shared_ptr<Order> order);
-  void journalCancelOrder(const std::string &orderId);
-  void journalExecuteOrder(const std::string &orderId, double quantity);
+  void journalCancelOrder(const std::string& orderId);
+  void journalExecuteOrder(const std::string& orderId, double quantity);
   void
   journalMarketOrder(OrderSide side, double quantity,
-                     const std::vector<std::pair<std::string, double>> &fills);
+                     const std::vector<std::pair<std::string, double>>& fills);
 
   // Internal non-journaling versions for recovery
   bool addOrderInternal(std::shared_ptr<Order> order);
-  bool cancelOrderInternal(const std::string &orderId);
-  bool executeOrderInternal(const std::string &orderId, double quantity);
+  bool cancelOrderInternal(const std::string& orderId);
+  bool executeOrderInternal(const std::string& orderId, double quantity);
   void executeMarketOrderInternal(
       OrderSide side, double quantity,
-      const std::vector<std::pair<std::string, double>> &fills);
+      const std::vector<std::pair<std::string, double>>& fills);
 };
 
 /**
@@ -177,14 +177,14 @@ private:
  */
 class OrderBookSnapshot {
 public:
-  OrderBookSnapshot(const std::string &symbol, uint64_t timestamp,
+  OrderBookSnapshot(const std::string& symbol, uint64_t timestamp,
                     std::vector<PriceLevel> bids, std::vector<PriceLevel> asks);
 
   // Accessors
-  const std::string &getSymbol() const { return m_symbol; }
+  const std::string& getSymbol() const { return m_symbol; }
   uint64_t getTimestamp() const { return m_timestamp; }
-  const std::vector<PriceLevel> &getBids() const { return m_bids; }
-  const std::vector<PriceLevel> &getAsks() const { return m_asks; }
+  const std::vector<PriceLevel>& getBids() const { return m_bids; }
+  const std::vector<PriceLevel>& getAsks() const { return m_asks; }
 
 private:
   std::string m_symbol;

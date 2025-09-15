@@ -14,17 +14,17 @@ namespace persistence {
 class PersistenceManager {
 public:
   // Singleton instance
-  static PersistenceManager &getInstance();
+  static PersistenceManager& getInstance();
 
   // Initialize persistence with data directory
-  bool initialize(const std::string &dataDirectory);
+  bool initialize(const std::string& dataDirectory);
 
   // Get journal for a specific symbol
-  std::shared_ptr<journal::Journal> getJournal(const std::string &symbol);
+  std::shared_ptr<journal::Journal> getJournal(const std::string& symbol);
 
   // Get snapshot manager for a specific symbol
   std::shared_ptr<snapshot::SnapshotManager>
-  getSnapshotManager(const std::string &symbol);
+  getSnapshotManager(const std::string& symbol);
 
   // Recover state after restart
   bool recoverState();
@@ -40,8 +40,8 @@ private:
   ~PersistenceManager();
 
   // Non-copyable
-  PersistenceManager(const PersistenceManager &) = delete;
-  PersistenceManager &operator=(const PersistenceManager &) = delete;
+  PersistenceManager(const PersistenceManager&) = delete;
+  PersistenceManager& operator=(const PersistenceManager&) = delete;
 
   // Implementation details
   std::string m_dataDirectory;

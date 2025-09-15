@@ -17,11 +17,11 @@ namespace journal {
 class Journal {
 public:
   // Constructor with journal file path
-  explicit Journal(const std::string &journalPath);
+  explicit Journal(const std::string& journalPath);
   ~Journal();
 
   // Append a new entry to the journal
-  bool appendEntry(const JournalEntry &entry);
+  bool appendEntry(const JournalEntry& entry);
 
   // Read all entries from the journal
   std::vector<JournalEntry> readAllEntries();
@@ -43,7 +43,7 @@ private:
   std::string m_journalPath;
 
   // Memory-mapped file
-  void *m_mappedMemory = nullptr;
+  void* m_mappedMemory = nullptr;
   size_t m_mappedSize = 0;
   int m_fileDescriptor = -1;
 

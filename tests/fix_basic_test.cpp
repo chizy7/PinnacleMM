@@ -15,7 +15,7 @@ int main() {
   try {
     // Test 1: Factory creation
     std::cout << "\n1. Testing FixConnectorFactory..." << std::endl;
-    auto &factory = FixConnectorFactory::getInstance();
+    auto& factory = FixConnectorFactory::getInstance();
     std::cout << "   ✓ Factory instance created" << std::endl;
 
     // Test 2: Check FIX support
@@ -80,7 +80,7 @@ int main() {
 
     return 0;
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << " Error: " << e.what() << std::endl;
     return 1;
   }

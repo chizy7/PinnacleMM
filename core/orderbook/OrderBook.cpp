@@ -22,9 +22,9 @@ void PriceLevel::addOrder(std::shared_ptr<Order> order) {
   updateTotalQuantity();
 }
 
-bool PriceLevel::removeOrder(const std::string &orderId) {
+bool PriceLevel::removeOrder(const std::string& orderId) {
   auto it = std::find_if(orders.begin(), orders.end(),
-                         [&orderId](const std::shared_ptr<Order> &order) {
+                         [&orderId](const std::shared_ptr<Order>& order) {
                            return order->getOrderId() == orderId;
                          });
 
@@ -39,13 +39,13 @@ bool PriceLevel::removeOrder(const std::string &orderId) {
 
 void PriceLevel::updateTotalQuantity() {
   totalQuantity = 0.0;
-  for (const auto &order : orders) {
+  for (const auto& order : orders) {
     totalQuantity += order->getRemainingQuantity();
   }
 }
 
 // OrderBook implementation
-OrderBook::OrderBook(const std::string &symbol) : m_symbol(symbol) {
+OrderBook::OrderBook(const std::string& symbol) : m_symbol(symbol) {
   // Initialize persistence
   initializePersistence();
 }
@@ -93,7 +93,7 @@ bool OrderBook::addOrder(std::shared_ptr<Order> order) {
   return true;
 }
 
-bool OrderBook::cancelOrder(const std::string &orderId) {
+bool OrderBook::cancelOrder(const std::string& orderId) {
   // Acquire write lock
   std::unique_lock<std::shared_mutex> lock(m_mutex);
 
@@ -157,7 +157,7 @@ bool OrderBook::cancelOrder(const std::string &orderId) {
   return removed;
 }
 
-bool OrderBook::executeOrder(const std::string &orderId, double quantity) {
+bool OrderBook::executeOrder(const std::string& orderId, double quantity) {
   // Acquire write lock
   std::unique_lock<std::shared_mutex> lock(m_mutex);
 
@@ -240,7 +240,7 @@ bool OrderBook::executeOrder(const std::string &orderId, double quantity) {
 
 double OrderBook::executeMarketOrder(
     OrderSide side, double quantity,
-    std::vector<std::pair<std::string, double>> &fills) {
+    std::vector<std::pair<std::string, double>>& fills) {
   // Clear the fills vector
   fills.clear();
 
@@ -261,7 +261,7 @@ double OrderBook::executeMarketOrder(
     // Buy order executes against asks
     for (auto askIt = m_asks.begin();
          askIt != m_asks.end() && remainingQuantity > 0;) {
-      PriceLevel &level = askIt->second;
+      PriceLevel& level = askIt->second;
 
       // Execute against orders at this level
       for (auto orderIt = level.orders.begin();
@@ -308,7 +308,7 @@ double OrderBook::executeMarketOrder(
     // Sell order executes against bids
     for (auto bidIt = m_bids.begin();
          bidIt != m_bids.end() && remainingQuantity > 0;) {
-      PriceLevel &level = bidIt->second;
+      PriceLevel& level = bidIt->second;
 
       // Execute against orders at this level
       for (auto orderIt = level.orders.begin();
@@ -367,7 +367,7 @@ double OrderBook::executeMarketOrder(
   return executedQuantity;
 }
 
-std::shared_ptr<Order> OrderBook::getOrder(const std::string &orderId) const {
+std::shared_ptr<Order> OrderBook::getOrder(const std::string& orderId) const {
   // Acquire read lock
   std::shared_lock<std::shared_mutex> lock(m_mutex);
 
@@ -473,7 +473,7 @@ std::vector<PriceLevel> OrderBook::getBidLevels(size_t depth) const {
   std::vector<PriceLevel> levels;
   size_t count = 0;
 
-  for (const auto &pair : m_bids) {
+  for (const auto& pair : m_bids) {
     levels.push_back(pair.second);
     ++count;
 
@@ -492,7 +492,7 @@ std::vector<PriceLevel> OrderBook::getAskLevels(size_t depth) const {
   std::vector<PriceLevel> levels;
   size_t count = 0;
 
-  for (const auto &pair : m_asks) {
+  for (const auto& pair : m_asks) {
     levels.push_back(pair.second);
     ++count;
 
@@ -514,8 +514,8 @@ double OrderBook::calculateMarketImpact(OrderSide side, double quantity) const {
 
   if (side == OrderSide::BUY) {
     // Calculate impact of a buy order
-    for (const auto &pair : m_asks) {
-      const PriceLevel &level = pair.second;
+    for (const auto& pair : m_asks) {
+      const PriceLevel& level = pair.second;
       double levelQuantity = level.totalQuantity;
 
       if (remainingQuantity <= 0) {
@@ -529,8 +529,8 @@ double OrderBook::calculateMarketImpact(OrderSide side, double quantity) const {
     }
   } else {
     // Calculate impact of a sell order
-    for (const auto &pair : m_bids) {
-      const PriceLevel &level = pair.second;
+    for (const auto& pair : m_bids) {
+      const PriceLevel& level = pair.second;
       double levelQuantity = level.totalQuantity;
 
       if (remainingQuantity <= 0) {
@@ -573,7 +573,7 @@ double OrderBook::calculateOrderBookImbalance(size_t depth) const {
 
   // Calculate bid volume
   size_t bidCount = 0;
-  for (const auto &pair : m_bids) {
+  for (const auto& pair : m_bids) {
     bidVolume += pair.second.totalQuantity;
     ++bidCount;
 
@@ -584,7 +584,7 @@ double OrderBook::calculateOrderBookImbalance(size_t depth) const {
 
   // Calculate ask volume
   size_t askCount = 0;
-  for (const auto &pair : m_asks) {
+  for (const auto& pair : m_asks) {
     askVolume += pair.second.totalQuantity;
     ++askCount;
 
@@ -614,12 +614,12 @@ std::shared_ptr<OrderBookSnapshot> OrderBook::getSnapshot() const {
   std::vector<PriceLevel> asks;
 
   // Copy bid levels
-  for (const auto &pair : m_bids) {
+  for (const auto& pair : m_bids) {
     bids.push_back(pair.second);
   }
 
   // Copy ask levels
-  for (const auto &pair : m_asks) {
+  for (const auto& pair : m_asks) {
     asks.push_back(pair.second);
   }
 
@@ -661,7 +661,7 @@ void OrderBook::notifyUpdate() {
   }
 
   // Notify all callbacks without holding the lock
-  for (const auto &callback : callbacks) {
+  for (const auto& callback : callbacks) {
     callback(*this);
   }
 }
@@ -690,7 +690,7 @@ bool OrderBook::matchOrder(std::shared_ptr<Order> order) {
         break;
       }
 
-      PriceLevel &level = askIt->second;
+      PriceLevel& level = askIt->second;
 
       // Match against orders at this level
       for (auto orderIt = level.orders.begin();
@@ -744,7 +744,7 @@ bool OrderBook::matchOrder(std::shared_ptr<Order> order) {
         break;
       }
 
-      PriceLevel &level = bidIt->second;
+      PriceLevel& level = bidIt->second;
 
       // Match against orders at this level
       for (auto orderIt = level.orders.begin();
@@ -794,8 +794,8 @@ bool OrderBook::matchOrder(std::shared_ptr<Order> order) {
   return matched;
 }
 
-bool OrderBook::canMatch(const Order &takerOrder,
-                         const Order &makerOrder) const {
+bool OrderBook::canMatch(const Order& takerOrder,
+                         const Order& makerOrder) const {
   // Orders must be on opposite sides
   if (takerOrder.getSide() == makerOrder.getSide()) {
     return false;
@@ -816,7 +816,7 @@ bool OrderBook::canMatch(const Order &takerOrder,
 
 void OrderBook::initializePersistence() {
   // Get the journal for this symbol
-  auto &persistenceManager = persistence::PersistenceManager::getInstance();
+  auto& persistenceManager = persistence::PersistenceManager::getInstance();
   m_journal = persistenceManager.getJournal(m_symbol);
 
   if (!m_journal) {
@@ -843,7 +843,7 @@ void OrderBook::journalAddOrder(std::shared_ptr<Order> order) {
   m_journal->appendEntry(entry);
 }
 
-void OrderBook::journalCancelOrder(const std::string &orderId) {
+void OrderBook::journalCancelOrder(const std::string& orderId) {
   if (!m_journal) {
     return; // Persistence not initialized
   }
@@ -856,7 +856,7 @@ void OrderBook::journalCancelOrder(const std::string &orderId) {
   m_journal->appendEntry(entry);
 }
 
-void OrderBook::journalExecuteOrder(const std::string &orderId,
+void OrderBook::journalExecuteOrder(const std::string& orderId,
                                     double quantity) {
   if (!m_journal) {
     return; // Persistence not initialized
@@ -872,7 +872,7 @@ void OrderBook::journalExecuteOrder(const std::string &orderId,
 
 void OrderBook::journalMarketOrder(
     OrderSide side, double quantity,
-    const std::vector<std::pair<std::string, double>> &fills) {
+    const std::vector<std::pair<std::string, double>>& fills) {
   if (!m_journal) {
     return; // Persistence not initialized
   }
@@ -894,9 +894,9 @@ bool OrderBook::recoverFromJournal(
   // Read all entries after the last checkpoint
   auto entries = journal->readEntriesAfter(m_lastCheckpointSequence);
 
-  for (const auto &entry : entries) {
-    const auto &header = entry.getHeader();
-    const auto &data = entry.getData();
+  for (const auto& entry : entries) {
+    const auto& header = entry.getHeader();
+    const auto& data = entry.getData();
 
     switch (header.type) {
     case persistence::journal::EntryType::ORDER_ADDED: {
@@ -1004,7 +1004,7 @@ void OrderBook::createCheckpoint() {
   }
 
   // Get snapshot manager
-  auto &persistenceManager = persistence::PersistenceManager::getInstance();
+  auto& persistenceManager = persistence::PersistenceManager::getInstance();
   auto snapshotManager = persistenceManager.getSnapshotManager(m_symbol);
 
   if (!snapshotManager) {
@@ -1069,7 +1069,7 @@ bool OrderBook::addOrderInternal(std::shared_ptr<Order> order) {
   return true;
 }
 
-bool OrderBook::cancelOrderInternal(const std::string &orderId) {
+bool OrderBook::cancelOrderInternal(const std::string& orderId) {
   // This is a duplicate of cancelOrder without the journaling
   // Acquire write lock
   std::unique_lock<std::shared_mutex> lock(m_mutex);
@@ -1129,7 +1129,7 @@ bool OrderBook::cancelOrderInternal(const std::string &orderId) {
   return removed;
 }
 
-bool OrderBook::executeOrderInternal(const std::string &orderId,
+bool OrderBook::executeOrderInternal(const std::string& orderId,
                                      double quantity) {
   // This is a duplicate of executeOrder without the journaling
   // Acquire write lock
@@ -1210,7 +1210,7 @@ bool OrderBook::executeOrderInternal(const std::string &orderId,
 
 void OrderBook::executeMarketOrderInternal(
     OrderSide side, double quantity,
-    const std::vector<std::pair<std::string, double>> &fills) {
+    const std::vector<std::pair<std::string, double>>& fills) {
   // Suppress unused parameter warnings
   (void)side;
   (void)quantity;
@@ -1218,13 +1218,13 @@ void OrderBook::executeMarketOrderInternal(
   // TODO: Implement actual matching logic
   // This is a simplified version that just applies the fills without actual
   // matching logic
-  for (const auto &fill : fills) {
+  for (const auto& fill : fills) {
     executeOrderInternal(fill.first, fill.second);
   }
 }
 
 // OrderBookSnapshot implementation
-OrderBookSnapshot::OrderBookSnapshot(const std::string &symbol,
+OrderBookSnapshot::OrderBookSnapshot(const std::string& symbol,
                                      uint64_t timestamp,
                                      std::vector<PriceLevel> bids,
                                      std::vector<PriceLevel> asks)

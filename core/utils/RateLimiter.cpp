@@ -47,13 +47,13 @@ void TokenBucket::refill() {
 
 // SlidingWindowRateLimiter implementation
 SlidingWindowRateLimiter::SlidingWindowRateLimiter(
-    const RateLimitConfig &config)
+    const RateLimitConfig& config)
     : m_config(config) {}
 
-RateLimitResult SlidingWindowRateLimiter::checkRequest(const std::string &key) {
+RateLimitResult SlidingWindowRateLimiter::checkRequest(const std::string& key) {
   std::lock_guard<std::mutex> lock(m_mutex);
 
-  auto &window = m_windows[key];
+  auto& window = m_windows[key];
   cleanupWindow(window);
 
   // Check if in cooldown period
@@ -85,11 +85,11 @@ RateLimitResult SlidingWindowRateLimiter::checkRequest(const std::string &key) {
                          "Rate limit exceeded");
 }
 
-void SlidingWindowRateLimiter::recordRequest(const std::string &key) {
+void SlidingWindowRateLimiter::recordRequest(const std::string& key) {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   auto now = std::chrono::steady_clock::now();
-  auto &window = m_windows[key];
+  auto& window = m_windows[key];
 
   window.requests.push(now);
   window.lastRequest = now;
@@ -97,7 +97,7 @@ void SlidingWindowRateLimiter::recordRequest(const std::string &key) {
   cleanupWindow(window);
 }
 
-void SlidingWindowRateLimiter::reset(const std::string &key) {
+void SlidingWindowRateLimiter::reset(const std::string& key) {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   auto it = m_windows.find(key);
@@ -122,7 +122,7 @@ void SlidingWindowRateLimiter::cleanup() {
   }
 }
 
-void SlidingWindowRateLimiter::cleanupWindow(RequestWindow &window) {
+void SlidingWindowRateLimiter::cleanupWindow(RequestWindow& window) {
   auto now = std::chrono::steady_clock::now();
   auto cutoff = now - m_config.windowSize;
 
@@ -131,7 +131,7 @@ void SlidingWindowRateLimiter::cleanupWindow(RequestWindow &window) {
   }
 }
 
-bool SlidingWindowRateLimiter::isInCooldown(const RequestWindow &window) {
+bool SlidingWindowRateLimiter::isInCooldown(const RequestWindow& window) {
   if (m_config.cooldownPeriod.count() == 0) {
     return false;
   }
@@ -141,7 +141,7 @@ bool SlidingWindowRateLimiter::isInCooldown(const RequestWindow &window) {
 }
 
 // RateLimiter implementation
-RateLimiter &RateLimiter::getInstance() {
+RateLimiter& RateLimiter::getInstance() {
   static RateLimiter instance;
   return instance;
 }
@@ -151,8 +151,8 @@ void RateLimiter::initialize() {
   spdlog::info("Rate limiter initialized with default configurations");
 }
 
-void RateLimiter::addRateLimit(const std::string &category,
-                               const RateLimitConfig &config) {
+void RateLimiter::addRateLimit(const std::string& category,
+                               const RateLimitConfig& config) {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   m_limiters[category] = std::make_unique<SlidingWindowRateLimiter>(config);
@@ -161,8 +161,8 @@ void RateLimiter::addRateLimit(const std::string &category,
                category, config.maxRequests, config.windowSize.count());
 }
 
-RateLimitResult RateLimiter::checkRequest(const std::string &category,
-                                          const std::string &key) {
+RateLimitResult RateLimiter::checkRequest(const std::string& category,
+                                          const std::string& key) {
   if (!m_enabled) {
     return RateLimitResult(true, SIZE_MAX, std::chrono::milliseconds(0),
                            "Rate limiting disabled");
@@ -180,8 +180,8 @@ RateLimitResult RateLimiter::checkRequest(const std::string &category,
   return it->second->checkRequest(key);
 }
 
-void RateLimiter::recordRequest(const std::string &category,
-                                const std::string &key) {
+void RateLimiter::recordRequest(const std::string& category,
+                                const std::string& key) {
   if (!m_enabled) {
     return;
   }
@@ -194,8 +194,8 @@ void RateLimiter::recordRequest(const std::string &category,
   }
 }
 
-RateLimitResult RateLimiter::checkAndRecord(const std::string &category,
-                                            const std::string &key) {
+RateLimitResult RateLimiter::checkAndRecord(const std::string& category,
+                                            const std::string& key) {
   if (!m_enabled) {
     return RateLimitResult(true, SIZE_MAX, std::chrono::milliseconds(0),
                            "Rate limiting disabled");
@@ -209,7 +209,7 @@ RateLimitResult RateLimiter::checkAndRecord(const std::string &category,
   return result;
 }
 
-void RateLimiter::reset(const std::string &category, const std::string &key) {
+void RateLimiter::reset(const std::string& category, const std::string& key) {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   auto it = m_limiters.find(category);
@@ -221,7 +221,7 @@ void RateLimiter::reset(const std::string &category, const std::string &key) {
 void RateLimiter::performCleanup() {
   std::lock_guard<std::mutex> lock(m_mutex);
 
-  for (auto &[category, limiter] : m_limiters) {
+  for (auto& [category, limiter] : m_limiters) {
     limiter->cleanup();
   }
 
@@ -264,8 +264,8 @@ void RateLimiter::initializeDefaults() {
 }
 
 // RateLimitGuard implementation
-RateLimitGuard::RateLimitGuard(const std::string &category,
-                               const std::string &key)
+RateLimitGuard::RateLimitGuard(const std::string& category,
+                               const std::string& key)
     : m_result(RateLimiter::getInstance().checkAndRecord(category, key)) {
 
   if (!m_result.allowed) {

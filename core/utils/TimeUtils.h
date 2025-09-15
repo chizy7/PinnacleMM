@@ -98,7 +98,7 @@ public:
    * @return Execution time in nanoseconds
    */
   template <typename Func>
-  static uint64_t measureExecutionTimeNanos(Func &&func) {
+  static uint64_t measureExecutionTimeNanos(Func&& func) {
     auto start = std::chrono::steady_clock::now();
     std::forward<Func>(func)();
     auto end = std::chrono::steady_clock::now();
@@ -113,7 +113,7 @@ public:
    * @return Execution time in microseconds
    */
   template <typename Func>
-  static uint64_t measureExecutionTimeMicros(Func &&func) {
+  static uint64_t measureExecutionTimeMicros(Func&& func) {
     auto start = std::chrono::steady_clock::now();
     std::forward<Func>(func)();
     auto end = std::chrono::steady_clock::now();

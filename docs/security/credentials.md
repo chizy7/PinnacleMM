@@ -44,7 +44,7 @@ Encrypted credentials are stored in the following format:
 
 ```json
 {
-  "data": "base64-encoded-ciphertext", 
+  "data": "base64-encoded-ciphertext",
   "salt": "base64-encoded-32-byte-salt",
   "timestamp": "ISO-8601-timestamp"
 }
@@ -108,13 +108,13 @@ class ApiCredentials {
 public:
     // Create empty credentials
     ApiCredentials();
-    
+
     // Load credentials from encrypted file
     bool loadFromFile(const std::string& filename, const std::string& masterPassword);
-    
+
     // Save credentials to encrypted file
     bool saveToFile(const std::string& filename, const std::string& masterPassword) const;
-    
+
     // Add or update credentials for an exchange
     void setCredentials(
         const std::string& exchange,
@@ -122,16 +122,16 @@ public:
         const std::string& apiSecret,
         const std::string& passphrase = ""
     );
-    
+
     // Check if credentials exist for an exchange
     bool hasCredentials(const std::string& exchange) const;
-    
+
     // Get API key for an exchange
     std::optional<std::string> getApiKey(const std::string& exchange) const;
-    
+
     // Get API secret for an exchange
     std::optional<std::string> getApiSecret(const std::string& exchange) const;
-    
+
     // Get API passphrase for an exchange
     std::optional<std::string> getPassphrase(const std::string& exchange) const;
 };
@@ -149,19 +149,19 @@ std::vector<unsigned char> encrypt(const std::string& plaintext, const std::arra
     if (RAND_bytes(iv.data(), iv.size()) != 1) {
         throw std::runtime_error("Failed to generate random IV");
     }
-    
+
     // Initialize encryption context
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     if (!ctx) {
         throw std::runtime_error("Failed to create encryption context");
     }
-    
+
     // Initialize encryption
     if (EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, key.data(), iv.data()) != 1) {
         EVP_CIPHER_CTX_free(ctx);
         throw std::runtime_error("Failed to initialize encryption");
     }
-    
+
     // Encrypt data
     // [...]
 }

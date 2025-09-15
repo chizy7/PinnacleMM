@@ -51,19 +51,22 @@ jobs:
 
     - name: Test Docker script - Simulation mode
       run: |
-        timeout 30s ./run-docker.sh || true
+        ./run-docker.sh -m simulation -s BTC-USD &
+        sleep 10
 
     - name: Test Docker script - Logs
       run: |
-        ./run-docker.sh logs || true  # May fail if no container running
+        timeout 10s ./run-docker.sh logs || true
 
     - name: Test Docker script - Stop
       run: |
-        ./run-docker.sh stop || true  # May fail if no container running
+        ./run-docker.sh stop || true
 
     - name: Test Docker script - Custom parameters
       run: |
-        timeout 30s ./run-docker.sh -s ETH-USD -v || true
+        ./run-docker.sh -s ETH-USD -v &
+        sleep 5
+        ./run-docker.sh stop || true
 
     - name: Clean up Docker resources
       run: |

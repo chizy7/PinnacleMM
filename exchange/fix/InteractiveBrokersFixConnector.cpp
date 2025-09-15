@@ -37,7 +37,7 @@ void InteractiveBrokersFixConnector::initializeIBConfig() {
 }
 
 bool InteractiveBrokersFixConnector::sendNewOrderSingle(
-    const pinnacle::Order &order) {
+    const pinnacle::Order& order) {
   if (!isLoggedOn()) {
     std::cerr << "Cannot send order - not logged on to IB" << std::endl;
     return false;
@@ -54,7 +54,7 @@ bool InteractiveBrokersFixConnector::sendNewOrderSingle(
   return sendMessage(msg);
 }
 
-bool InteractiveBrokersFixConnector::cancelOrder(const std::string &orderId) {
+bool InteractiveBrokersFixConnector::cancelOrder(const std::string& orderId) {
   if (!isLoggedOn()) {
     std::cerr << "Cannot cancel order - not logged on to IB" << std::endl;
     return false;
@@ -65,7 +65,7 @@ bool InteractiveBrokersFixConnector::cancelOrder(const std::string &orderId) {
 }
 
 bool InteractiveBrokersFixConnector::replaceOrder(
-    const std::string &orderId, const pinnacle::Order &newOrder) {
+    const std::string& orderId, const pinnacle::Order& newOrder) {
   if (!isLoggedOn()) {
     std::cerr << "Cannot replace order - not logged on to IB" << std::endl;
     return false;
@@ -94,7 +94,7 @@ void InteractiveBrokersFixConnector::onLogout() {
 }
 
 void InteractiveBrokersFixConnector::onMarketDataMessage(
-    const hffix::message_reader &msg) {
+    const hffix::message_reader& msg) {
   hffix::field_reader msgType;
   if (!msg.find_with_hint(hffix::tag::MsgType, msgType)) {
     return;
@@ -112,12 +112,12 @@ void InteractiveBrokersFixConnector::onMarketDataMessage(
 }
 
 void InteractiveBrokersFixConnector::onExecutionReport(
-    const hffix::message_reader &msg) {
+    const hffix::message_reader& msg) {
   handleExecutionReport(msg);
 }
 
 void InteractiveBrokersFixConnector::onOrderCancelReject(
-    const hffix::message_reader &msg) {
+    const hffix::message_reader& msg) {
   hffix::field clOrdId, origClOrdId, ordStatus, cxlRejReason, text;
 
   std::string orderIdStr, origOrderIdStr, statusStr, reasonStr, textStr;
@@ -147,7 +147,7 @@ void InteractiveBrokersFixConnector::onOrderCancelReject(
 }
 
 hffix::message_writer InteractiveBrokersFixConnector::createIBMarketDataRequest(
-    const std::string &symbol, char subscriptionRequestType) {
+    const std::string& symbol, char subscriptionRequestType) {
 
   char buffer[1024];
   hffix::message_writer msg(buffer, sizeof(buffer));
@@ -160,7 +160,7 @@ hffix::message_writer InteractiveBrokersFixConnector::createIBMarketDataRequest(
   // Current UTC time
   auto now = std::chrono::system_clock::now();
   auto time_t = std::chrono::system_clock::to_time_t(now);
-  std::tm *utc_tm = std::gmtime(&time_t);
+  std::tm* utc_tm = std::gmtime(&time_t);
 
   char sendingTime[32];
   std::snprintf(sendingTime, sizeof(sendingTime), "%04d%02d%02d-%02d:%02d:%02d",
@@ -191,7 +191,7 @@ hffix::message_writer InteractiveBrokersFixConnector::createIBMarketDataRequest(
 }
 
 void InteractiveBrokersFixConnector::parseMarketDataSnapshot(
-    const hffix::message_reader &msg) {
+    const hffix::message_reader& msg) {
   hffix::field symbol, noMDEntries;
 
   if (!msg.find_with_hint(hffix::tag::Symbol, symbol)) {
@@ -258,13 +258,13 @@ void InteractiveBrokersFixConnector::parseMarketDataSnapshot(
 }
 
 void InteractiveBrokersFixConnector::parseMarketDataIncrementalRefresh(
-    const hffix::message_reader &msg) {
+    const hffix::message_reader& msg) {
   // Similar to snapshot parsing but for incremental updates
   parseMarketDataSnapshot(msg); // Simplified implementation
 }
 
 std::string InteractiveBrokersFixConnector::convertIBSymbolToInternal(
-    const std::string &ibSymbol) {
+    const std::string& ibSymbol) {
   // IB uses different symbol formats, convert to our internal format
   // For example: "EUR.USD" -> "EURUSD", "AAPL" -> "AAPL"
   std::string internal = ibSymbol;
@@ -275,7 +275,7 @@ std::string InteractiveBrokersFixConnector::convertIBSymbolToInternal(
 }
 
 std::string InteractiveBrokersFixConnector::convertInternalSymbolToIB(
-    const std::string &internalSymbol) {
+    const std::string& internalSymbol) {
   // Convert our internal format to IB format
   // This is a simplified conversion - in practice you'd need more sophisticated
   // mapping
@@ -290,7 +290,7 @@ std::string InteractiveBrokersFixConnector::convertInternalSymbolToIB(
 }
 
 void InteractiveBrokersFixConnector::handleExecutionReport(
-    const hffix::message_reader &msg) {
+    const hffix::message_reader& msg) {
   hffix::field clOrdId, symbol, side, orderQty, price, cumQty, avgPx, ordStatus,
       execType;
 
@@ -347,7 +347,7 @@ void InteractiveBrokersFixConnector::handleExecutionReport(
 void InteractiveBrokersFixConnector::subscribeToConfiguredSymbols() {
   std::lock_guard<std::mutex> lock(m_pendingSubscriptionsMutex);
 
-  for (const auto &symbol : m_pendingSubscriptions) {
+  for (const auto& symbol : m_pendingSubscriptions) {
     auto mdRequest = createIBMarketDataRequest(symbol, '1'); // Subscribe
     sendMessage(mdRequest);
     std::cout << "IB FIX: Subscribed to market data for " << symbol

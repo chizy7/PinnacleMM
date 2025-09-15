@@ -18,7 +18,7 @@ namespace pinnacle {
 namespace exchange {
 namespace fix {
 
-FixConnector::FixConnector(const FixConfig &config,
+FixConnector::FixConnector(const FixConfig& config,
                            std::shared_ptr<utils::ApiCredentials> credentials)
     : m_config(config), m_credentials(credentials) {
   m_receiveBuffer.reserve(RECEIVE_BUFFER_SIZE);
@@ -77,8 +77,8 @@ bool FixConnector::stop() {
 bool FixConnector::isRunning() const { return m_isRunning.load(); }
 
 bool FixConnector::subscribeToMarketUpdates(
-    const std::string &symbol,
-    std::function<void(const MarketUpdate &)> callback) {
+    const std::string& symbol,
+    std::function<void(const MarketUpdate&)> callback) {
 
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
   m_marketUpdateCallbacks[symbol].push_back(callback);
@@ -93,8 +93,8 @@ bool FixConnector::subscribeToMarketUpdates(
 }
 
 bool FixConnector::subscribeToOrderBookUpdates(
-    const std::string &symbol,
-    std::function<void(const OrderBookUpdate &)> callback) {
+    const std::string& symbol,
+    std::function<void(const OrderBookUpdate&)> callback) {
 
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
   m_orderBookUpdateCallbacks[symbol].push_back(callback);
@@ -108,7 +108,7 @@ bool FixConnector::subscribeToOrderBookUpdates(
   return true; // Will subscribe when logged on
 }
 
-bool FixConnector::unsubscribeFromMarketUpdates(const std::string &symbol) {
+bool FixConnector::unsubscribeFromMarketUpdates(const std::string& symbol) {
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
   m_marketUpdateCallbacks.erase(symbol);
 
@@ -121,7 +121,7 @@ bool FixConnector::unsubscribeFromMarketUpdates(const std::string &symbol) {
   return true;
 }
 
-bool FixConnector::unsubscribeFromOrderBookUpdates(const std::string &symbol) {
+bool FixConnector::unsubscribeFromOrderBookUpdates(const std::string& symbol) {
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
   m_orderBookUpdateCallbacks.erase(symbol);
 
@@ -134,23 +134,23 @@ bool FixConnector::unsubscribeFromOrderBookUpdates(const std::string &symbol) {
   return true;
 }
 
-void FixConnector::publishMarketUpdate(const MarketUpdate &update) {
+void FixConnector::publishMarketUpdate(const MarketUpdate& update) {
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
 
   auto it = m_marketUpdateCallbacks.find(update.symbol);
   if (it != m_marketUpdateCallbacks.end()) {
-    for (const auto &callback : it->second) {
+    for (const auto& callback : it->second) {
       callback(update);
     }
   }
 }
 
-void FixConnector::publishOrderBookUpdate(const OrderBookUpdate &update) {
+void FixConnector::publishOrderBookUpdate(const OrderBookUpdate& update) {
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
 
   auto it = m_orderBookUpdateCallbacks.find(update.symbol);
   if (it != m_orderBookUpdateCallbacks.end()) {
-    for (const auto &callback : it->second) {
+    for (const auto& callback : it->second) {
       callback(update);
     }
   }
@@ -161,7 +161,7 @@ std::string FixConnector::getSessionStatus() const {
   return m_sessionStatus;
 }
 
-bool FixConnector::sendMessage(const hffix::message_writer &msg) {
+bool FixConnector::sendMessage(const hffix::message_writer& msg) {
   if (m_socket == -1) {
     return false;
   }
@@ -173,7 +173,7 @@ bool FixConnector::sendMessage(const hffix::message_writer &msg) {
 }
 
 hffix::message_writer
-FixConnector::createMarketDataRequest(const std::string &symbol,
+FixConnector::createMarketDataRequest(const std::string& symbol,
                                       char subscriptionRequestType) {
   char buffer[1024];
   hffix::message_writer msg(buffer, sizeof(buffer));
@@ -186,7 +186,7 @@ FixConnector::createMarketDataRequest(const std::string &symbol,
   // Current UTC time
   auto now = std::chrono::system_clock::now();
   auto time_t = std::chrono::system_clock::to_time_t(now);
-  std::tm *utc_tm = std::gmtime(&time_t);
+  std::tm* utc_tm = std::gmtime(&time_t);
 
   char sendingTime[32];
   std::snprintf(sendingTime, sizeof(sendingTime), "%04d%02d%02d-%02d:%02d:%02d",
@@ -214,7 +214,7 @@ FixConnector::createMarketDataRequest(const std::string &symbol,
 }
 
 hffix::message_writer
-FixConnector::createNewOrderSingle(const pinnacle::Order &order) {
+FixConnector::createNewOrderSingle(const pinnacle::Order& order) {
   char buffer[1024];
   hffix::message_writer msg(buffer, sizeof(buffer));
 
@@ -226,7 +226,7 @@ FixConnector::createNewOrderSingle(const pinnacle::Order &order) {
   // Current UTC time
   auto now = std::chrono::system_clock::now();
   auto time_t = std::chrono::system_clock::to_time_t(now);
-  std::tm *utc_tm = std::gmtime(&time_t);
+  std::tm* utc_tm = std::gmtime(&time_t);
 
   char sendingTime[32];
   std::snprintf(sendingTime, sizeof(sendingTime), "%04d%02d%02d-%02d:%02d:%02d",
@@ -256,7 +256,7 @@ FixConnector::createNewOrderSingle(const pinnacle::Order &order) {
 }
 
 hffix::message_writer
-FixConnector::createOrderCancelRequest(const std::string &orderId) {
+FixConnector::createOrderCancelRequest(const std::string& orderId) {
   char buffer[1024];
   hffix::message_writer msg(buffer, sizeof(buffer));
 
@@ -268,7 +268,7 @@ FixConnector::createOrderCancelRequest(const std::string &orderId) {
   // Current UTC time
   auto now = std::chrono::system_clock::now();
   auto time_t = std::chrono::system_clock::to_time_t(now);
-  std::tm *utc_tm = std::gmtime(&time_t);
+  std::tm* utc_tm = std::gmtime(&time_t);
 
   char sendingTime[32];
   std::snprintf(sendingTime, sizeof(sendingTime), "%04d%02d%02d-%02d:%02d:%02d",
@@ -333,7 +333,7 @@ void FixConnector::connectToExchange() {
   }
 
   // Resolve hostname
-  struct hostent *server = gethostbyname(m_config.host.c_str());
+  struct hostent* server = gethostbyname(m_config.host.c_str());
   if (server == nullptr) {
     std::lock_guard<std::mutex> lock(m_statusMutex);
     m_sessionStatus = "Failed to resolve hostname: " + m_config.host;
@@ -349,7 +349,7 @@ void FixConnector::connectToExchange() {
   serv_addr.sin_port = htons(m_config.port);
   memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
 
-  if (connect(m_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+  if (connect(m_socket, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
     std::lock_guard<std::mutex> lock(m_statusMutex);
     m_sessionStatus = "Failed to connect to " + m_config.host + ":" +
                       std::to_string(m_config.port);
@@ -428,7 +428,7 @@ void FixConnector::messageProcessingLoop() {
   }
 }
 
-void FixConnector::processMessage(const std::string &rawMessage) {
+void FixConnector::processMessage(const std::string& rawMessage) {
   hffix::message_reader msg(rawMessage.c_str(),
                             rawMessage.c_str() + rawMessage.length());
 
@@ -460,7 +460,7 @@ void FixConnector::processMessage(const std::string &rawMessage) {
   }
 }
 
-bool FixConnector::validateMessage(const hffix::message_reader &msg) {
+bool FixConnector::validateMessage(const hffix::message_reader& msg) {
   // Basic validation - check sequence number
   hffix::field seqNum;
   if (msg.find_with_hint(hffix::tag::MsgSeqNum, seqNum)) {
@@ -493,7 +493,7 @@ void FixConnector::sendLogon() {
   // Current UTC time
   auto now = std::chrono::system_clock::now();
   auto time_t = std::chrono::system_clock::to_time_t(now);
-  std::tm *utc_tm = std::gmtime(&time_t);
+  std::tm* utc_tm = std::gmtime(&time_t);
 
   char sendingTime[32];
   std::snprintf(sendingTime, sizeof(sendingTime), "%04d%02d%02d-%02d:%02d:%02d",
@@ -537,7 +537,7 @@ void FixConnector::sendLogout() {
   // Current UTC time
   auto now = std::chrono::system_clock::now();
   auto time_t = std::chrono::system_clock::to_time_t(now);
-  std::tm *utc_tm = std::gmtime(&time_t);
+  std::tm* utc_tm = std::gmtime(&time_t);
 
   char sendingTime[32];
   std::snprintf(sendingTime, sizeof(sendingTime), "%04d%02d%02d-%02d:%02d:%02d",
@@ -563,7 +563,7 @@ void FixConnector::sendHeartbeat() {
   // Current UTC time
   auto now = std::chrono::system_clock::now();
   auto time_t = std::chrono::system_clock::to_time_t(now);
-  std::tm *utc_tm = std::gmtime(&time_t);
+  std::tm* utc_tm = std::gmtime(&time_t);
 
   char sendingTime[32];
   std::snprintf(sendingTime, sizeof(sendingTime), "%04d%02d%02d-%02d:%02d:%02d",
@@ -583,7 +583,7 @@ void FixConnector::sendTestRequest() {
   // Implementation for test request
 }
 
-void FixConnector::handleLogon(const hffix::message_reader &msg) {
+void FixConnector::handleLogon(const hffix::message_reader& msg) {
   m_isLoggedOn.store(true);
   {
     std::lock_guard<std::mutex> lock(m_statusMutex);
@@ -592,7 +592,7 @@ void FixConnector::handleLogon(const hffix::message_reader &msg) {
   onLogon();
 }
 
-void FixConnector::handleLogout(const hffix::message_reader &msg) {
+void FixConnector::handleLogout(const hffix::message_reader& msg) {
   m_isLoggedOn.store(false);
   {
     std::lock_guard<std::mutex> lock(m_statusMutex);
@@ -601,17 +601,17 @@ void FixConnector::handleLogout(const hffix::message_reader &msg) {
   onLogout();
 }
 
-void FixConnector::handleHeartbeat(const hffix::message_reader &msg) {
+void FixConnector::handleHeartbeat(const hffix::message_reader& msg) {
   // Heartbeat received, update last message time
   m_lastMessageReceived = std::chrono::steady_clock::now();
 }
 
-void FixConnector::handleTestRequest(const hffix::message_reader &msg) {
+void FixConnector::handleTestRequest(const hffix::message_reader& msg) {
   // Send heartbeat in response to test request
   sendHeartbeat();
 }
 
-void FixConnector::handleResendRequest(const hffix::message_reader &msg) {
+void FixConnector::handleResendRequest(const hffix::message_reader& msg) {
   // For simplicity, we'll just ignore resend requests for now
   // In a production system, you'd need to store and resend messages
 }

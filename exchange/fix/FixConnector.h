@@ -57,7 +57,7 @@ public:
    * @param config FIX session configuration
    * @param credentials API credentials
    */
-  FixConnector(const FixConfig &config,
+  FixConnector(const FixConfig& config,
                std::shared_ptr<utils::ApiCredentials> credentials);
 
   /**
@@ -71,26 +71,26 @@ public:
   bool isRunning() const override;
 
   bool subscribeToMarketUpdates(
-      const std::string &symbol,
-      std::function<void(const MarketUpdate &)> callback) override;
+      const std::string& symbol,
+      std::function<void(const MarketUpdate&)> callback) override;
 
   bool subscribeToOrderBookUpdates(
-      const std::string &symbol,
-      std::function<void(const OrderBookUpdate &)> callback) override;
+      const std::string& symbol,
+      std::function<void(const OrderBookUpdate&)> callback) override;
 
-  bool unsubscribeFromMarketUpdates(const std::string &symbol) override;
-  bool unsubscribeFromOrderBookUpdates(const std::string &symbol) override;
+  bool unsubscribeFromMarketUpdates(const std::string& symbol) override;
+  bool unsubscribeFromOrderBookUpdates(const std::string& symbol) override;
 
-  void publishMarketUpdate(const MarketUpdate &update) override;
-  void publishOrderBookUpdate(const OrderBookUpdate &update) override;
+  void publishMarketUpdate(const MarketUpdate& update) override;
+  void publishOrderBookUpdate(const OrderBookUpdate& update) override;
 
   /**
    * @brief Order execution interface
    */
-  virtual bool sendNewOrderSingle(const pinnacle::Order &order) = 0;
-  virtual bool cancelOrder(const std::string &orderId) = 0;
-  virtual bool replaceOrder(const std::string &orderId,
-                            const pinnacle::Order &newOrder) = 0;
+  virtual bool sendNewOrderSingle(const pinnacle::Order& order) = 0;
+  virtual bool cancelOrder(const std::string& orderId) = 0;
+  virtual bool replaceOrder(const std::string& orderId,
+                            const pinnacle::Order& newOrder) = 0;
 
   /**
    * @brief Get connection status
@@ -104,30 +104,30 @@ protected:
    */
   virtual void onLogon() = 0;
   virtual void onLogout() = 0;
-  virtual void onMarketDataMessage(const hffix::message_reader &msg) = 0;
-  virtual void onExecutionReport(const hffix::message_reader &msg) = 0;
-  virtual void onOrderCancelReject(const hffix::message_reader &msg) = 0;
+  virtual void onMarketDataMessage(const hffix::message_reader& msg) = 0;
+  virtual void onExecutionReport(const hffix::message_reader& msg) = 0;
+  virtual void onOrderCancelReject(const hffix::message_reader& msg) = 0;
 
   /**
    * @brief Send FIX message
    */
-  bool sendMessage(const hffix::message_writer &msg);
+  bool sendMessage(const hffix::message_writer& msg);
 
   /**
    * @brief Create market data request
    */
-  hffix::message_writer createMarketDataRequest(const std::string &symbol,
+  hffix::message_writer createMarketDataRequest(const std::string& symbol,
                                                 char subscriptionRequestType);
 
   /**
    * @brief Create new order single message
    */
-  hffix::message_writer createNewOrderSingle(const pinnacle::Order &order);
+  hffix::message_writer createNewOrderSingle(const pinnacle::Order& order);
 
   /**
    * @brief Create order cancel request
    */
-  hffix::message_writer createOrderCancelRequest(const std::string &orderId);
+  hffix::message_writer createOrderCancelRequest(const std::string& orderId);
 
   /**
    * @brief Get next message sequence number
@@ -156,17 +156,17 @@ private:
   void sendLogout();
   void sendHeartbeat();
   void sendTestRequest();
-  void handleLogon(const hffix::message_reader &msg);
-  void handleLogout(const hffix::message_reader &msg);
-  void handleHeartbeat(const hffix::message_reader &msg);
-  void handleTestRequest(const hffix::message_reader &msg);
-  void handleResendRequest(const hffix::message_reader &msg);
+  void handleLogon(const hffix::message_reader& msg);
+  void handleLogout(const hffix::message_reader& msg);
+  void handleHeartbeat(const hffix::message_reader& msg);
+  void handleTestRequest(const hffix::message_reader& msg);
+  void handleResendRequest(const hffix::message_reader& msg);
 
   /**
    * @brief Message processing
    */
-  void processMessage(const std::string &rawMessage);
-  bool validateMessage(const hffix::message_reader &msg);
+  void processMessage(const std::string& rawMessage);
+  bool validateMessage(const hffix::message_reader& msg);
 
   /**
    * @brief Connection state
@@ -207,10 +207,10 @@ private:
    * @brief Subscription management
    */
   std::unordered_map<std::string,
-                     std::vector<std::function<void(const MarketUpdate &)>>>
+                     std::vector<std::function<void(const MarketUpdate&)>>>
       m_marketUpdateCallbacks;
   std::unordered_map<std::string,
-                     std::vector<std::function<void(const OrderBookUpdate &)>>>
+                     std::vector<std::function<void(const OrderBookUpdate&)>>>
       m_orderBookUpdateCallbacks;
   std::mutex m_callbacksMutex;
 

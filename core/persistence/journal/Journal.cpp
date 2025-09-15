@@ -11,7 +11,7 @@ namespace pinnacle {
 namespace persistence {
 namespace journal {
 
-Journal::Journal(const std::string &journalPath) : m_journalPath(journalPath) {
+Journal::Journal(const std::string& journalPath) : m_journalPath(journalPath) {
   // Create directory if it doesn't exist
   std::filesystem::path path(journalPath);
   std::filesystem::create_directories(path.parent_path());
@@ -31,7 +31,7 @@ Journal::~Journal() {
   unmapFile();
 }
 
-bool Journal::appendEntry(const JournalEntry &entry) {
+bool Journal::appendEntry(const JournalEntry& entry) {
   // Get serialized entry
   auto serializedEntry = entry.serialize();
 
@@ -55,7 +55,7 @@ bool Journal::appendEntry(const JournalEntry &entry) {
   size_t position = m_writePosition.load(std::memory_order_relaxed);
 
   // Write to memory-mapped file
-  std::memcpy(static_cast<uint8_t *>(m_mappedMemory) + position,
+  std::memcpy(static_cast<uint8_t*>(m_mappedMemory) + position,
               serializedEntry.data(), serializedEntry.size());
 
   // Update write position
@@ -88,7 +88,7 @@ std::vector<JournalEntry> Journal::readEntriesAfter(uint64_t sequenceNumber) {
 
     // Read header
     JournalEntryHeader header;
-    std::memcpy(&header, static_cast<uint8_t *>(m_mappedMemory) + position,
+    std::memcpy(&header, static_cast<uint8_t*>(m_mappedMemory) + position,
                 sizeof(JournalEntryHeader));
 
     // Skip entries with sequence number less than or equal to requested
@@ -106,12 +106,12 @@ std::vector<JournalEntry> Journal::readEntriesAfter(uint64_t sequenceNumber) {
     // Read the entire entry
     try {
       JournalEntry entry = JournalEntry::deserialize(
-          static_cast<uint8_t *>(m_mappedMemory) + position,
+          static_cast<uint8_t*>(m_mappedMemory) + position,
           sizeof(JournalEntryHeader) + header.entrySize);
 
       // Add to result
       entries.push_back(entry);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       // Log error and continue
       std::cerr << "Error deserializing journal entry: " << e.what()
                 << std::endl;
@@ -148,7 +148,7 @@ bool Journal::compact(uint64_t checkpointSequence) {
   }
 
   // Map the temporary file
-  void *tempMemory = mmap(nullptr, INITIAL_FILE_SIZE, PROT_READ | PROT_WRITE,
+  void* tempMemory = mmap(nullptr, INITIAL_FILE_SIZE, PROT_READ | PROT_WRITE,
                           MAP_SHARED, tempFd, 0);
   if (tempMemory == MAP_FAILED) {
     close(tempFd);
@@ -160,7 +160,7 @@ bool Journal::compact(uint64_t checkpointSequence) {
 
   // Copy entries after checkpoint sequence
   std::vector<JournalEntry> entries = readEntriesAfter(checkpointSequence);
-  for (const auto &entry : entries) {
+  for (const auto& entry : entries) {
     auto serializedEntry = entry.serialize();
 
     // Check if we need to resize
@@ -188,7 +188,7 @@ bool Journal::compact(uint64_t checkpointSequence) {
     }
 
     // Copy entry to temp file
-    std::memcpy(static_cast<uint8_t *>(tempMemory) + tempPosition,
+    std::memcpy(static_cast<uint8_t*>(tempMemory) + tempPosition,
                 serializedEntry.data(), serializedEntry.size());
 
     tempPosition += serializedEntry.size();
@@ -277,7 +277,7 @@ bool Journal::mapFile() {
     while (position + sizeof(JournalEntryHeader) <= fileSize) {
       // Read header
       JournalEntryHeader header;
-      std::memcpy(&header, static_cast<uint8_t *>(m_mappedMemory) + position,
+      std::memcpy(&header, static_cast<uint8_t*>(m_mappedMemory) + position,
                   sizeof(JournalEntryHeader));
 
       // Validate header
@@ -361,7 +361,7 @@ bool Journal::resizeIfNeeded(size_t additionalSize) {
   }
 
   // Remap the file
-  void *newMemory = mmap(nullptr, newSize, PROT_READ | PROT_WRITE, MAP_SHARED,
+  void* newMemory = mmap(nullptr, newSize, PROT_READ | PROT_WRITE, MAP_SHARED,
                          m_fileDescriptor, 0);
   if (newMemory == MAP_FAILED) {
     return false;

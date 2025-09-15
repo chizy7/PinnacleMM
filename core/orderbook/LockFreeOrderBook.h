@@ -27,22 +27,22 @@ private:
 
 public:
   // Constructor
-  explicit LockFreeOrderBook(const std::string &symbol);
+  explicit LockFreeOrderBook(const std::string& symbol);
 
   // Destructor
   virtual ~LockFreeOrderBook();
 
   // Core order book functionality
   bool addOrder(std::shared_ptr<Order> order);
-  bool cancelOrder(const std::string &orderId);
-  bool executeOrder(const std::string &orderId, double quantity);
+  bool cancelOrder(const std::string& orderId);
+  bool executeOrder(const std::string& orderId, double quantity);
 
   // Market order execution
   double executeMarketOrder(OrderSide side, double quantity,
-                            std::vector<std::pair<std::string, double>> &fills);
+                            std::vector<std::pair<std::string, double>>& fills);
 
   // Order book queries
-  std::shared_ptr<Order> getOrder(const std::string &orderId) const;
+  std::shared_ptr<Order> getOrder(const std::string& orderId) const;
   double getBestBidPrice() const;
   double getBestAskPrice() const;
   double getMidPrice() const;

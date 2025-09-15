@@ -167,7 +167,7 @@ TEST_F(LockFreeOrderBookTest, ConcurrentOperations) {
   std::atomic<int> callbackCount(0);
 
   // Register callback
-  orderBook->registerUpdateCallback([&callbackCount](const OrderBook &) {
+  orderBook->registerUpdateCallback([&callbackCount](const OrderBook&) {
     callbackCount.fetch_add(1, std::memory_order_relaxed);
   });
 
@@ -198,7 +198,7 @@ TEST_F(LockFreeOrderBookTest, ConcurrentOperations) {
   }
 
   // Wait for all threads to finish
-  for (auto &thread : threads) {
+  for (auto& thread : threads) {
     thread.join();
   }
 
@@ -259,7 +259,7 @@ TEST_F(LockFreeOrderBookTest, ConcurrentCancellations) {
   }
 
   // Wait for all threads to finish
-  for (auto &thread : threads) {
+  for (auto& thread : threads) {
     thread.join();
   }
 
@@ -268,7 +268,7 @@ TEST_F(LockFreeOrderBookTest, ConcurrentCancellations) {
   EXPECT_EQ(orderBook->getOrderCount(), 0);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

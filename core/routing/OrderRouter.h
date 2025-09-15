@@ -53,12 +53,12 @@ struct ExecutionRequest {
   ExecutionRequest() = default;
 
   // Move constructor and assignment
-  ExecutionRequest(ExecutionRequest &&other) noexcept = default;
-  ExecutionRequest &operator=(ExecutionRequest &&other) noexcept = default;
+  ExecutionRequest(ExecutionRequest&& other) noexcept = default;
+  ExecutionRequest& operator=(ExecutionRequest&& other) noexcept = default;
 
   // Delete copy constructor and assignment to prevent accidental copies
-  ExecutionRequest(const ExecutionRequest &) = delete;
-  ExecutionRequest &operator=(const ExecutionRequest &) = delete;
+  ExecutionRequest(const ExecutionRequest&) = delete;
+  ExecutionRequest& operator=(const ExecutionRequest&) = delete;
 };
 
 /**
@@ -87,8 +87,8 @@ public:
    * @brief Plan order execution across venues and time
    */
   virtual std::vector<ExecutionRequest>
-  planExecution(const ExecutionRequest &originalRequest,
-                const std::vector<MarketData> &marketData) = 0;
+  planExecution(const ExecutionRequest& originalRequest,
+                const std::vector<MarketData>& marketData) = 0;
 
   /**
    * @brief Get strategy name
@@ -102,8 +102,8 @@ public:
 class BestPriceStrategy : public RoutingStrategy {
 public:
   std::vector<ExecutionRequest>
-  planExecution(const ExecutionRequest &originalRequest,
-                const std::vector<MarketData> &marketData) override;
+  planExecution(const ExecutionRequest& originalRequest,
+                const std::vector<MarketData>& marketData) override;
 
   std::string getName() const override { return "BEST_PRICE"; }
 };
@@ -122,8 +122,8 @@ public:
       : m_numSlices(numSlices), m_sliceInterval(sliceInterval) {}
 
   std::vector<ExecutionRequest>
-  planExecution(const ExecutionRequest &originalRequest,
-                const std::vector<MarketData> &marketData) override;
+  planExecution(const ExecutionRequest& originalRequest,
+                const std::vector<MarketData>& marketData) override;
 
   std::string getName() const override { return "TWAP"; }
 };
@@ -140,8 +140,8 @@ public:
       : m_participationRate(participationRate) {}
 
   std::vector<ExecutionRequest>
-  planExecution(const ExecutionRequest &originalRequest,
-                const std::vector<MarketData> &marketData) override;
+  planExecution(const ExecutionRequest& originalRequest,
+                const std::vector<MarketData>& marketData) override;
 
   std::string getName() const override { return "VWAP"; }
 };
@@ -158,8 +158,8 @@ public:
       : m_maxImpactThreshold(maxImpactThreshold) {}
 
   std::vector<ExecutionRequest>
-  planExecution(const ExecutionRequest &originalRequest,
-                const std::vector<MarketData> &marketData) override;
+  planExecution(const ExecutionRequest& originalRequest,
+                const std::vector<MarketData>& marketData) override;
 
   std::string getName() const override { return "MARKET_IMPACT"; }
 };
@@ -202,44 +202,44 @@ public:
   /**
    * @brief Submit order for smart routing
    */
-  std::string submitOrder(const ExecutionRequest &request);
+  std::string submitOrder(const ExecutionRequest& request);
 
   /**
    * @brief Cancel a routing request
    */
-  bool cancelOrder(const std::string &requestId);
+  bool cancelOrder(const std::string& requestId);
 
   /**
    * @brief Get execution status
    */
-  std::vector<ExecutionResult> getExecutionStatus(const std::string &requestId);
+  std::vector<ExecutionResult> getExecutionStatus(const std::string& requestId);
 
   /**
    * @brief Register execution callback
    */
   void
-  setExecutionCallback(std::function<void(const ExecutionResult &)> callback);
+  setExecutionCallback(std::function<void(const ExecutionResult&)> callback);
 
   /**
    * @brief Add venue for routing (WebSocket or FIX)
    */
-  bool addVenue(const std::string &venueName,
-                const std::string &connectionType = "websocket");
+  bool addVenue(const std::string& venueName,
+                const std::string& connectionType = "websocket");
 
   /**
    * @brief Remove venue from routing
    */
-  bool removeVenue(const std::string &venueName);
+  bool removeVenue(const std::string& venueName);
 
   /**
    * @brief Update market data for a venue
    */
-  void updateMarketData(const std::string &venue, const MarketData &data);
+  void updateMarketData(const std::string& venue, const MarketData& data);
 
   /**
    * @brief Set routing strategy
    */
-  void setRoutingStrategy(const std::string &strategyName);
+  void setRoutingStrategy(const std::string& strategyName);
 
   /**
    * @brief Get routing statistics
@@ -281,13 +281,13 @@ private:
     ActiveExecution() = default;
 
     // Move constructor and assignment
-    ActiveExecution(ActiveExecution &&other) noexcept
+    ActiveExecution(ActiveExecution&& other) noexcept
         : originalRequest(std::move(other.originalRequest)),
           childRequests(std::move(other.childRequests)),
           results(std::move(other.results)), startTime(other.startTime),
           isComplete(other.isComplete.load()) {}
 
-    ActiveExecution &operator=(ActiveExecution &&other) noexcept {
+    ActiveExecution& operator=(ActiveExecution&& other) noexcept {
       if (this != &other) {
         originalRequest = std::move(other.originalRequest);
         childRequests = std::move(other.childRequests);
@@ -299,8 +299,8 @@ private:
     }
 
     // Delete copy constructor and assignment
-    ActiveExecution(const ActiveExecution &) = delete;
-    ActiveExecution &operator=(const ActiveExecution &) = delete;
+    ActiveExecution(const ActiveExecution&) = delete;
+    ActiveExecution& operator=(const ActiveExecution&) = delete;
   };
 
   std::unordered_map<std::string, ActiveExecution> m_activeExecutions;
@@ -326,7 +326,7 @@ private:
   /**
    * @brief Execution callback
    */
-  std::function<void(const ExecutionResult &)> m_executionCallback;
+  std::function<void(const ExecutionResult&)> m_executionCallback;
   std::mutex m_callbackMutex;
 
   /**
@@ -353,18 +353,18 @@ private:
   void executionThreadLoop();
   void monitoringThreadLoop();
 
-  VenueConnection *selectBestVenue(const ExecutionRequest &request);
-  std::vector<MarketData> getAllMarketData(const std::string &symbol);
-  void executeOrder(const ExecutionRequest &request);
-  void updateExecutionResult(const ExecutionResult &result);
+  VenueConnection* selectBestVenue(const ExecutionRequest& request);
+  std::vector<MarketData> getAllMarketData(const std::string& symbol);
+  void executeOrder(const ExecutionRequest& request);
+  void updateExecutionResult(const ExecutionResult& result);
 
-  double calculateMarketImpact(const ExecutionRequest &request,
-                               const MarketData &venue);
-  double calculateTotalCost(const ExecutionRequest &request,
-                            const MarketData &venue);
+  double calculateMarketImpact(const ExecutionRequest& request,
+                               const MarketData& venue);
+  double calculateTotalCost(const ExecutionRequest& request,
+                            const MarketData& venue);
 
   void initializeStrategies();
-  void processCompletedExecution(const std::string &requestId);
+  void processCompletedExecution(const std::string& requestId);
 
   /**
    * @brief Exchange connectors

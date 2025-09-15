@@ -36,8 +36,8 @@ public:
    * @param masterPassword Password to decrypt the configuration
    * @return true if loaded successfully, false otherwise
    */
-  bool loadFromFile(const std::string &filename,
-                    const std::string &masterPassword);
+  bool loadFromFile(const std::string& filename,
+                    const std::string& masterPassword);
 
   /**
    * @brief Save current configuration to an encrypted file
@@ -46,8 +46,8 @@ public:
    * @param masterPassword Password to encrypt the configuration
    * @return true if saved successfully, false otherwise
    */
-  bool saveToFile(const std::string &filename,
-                  const std::string &masterPassword);
+  bool saveToFile(const std::string& filename,
+                  const std::string& masterPassword);
 
   /**
    * @brief Set a configuration value
@@ -55,7 +55,7 @@ public:
    * @param key Configuration key
    * @param value Configuration value
    */
-  void setValue(const std::string &key, const std::string &value);
+  void setValue(const std::string& key, const std::string& value);
 
   /**
    * @brief Get a configuration value
@@ -63,7 +63,7 @@ public:
    * @param key Configuration key
    * @return Configuration value, or empty optional if not found
    */
-  std::optional<std::string> getValue(const std::string &key) const;
+  std::optional<std::string> getValue(const std::string& key) const;
 
   /**
    * @brief Check if a configuration key exists
@@ -71,7 +71,7 @@ public:
    * @param key Configuration key to check
    * @return true if key exists, false otherwise
    */
-  bool hasKey(const std::string &key) const;
+  bool hasKey(const std::string& key) const;
 
   /**
    * @brief Remove a configuration key
@@ -79,7 +79,7 @@ public:
    * @param key Configuration key to remove
    * @return true if key was removed, false if key didn't exist
    */
-  bool removeKey(const std::string &key);
+  bool removeKey(const std::string& key);
 
   /**
    * @brief Clear all configuration values
@@ -110,30 +110,30 @@ private:
   mutable std::mutex m_mutex;
 
   // Encryption/Decryption helpers
-  std::string encryptValue(const std::string &value,
-                           const std::string &password,
-                           const std::vector<unsigned char> &salt) const;
-  std::string decryptValue(const std::string &encryptedValue,
-                           const std::string &password,
-                           const std::vector<unsigned char> &salt) const;
+  std::string encryptValue(const std::string& value,
+                           const std::string& password,
+                           const std::vector<unsigned char>& salt) const;
+  std::string decryptValue(const std::string& encryptedValue,
+                           const std::string& password,
+                           const std::vector<unsigned char>& salt) const;
 
   // File format helpers
-  bool writeEncryptedJson(const std::string &filename,
-                          const std::string &encryptedData,
-                          const std::vector<unsigned char> &salt) const;
+  bool writeEncryptedJson(const std::string& filename,
+                          const std::string& encryptedData,
+                          const std::vector<unsigned char>& salt) const;
   std::optional<std::pair<std::string, std::vector<unsigned char>>>
-  readEncryptedJson(const std::string &filename) const;
+  readEncryptedJson(const std::string& filename) const;
 
   // Generate secure encryption key from password
   std::vector<unsigned char>
-  deriveKeyFromPassword(const std::string &password,
-                        const std::vector<unsigned char> &salt) const;
+  deriveKeyFromPassword(const std::string& password,
+                        const std::vector<unsigned char>& salt) const;
 
   // Generate random salt
   std::vector<unsigned char> generateSalt() const;
 
   // Secure memory clearing
-  void secureMemzero(void *ptr, size_t len) const;
+  void secureMemzero(void* ptr, size_t len) const;
 };
 
 /**
@@ -150,7 +150,7 @@ public:
    *
    * @param config Reference to SecureConfig instance
    */
-  explicit ApiCredentials(SecureConfig &config);
+  explicit ApiCredentials(SecureConfig& config);
 
   /**
    * @brief Set API credentials for an exchange
@@ -162,9 +162,9 @@ public:
    * @return true if successfully set, false otherwise
    */
   bool
-  setCredentials(const std::string &exchange, const std::string &apiKey,
-                 const std::string &apiSecret,
-                 const std::optional<std::string> &passphrase = std::nullopt);
+  setCredentials(const std::string& exchange, const std::string& apiKey,
+                 const std::string& apiSecret,
+                 const std::optional<std::string>& passphrase = std::nullopt);
 
   /**
    * @brief Get API key for an exchange
@@ -172,7 +172,7 @@ public:
    * @param exchange Exchange name
    * @return API key, or empty optional if not found
    */
-  std::optional<std::string> getApiKey(const std::string &exchange) const;
+  std::optional<std::string> getApiKey(const std::string& exchange) const;
 
   /**
    * @brief Get API secret for an exchange
@@ -180,7 +180,7 @@ public:
    * @param exchange Exchange name
    * @return API secret, or empty optional if not found
    */
-  std::optional<std::string> getApiSecret(const std::string &exchange) const;
+  std::optional<std::string> getApiSecret(const std::string& exchange) const;
 
   /**
    * @brief Get passphrase for an exchange
@@ -188,7 +188,7 @@ public:
    * @param exchange Exchange name
    * @return Passphrase, or empty optional if not found
    */
-  std::optional<std::string> getPassphrase(const std::string &exchange) const;
+  std::optional<std::string> getPassphrase(const std::string& exchange) const;
 
   /**
    * @brief Check if credentials exist for an exchange
@@ -196,7 +196,7 @@ public:
    * @param exchange Exchange name
    * @return true if credentials exist, false otherwise
    */
-  bool hasCredentials(const std::string &exchange) const;
+  bool hasCredentials(const std::string& exchange) const;
 
   /**
    * @brief Remove credentials for an exchange
@@ -204,11 +204,11 @@ public:
    * @param exchange Exchange name
    * @return true if credentials were removed, false otherwise
    */
-  bool removeCredentials(const std::string &exchange);
+  bool removeCredentials(const std::string& exchange);
 
 public:
   // Reference to config instance
-  SecureConfig &m_config;
+  SecureConfig& m_config;
 
   // Key prefix for API credentials
   static const std::string API_KEY_PREFIX;

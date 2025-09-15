@@ -7,7 +7,7 @@ namespace pinnacle {
 namespace exchange {
 
 // Initialize static instance
-ExchangeConnectorFactory &ExchangeConnectorFactory::getInstance() {
+ExchangeConnectorFactory& ExchangeConnectorFactory::getInstance() {
   static ExchangeConnectorFactory instance;
   return instance;
 }
@@ -27,15 +27,15 @@ ExchangeConnectorFactory::~ExchangeConnectorFactory() {
   }
 
   // Stop all market data feeds
-  for (auto &pair : m_marketDataFeeds) {
+  for (auto& pair : m_marketDataFeeds) {
     if (pair.second && pair.second->isRunning()) {
       pair.second->stop();
     }
   }
 }
 
-bool ExchangeConnectorFactory::initialize(const std::string &configPath,
-                                          const std::string &masterPassword) {
+bool ExchangeConnectorFactory::initialize(const std::string& configPath,
+                                          const std::string& masterPassword) {
   // Store configuration path
   m_configPath = configPath;
 
@@ -46,7 +46,7 @@ bool ExchangeConnectorFactory::initialize(const std::string &configPath,
   if (!boost::filesystem::exists(configPath)) {
     try {
       boost::filesystem::create_directories(configPath);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cerr << "Failed to create config directory: " << e.what()
                 << std::endl;
       return false;
@@ -77,7 +77,7 @@ bool ExchangeConnectorFactory::initialize(const std::string &configPath,
 }
 
 std::shared_ptr<MarketDataFeed>
-ExchangeConnectorFactory::getMarketDataFeed(const std::string &exchangeName) {
+ExchangeConnectorFactory::getMarketDataFeed(const std::string& exchangeName) {
   // Check if initialized
   if (!m_isInitialized) {
     std::cerr << "ExchangeConnectorFactory not initialized" << std::endl;
@@ -121,7 +121,7 @@ ExchangeConnectorFactory::getMarketDataFeed(const std::string &exchangeName) {
 }
 
 bool ExchangeConnectorFactory::isExchangeSupported(
-    const std::string &exchangeName) const {
+    const std::string& exchangeName) const {
   return std::find(m_supportedExchanges.begin(), m_supportedExchanges.end(),
                    exchangeName) != m_supportedExchanges.end();
 }
@@ -132,9 +132,9 @@ ExchangeConnectorFactory::getSupportedExchanges() const {
 }
 
 bool ExchangeConnectorFactory::setApiCredentials(
-    const std::string &exchangeName, const std::string &apiKey,
-    const std::string &apiSecret,
-    const std::optional<std::string> &passphrase) {
+    const std::string& exchangeName, const std::string& apiKey,
+    const std::string& apiSecret,
+    const std::optional<std::string>& passphrase) {
   // Check if initialized
   if (!m_isInitialized) {
     std::cerr << "ExchangeConnectorFactory not initialized" << std::endl;
@@ -160,7 +160,7 @@ bool ExchangeConnectorFactory::setApiCredentials(
 }
 
 bool ExchangeConnectorFactory::hasApiCredentials(
-    const std::string &exchangeName) const {
+    const std::string& exchangeName) const {
   // Check if initialized
   if (!m_isInitialized) {
     return false;
@@ -190,7 +190,7 @@ bool ExchangeConnectorFactory::saveApiCredentials() {
 }
 
 WebSocketMarketDataFeed::Exchange ExchangeConnectorFactory::getExchangeEnum(
-    const std::string &exchangeName) const {
+    const std::string& exchangeName) const {
   if (exchangeName == "coinbase") {
     return WebSocketMarketDataFeed::Exchange::COINBASE;
   } else if (exchangeName == "kraken") {

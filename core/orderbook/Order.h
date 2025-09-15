@@ -48,7 +48,7 @@ enum class OrderStatus : uint8_t {
 class Order {
 public:
   // Constructor for creating a new order
-  Order(const std::string &orderId, const std::string &symbol, OrderSide side,
+  Order(const std::string& orderId, const std::string& symbol, OrderSide side,
         OrderType type, double price, double quantity, uint64_t timestamp);
 
   // Default constructor and destructor
@@ -56,17 +56,17 @@ public:
   ~Order() = default;
 
   // Move constructor and assignment operator
-  Order(Order &&other) noexcept;
-  Order &operator=(Order &&other) noexcept;
+  Order(Order&& other) noexcept;
+  Order& operator=(Order&& other) noexcept;
 
   // Copy constructor and assignment operator (deleted to prevent unexpected
   // copies)
-  Order(const Order &) = delete;
-  Order &operator=(const Order &) = delete;
+  Order(const Order&) = delete;
+  Order& operator=(const Order&) = delete;
 
   // Getters (const to ensure they don't modify state)
-  const std::string &getOrderId() const { return m_orderId; }
-  const std::string &getSymbol() const { return m_symbol; }
+  const std::string& getOrderId() const { return m_orderId; }
+  const std::string& getSymbol() const { return m_symbol; }
   OrderSide getSide() const { return m_side; }
   OrderType getType() const { return m_type; }
   OrderStatus getStatus() const {
@@ -97,8 +97,8 @@ public:
   bool isCompleted() const;
 
   // Price comparison operators for priority queue
-  bool operator<(const Order &other) const;
-  bool operator>(const Order &other) const;
+  bool operator<(const Order& other) const;
+  bool operator>(const Order& other) const;
 
 private:
   std::string m_orderId; // Unique order identifier

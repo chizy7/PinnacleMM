@@ -27,7 +27,7 @@ public:
 
     PinConfig() : enforcePin(true) {}
 
-    PinConfig(const std::string &host, bool enforce = true)
+    PinConfig(const std::string& host, bool enforce = true)
         : hostname(host), enforcePin(enforce) {}
   };
 
@@ -43,7 +43,7 @@ public:
    * @param sha256Pin Base64-encoded SHA256 hash of the public key
    * @param enforce Whether to enforce the pin (fail on mismatch)
    */
-  void addPin(const std::string &hostname, const std::string &sha256Pin,
+  void addPin(const std::string& hostname, const std::string& sha256Pin,
               bool enforce = true);
 
   /**
@@ -53,7 +53,7 @@ public:
    * @param cert X.509 certificate to verify
    * @return true if certificate is valid (pinned or allowed)
    */
-  bool verifyCertificate(const std::string &hostname, X509 *cert);
+  bool verifyCertificate(const std::string& hostname, X509* cert);
 
   /**
    * @brief Load certificate pins from configuration file
@@ -61,7 +61,7 @@ public:
    * @param configPath Path to certificate pin configuration
    * @return true if loaded successfully
    */
-  bool loadPinsFromFile(const std::string &configPath);
+  bool loadPinsFromFile(const std::string& configPath);
 
   /**
    * @brief Save current pins to configuration file
@@ -69,7 +69,7 @@ public:
    * @param configPath Path to save certificate pin configuration
    * @return true if saved successfully
    */
-  bool savePinsToFile(const std::string &configPath);
+  bool savePinsToFile(const std::string& configPath);
 
   /**
    * @brief Enable or disable certificate pinning
@@ -91,7 +91,7 @@ public:
    * @param cert X.509 certificate
    * @return Base64-encoded SHA256 hash
    */
-  static std::string getCertificateFingerprint(X509 *cert);
+  static std::string getCertificateFingerprint(X509* cert);
 
 private:
   std::unordered_map<std::string, PinConfig> m_pins;
@@ -109,7 +109,7 @@ private:
    * @param hash Output buffer for SHA256 hash (32 bytes)
    * @return true if successful
    */
-  bool extractPublicKeyHash(X509 *cert,
+  bool extractPublicKeyHash(X509* cert,
                             unsigned char hash[SHA256_DIGEST_LENGTH]);
 
   /**
@@ -119,7 +119,7 @@ private:
    * @param length Hash length in bytes
    * @return Base64-encoded string
    */
-  std::string hashToBase64(const unsigned char *hash, size_t length);
+  std::string hashToBase64(const unsigned char* hash, size_t length);
 
   /**
    * @brief Convert Base64 string to binary hash
@@ -129,7 +129,7 @@ private:
    * @param maxLength Maximum output buffer size
    * @return Number of bytes written
    */
-  size_t base64ToHash(const std::string &base64, unsigned char *hash,
+  size_t base64ToHash(const std::string& base64, unsigned char* hash,
                       size_t maxLength);
 };
 
@@ -140,7 +140,7 @@ private:
  * @param ctx SSL context
  * @return 1 if verification passes, 0 otherwise
  */
-int certificatePinningCallback(int preverify_ok, X509_STORE_CTX *ctx);
+int certificatePinningCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
 /**
  * @brief Set global certificate pinner instance for callbacks

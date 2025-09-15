@@ -41,7 +41,7 @@ struct RateLimitResult {
   RateLimitResult(
       bool allow = true, size_t remaining = 0,
       std::chrono::milliseconds retry = std::chrono::milliseconds(0),
-      const std::string &r = "")
+      const std::string& r = "")
       : allowed(allow), remainingRequests(remaining), retryAfter(retry),
         reason(r) {}
 };
@@ -90,7 +90,7 @@ private:
  */
 class SlidingWindowRateLimiter {
 public:
-  SlidingWindowRateLimiter(const RateLimitConfig &config);
+  SlidingWindowRateLimiter(const RateLimitConfig& config);
 
   /**
    * @brief Check if request is allowed
@@ -98,21 +98,21 @@ public:
    * @param key Identifier for the rate limited entity
    * @return Rate limit result
    */
-  RateLimitResult checkRequest(const std::string &key);
+  RateLimitResult checkRequest(const std::string& key);
 
   /**
    * @brief Record a request
    *
    * @param key Identifier for the rate limited entity
    */
-  void recordRequest(const std::string &key);
+  void recordRequest(const std::string& key);
 
   /**
    * @brief Reset rate limit for a key
    *
    * @param key Identifier to reset
    */
-  void reset(const std::string &key);
+  void reset(const std::string& key);
 
   /**
    * @brief Clear old entries (cleanup)
@@ -130,8 +130,8 @@ private:
   std::unordered_map<std::string, RequestWindow> m_windows;
   mutable std::mutex m_mutex;
 
-  void cleanupWindow(RequestWindow &window);
-  bool isInCooldown(const RequestWindow &window);
+  void cleanupWindow(RequestWindow& window);
+  bool isInCooldown(const RequestWindow& window);
 };
 
 /**
@@ -143,7 +143,7 @@ public:
   /**
    * @brief Get singleton instance
    */
-  static RateLimiter &getInstance();
+  static RateLimiter& getInstance();
 
   /**
    * @brief Initialize rate limiter with default configs
@@ -156,7 +156,7 @@ public:
    * @param category Rate limit category (e.g., "api", "orders", "auth")
    * @param config Rate limit configuration
    */
-  void addRateLimit(const std::string &category, const RateLimitConfig &config);
+  void addRateLimit(const std::string& category, const RateLimitConfig& config);
 
   /**
    * @brief Check if request is allowed
@@ -165,8 +165,8 @@ public:
    * @param key Identifier (e.g., user ID, IP address)
    * @return Rate limit result
    */
-  RateLimitResult checkRequest(const std::string &category,
-                               const std::string &key);
+  RateLimitResult checkRequest(const std::string& category,
+                               const std::string& key);
 
   /**
    * @brief Record a successful request
@@ -174,7 +174,7 @@ public:
    * @param category Rate limit category
    * @param key Identifier
    */
-  void recordRequest(const std::string &category, const std::string &key);
+  void recordRequest(const std::string& category, const std::string& key);
 
   /**
    * @brief Check and record request in one call
@@ -183,8 +183,8 @@ public:
    * @param key Identifier
    * @return Rate limit result
    */
-  RateLimitResult checkAndRecord(const std::string &category,
-                                 const std::string &key);
+  RateLimitResult checkAndRecord(const std::string& category,
+                                 const std::string& key);
 
   /**
    * @brief Reset rate limits for a specific key
@@ -192,7 +192,7 @@ public:
    * @param category Rate limit category
    * @param key Identifier to reset
    */
-  void reset(const std::string &category, const std::string &key);
+  void reset(const std::string& category, const std::string& key);
 
   /**
    * @brief Enable or disable rate limiting
@@ -244,11 +244,11 @@ private:
  */
 class RateLimitGuard {
 public:
-  RateLimitGuard(const std::string &category, const std::string &key);
+  RateLimitGuard(const std::string& category, const std::string& key);
   ~RateLimitGuard() = default;
 
   bool isAllowed() const { return m_result.allowed; }
-  const RateLimitResult &getResult() const { return m_result; }
+  const RateLimitResult& getResult() const { return m_result; }
 
 private:
   RateLimitResult m_result;

@@ -10,7 +10,7 @@
 using namespace pinnacle;
 
 // Benchmark for measuring order throughput (adds/cancels per second)
-static void BM_OrderThroughput(benchmark::State &state) {
+static void BM_OrderThroughput(benchmark::State& state) {
   // Setup order book
   auto orderBook = std::make_shared<OrderBook>("BTC-USD");
   std::vector<std::string> orderIds;
@@ -50,7 +50,7 @@ static void BM_OrderThroughput(benchmark::State &state) {
 }
 
 // Benchmark for measuring market order execution throughput
-static void BM_MarketOrderThroughput(benchmark::State &state) {
+static void BM_MarketOrderThroughput(benchmark::State& state) {
   // Setup order book with some limit orders
   auto orderBook = std::make_shared<OrderBook>("BTC-USD");
 

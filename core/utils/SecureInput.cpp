@@ -13,7 +13,7 @@
 namespace pinnacle {
 namespace utils {
 
-std::string SecureInput::readPassword(const std::string &prompt) {
+std::string SecureInput::readPassword(const std::string& prompt) {
   std::cout << prompt;
   std::cout.flush();
 
@@ -24,10 +24,10 @@ std::string SecureInput::readPassword(const std::string &prompt) {
 #endif
 }
 
-void SecureInput::clearSensitiveString(std::string &sensitive) {
+void SecureInput::clearSensitiveString(std::string& sensitive) {
   if (!sensitive.empty()) {
     // Use volatile to prevent compiler optimization
-    volatile char *vptr = const_cast<volatile char *>(sensitive.data());
+    volatile char* vptr = const_cast<volatile char*>(sensitive.data());
     for (size_t i = 0; i < sensitive.size(); ++i) {
       vptr[i] = '\0';
     }
@@ -42,7 +42,7 @@ void SecureInput::clearSensitiveString(std::string &sensitive) {
 }
 
 #ifdef _WIN32
-std::string SecureInput::readPasswordWindows(const std::string &prompt) {
+std::string SecureInput::readPasswordWindows(const std::string& prompt) {
   std::string password;
   int ch;
 
@@ -62,7 +62,7 @@ std::string SecureInput::readPasswordWindows(const std::string &prompt) {
   return password;
 }
 #else
-std::string SecureInput::readPasswordUnix(const std::string &prompt) {
+std::string SecureInput::readPasswordUnix(const std::string& prompt) {
   std::string password;
   struct termios old_termios, new_termios;
 

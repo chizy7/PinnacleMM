@@ -4,9 +4,9 @@
     <source media="(prefers-color-scheme: light)" srcset=".images/pinnaclemm-high-resolution-logo-grayscale-transparent.svg">
     <img alt="PinnacleMM Logo" src=".images/pinnaclemm-high-resolution-logo-transparent.svg" width="750" height=100">
   </picture>
-  
+
   <h1>Ultra-Low Latency Market Making System</h1>
-  
+
   <p>
     <a href="https://github.com/chizy7/PinnacleMM/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg" alt="C++"></a>
@@ -15,7 +15,7 @@
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build Status"></a>
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/latency-microsecond-blue.svg" alt="Performance"></a>
   </p>
-  
+
   <p>
     <a href="docs/user_guide/getting_started.md">Getting Started</a>&nbsp;&nbsp;•&nbsp;&nbsp;
     <a href="docs/architecture/system_overview.md">Architecture</a>&nbsp;&nbsp;•&nbsp;&nbsp;
@@ -67,7 +67,7 @@ PinnacleMM is being developed in phases:
 - 🔄 **Phase 3**: Advanced strategies and machine learning integration
 - 🔲 **Phase 4**: Risk management and production deployment
 
-See the detailed [project roadmap](docs/ROADMAP.md) for more information. 
+See the detailed [project roadmap](docs/ROADMAP.md) for more information.
 
 ## Getting Started
 
@@ -124,7 +124,7 @@ make -j$(sysctl -n hw.ncpu)  # macOS
 ```
 
 ### Script Features Comparison
-> **Note**: I will update later on after completing phase 4 and 5, cleaning up the code and getting PinnacleMM ready for optimization and production deployment. 
+> **Note**: I will update later on after completing phase 4 and 5, cleaning up the code and getting PinnacleMM ready for optimization and production deployment.
 
 | Feature | Native Script (`./run-native.sh`) | Docker Script (`./run-docker.sh`) |
 |---------|-----------------------------------|-----------------------------------|
@@ -201,7 +201,7 @@ PinnacleMM securely stores and manages exchange API credentials:
 #### WebSocket Connectivity
 - ✅ **Coinbase Pro**: Live market data via WebSocket
 
-#### FIX Protocol Connectivity  
+#### FIX Protocol Connectivity
 - ✅ **Interactive Brokers**: FIX 4.2 support (requires IB FIX API agreement)
 - 🔄 **Coinbase Pro**: FIX 4.4 institutional connectivity (framework ready)
 - 🔄 **Kraken**: FIX 4.4 institutional connectivity (framework ready)
@@ -379,7 +379,7 @@ PinnacleMM achieves exceptional performance metrics:
   - End-to-end routing: 1.88μs average latency
   - System throughput: 640k+ operations/second
   - Nanosecond-precision performance metrics
-- **Enhanced Security Infrastructure**: 
+- **Enhanced Security Infrastructure**:
   - AES-256-CBC encryption with unique random salts (replacing fixed salt vulnerability)
   - PBKDF2 key derivation increased from 10,000 to 100,000 iterations
   - Secure password input with terminal masking
@@ -400,7 +400,7 @@ cd build
 ./fix_basic_test
 
 # Expected output:
-# ✓ Factory instance created  
+# ✓ Factory instance created
 # ✓ Interactive Brokers FIX support: Yes
 # ✓ Configuration system working
 # ✓ Order creation working

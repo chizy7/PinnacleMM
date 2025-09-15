@@ -23,7 +23,7 @@ namespace pinnacle {
 namespace exchange {
 
 // Helper function
-std::string toLower(const std::string &str) {
+std::string toLower(const std::string& str) {
   std::string result = str;
   std::transform(result.begin(), result.end(), result.begin(),
                  [](unsigned char c) { return std::tolower(c); });
@@ -31,16 +31,16 @@ std::string toLower(const std::string &str) {
 }
 
 // Base64 URL encoding helper
-std::string base64UrlEncode(const std::string &input) {
-  BIO *bio = BIO_new(BIO_s_mem());
-  BIO *b64 = BIO_new(BIO_f_base64());
+std::string base64UrlEncode(const std::string& input) {
+  BIO* bio = BIO_new(BIO_s_mem());
+  BIO* b64 = BIO_new(BIO_f_base64());
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   bio = BIO_push(b64, bio);
 
   BIO_write(bio, input.c_str(), input.length());
   BIO_flush(bio);
 
-  BUF_MEM *bufferPtr;
+  BUF_MEM* bufferPtr;
   BIO_get_mem_ptr(bio, &bufferPtr);
 
   std::string result(bufferPtr->data, bufferPtr->length);
@@ -70,8 +70,8 @@ std::string generateNonce() {
 }
 
 // Create Coinbase JWT
-std::string createCoinbaseJWT(const std::string &apiKey,
-                              const std::string &apiSecret) {
+std::string createCoinbaseJWT(const std::string& apiKey,
+                              const std::string& apiSecret) {
   (void)apiSecret; // Suppress unused parameter warning
   // JWT Header
   nlohmann::json header = {
@@ -144,7 +144,7 @@ bool WebSocketMarketDataFeed::start() {
 
     spdlog::info("WebSocket started successfully");
     return true;
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("WebSocket start failed: {}", e.what());
     std::lock_guard<std::mutex> lock(m_statusMutex);
     m_statusMessage = "Failed to connect: " + std::string(e.what());
@@ -172,7 +172,7 @@ bool WebSocketMarketDataFeed::stop() {
     m_statusMessage = "Disconnected from " + getExchangeName();
 
     return true;
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::lock_guard<std::mutex> lock(m_statusMutex);
     m_statusMessage = "Error during disconnect: " + std::string(e.what());
     return false;
@@ -232,7 +232,7 @@ void WebSocketMarketDataFeed::connectWebSocket() {
 
     // Set WebSocket options
     m_websocket->set_option(boost::beast::websocket::stream_base::decorator(
-        [](boost::beast::websocket::request_type &req) {
+        [](boost::beast::websocket::request_type& req) {
           req.set(boost::beast::http::field::user_agent, "PinnacleMM/1.0");
         }));
 
@@ -243,12 +243,12 @@ void WebSocketMarketDataFeed::connectWebSocket() {
     spdlog::info("WebSocket connected to {}", m_endpoint);
 
     // Send pending subscriptions
-    for (const auto &symbol : m_pendingSubscriptions) {
+    for (const auto& symbol : m_pendingSubscriptions) {
       sendSubscriptionInternal(symbol);
     }
     m_pendingSubscriptions.clear();
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("WebSocket connection error: {}", e.what());
     throw std::runtime_error("WebSocket connection failed: " +
                              std::string(e.what()));
@@ -293,7 +293,7 @@ void WebSocketMarketDataFeed::processMessages() {
 
       onMessage(message);
 
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       spdlog::error("Error in message processing: {}", e.what());
       std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
@@ -308,22 +308,22 @@ void WebSocketMarketDataFeed::onDisconnect() {
   spdlog::info("WebSocket disconnected from {}", getExchangeName());
 }
 
-void WebSocketMarketDataFeed::onError(const std::string &error) {
+void WebSocketMarketDataFeed::onError(const std::string& error) {
   spdlog::error("WebSocket error: {}", error);
 }
 
-void WebSocketMarketDataFeed::onMessage(const std::string &message) {
+void WebSocketMarketDataFeed::onMessage(const std::string& message) {
   try {
     spdlog::debug("Received message: {}",
                   message.substr(0, 200) +
                       (message.length() > 200 ? "..." : ""));
     parseMessage(message);
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("Error parsing message: {}", e.what());
   }
 }
 
-bool WebSocketMarketDataFeed::sendSubscription(const std::string &symbol) {
+bool WebSocketMarketDataFeed::sendSubscription(const std::string& symbol) {
   if (!m_isRunning.load(std::memory_order_acquire) || !m_websocket) {
     // Add to pending subscriptions if not connected yet
     m_pendingSubscriptions.push_back(symbol);
@@ -334,7 +334,7 @@ bool WebSocketMarketDataFeed::sendSubscription(const std::string &symbol) {
 }
 
 bool WebSocketMarketDataFeed::sendSubscriptionInternal(
-    const std::string &symbol) {
+    const std::string& symbol) {
   try {
     std::string subscriptionMessage = createSubscriptionMessage(symbol);
     spdlog::info("Sending subscription for {}: {}", symbol,
@@ -350,7 +350,7 @@ bool WebSocketMarketDataFeed::sendSubscriptionInternal(
 
     spdlog::info("Subscription sent successfully for {}", symbol);
     return true;
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("Error sending subscription for {}: {}", symbol, e.what());
     std::lock_guard<std::mutex> lock(m_statusMutex);
     m_statusMessage = "Error sending subscription: " + std::string(e.what());
@@ -359,7 +359,7 @@ bool WebSocketMarketDataFeed::sendSubscriptionInternal(
 }
 
 std::string
-WebSocketMarketDataFeed::createSubscriptionMessage(const std::string &symbol) {
+WebSocketMarketDataFeed::createSubscriptionMessage(const std::string& symbol) {
   nlohmann::json message;
 
   switch (m_exchange) {
@@ -399,7 +399,7 @@ std::string WebSocketMarketDataFeed::getStatusMessage() const {
   return m_statusMessage;
 }
 
-void WebSocketMarketDataFeed::setConnectionParams(const std::string &endpoint,
+void WebSocketMarketDataFeed::setConnectionParams(const std::string& endpoint,
                                                   bool useSSL) {
   if (!m_isRunning.load(std::memory_order_acquire)) {
     m_endpoint = endpoint;
@@ -407,52 +407,52 @@ void WebSocketMarketDataFeed::setConnectionParams(const std::string &endpoint,
   }
 }
 
-void WebSocketMarketDataFeed::setAuthParams(const std::string &exchangeName) {
+void WebSocketMarketDataFeed::setAuthParams(const std::string& exchangeName) {
   if (!m_isRunning.load(std::memory_order_acquire)) {
     m_exchangeName = exchangeName;
   }
 }
 
 bool WebSocketMarketDataFeed::subscribeToMarketUpdates(
-    const std::string &symbol,
-    std::function<void(const MarketUpdate &)> callback) {
+    const std::string& symbol,
+    std::function<void(const MarketUpdate&)> callback) {
   m_marketUpdateCallbacks[symbol].push_back(callback);
   return sendSubscription(symbol);
 }
 
 bool WebSocketMarketDataFeed::subscribeToOrderBookUpdates(
-    const std::string &symbol,
-    std::function<void(const OrderBookUpdate &)> callback) {
+    const std::string& symbol,
+    std::function<void(const OrderBookUpdate&)> callback) {
   m_orderBookUpdateCallbacks[symbol].push_back(callback);
   return sendSubscription(symbol);
 }
 
 bool WebSocketMarketDataFeed::unsubscribeFromMarketUpdates(
-    const std::string &symbol) {
+    const std::string& symbol) {
   m_marketUpdateCallbacks.erase(symbol);
   return true;
 }
 
 bool WebSocketMarketDataFeed::unsubscribeFromOrderBookUpdates(
-    const std::string &symbol) {
+    const std::string& symbol) {
   m_orderBookUpdateCallbacks.erase(symbol);
   return true;
 }
 
-void WebSocketMarketDataFeed::publishMarketUpdate(const MarketUpdate &update) {
+void WebSocketMarketDataFeed::publishMarketUpdate(const MarketUpdate& update) {
   auto it = m_marketUpdateCallbacks.find(update.symbol);
   if (it != m_marketUpdateCallbacks.end()) {
-    for (const auto &callback : it->second) {
+    for (const auto& callback : it->second) {
       callback(update);
     }
   }
 }
 
 void WebSocketMarketDataFeed::publishOrderBookUpdate(
-    const OrderBookUpdate &update) {
+    const OrderBookUpdate& update) {
   auto it = m_orderBookUpdateCallbacks.find(update.symbol);
   if (it != m_orderBookUpdateCallbacks.end()) {
-    for (const auto &callback : it->second) {
+    for (const auto& callback : it->second) {
       callback(update);
     }
   }
@@ -462,7 +462,7 @@ bool WebSocketMarketDataFeed::isRunning() const {
   return m_isRunning.load(std::memory_order_acquire);
 }
 
-void WebSocketMarketDataFeed::parseMessage(const std::string &message) {
+void WebSocketMarketDataFeed::parseMessage(const std::string& message) {
   try {
     auto json = nlohmann::json::parse(message);
 
@@ -476,7 +476,7 @@ void WebSocketMarketDataFeed::parseMessage(const std::string &message) {
 
         auto it = m_orderBookUpdateCallbacks.find(update.symbol);
         if (it != m_orderBookUpdateCallbacks.end()) {
-          for (const auto &callback : it->second) {
+          for (const auto& callback : it->second) {
             callback(update);
           }
         }
@@ -486,19 +486,19 @@ void WebSocketMarketDataFeed::parseMessage(const std::string &message) {
 
         auto it = m_marketUpdateCallbacks.find(update.symbol);
         if (it != m_marketUpdateCallbacks.end()) {
-          for (const auto &callback : it->second) {
+          for (const auto& callback : it->second) {
             callback(update);
           }
         }
       }
     }
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("Error parsing message: {}", e.what());
   }
 }
 
 MarketUpdate
-WebSocketMarketDataFeed::parseMarketUpdate(const std::string &message) {
+WebSocketMarketDataFeed::parseMarketUpdate(const std::string& message) {
   MarketUpdate update;
 
   try {
@@ -520,7 +520,7 @@ WebSocketMarketDataFeed::parseMarketUpdate(const std::string &message) {
                            std::chrono::system_clock::now().time_since_epoch())
                            .count();
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("Error parsing market update: {}", e.what());
   }
 
@@ -528,7 +528,7 @@ WebSocketMarketDataFeed::parseMarketUpdate(const std::string &message) {
 }
 
 OrderBookUpdate
-WebSocketMarketDataFeed::parseOrderBookUpdate(const std::string &message) {
+WebSocketMarketDataFeed::parseOrderBookUpdate(const std::string& message) {
   OrderBookUpdate update;
 
   try {
@@ -539,7 +539,7 @@ WebSocketMarketDataFeed::parseOrderBookUpdate(const std::string &message) {
     }
 
     if (json.contains("changes")) {
-      for (const auto &change : json["changes"]) {
+      for (const auto& change : json["changes"]) {
         if (change.is_array() && change.size() >= 3) {
           std::string side = change[0];
           double price = std::stod(change[1].get<std::string>());
@@ -558,7 +558,7 @@ WebSocketMarketDataFeed::parseOrderBookUpdate(const std::string &message) {
                            std::chrono::system_clock::now().time_since_epoch())
                            .count();
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("Error parsing order book update: {}", e.what());
   }
 

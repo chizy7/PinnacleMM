@@ -28,26 +28,26 @@ struct JournalEntryHeader {
 class JournalEntry {
 public:
   // Create entry for adding an order
-  static JournalEntry createOrderAddedEntry(const Order &order);
+  static JournalEntry createOrderAddedEntry(const Order& order);
 
   // Create entry for canceling an order
-  static JournalEntry createOrderCanceledEntry(const std::string &orderId);
+  static JournalEntry createOrderCanceledEntry(const std::string& orderId);
 
   // Create entry for executing an order
-  static JournalEntry createOrderExecutedEntry(const std::string &orderId,
+  static JournalEntry createOrderExecutedEntry(const std::string& orderId,
                                                double quantity);
 
   // Create entry for market order execution
   static JournalEntry createMarketOrderEntry(
       OrderSide side, double quantity,
-      const std::vector<std::pair<std::string, double>> &fills);
+      const std::vector<std::pair<std::string, double>>& fills);
 
   // Create checkpoint entry
   static JournalEntry createCheckpointEntry(uint64_t snapshotId);
 
   // Getters
-  const JournalEntryHeader &getHeader() const { return m_header; }
-  const std::vector<uint8_t> &getData() const { return m_data; }
+  const JournalEntryHeader& getHeader() const { return m_header; }
+  const std::vector<uint8_t>& getData() const { return m_data; }
 
   // Validate entry checksum
   bool isValid() const;
@@ -56,14 +56,14 @@ public:
   std::vector<uint8_t> serialize() const;
 
   // Deserialize from binary
-  static JournalEntry deserialize(const uint8_t *data, size_t size);
+  static JournalEntry deserialize(const uint8_t* data, size_t size);
 
 private:
   JournalEntryHeader m_header;
   std::vector<uint8_t> m_data;
 
   // Constructor
-  JournalEntry(EntryType type, const std::vector<uint8_t> &data);
+  JournalEntry(EntryType type, const std::vector<uint8_t>& data);
 
   // Assign sequence number (done by Journal when adding entries)
   void setSequenceNumber(uint64_t seq) { m_header.sequenceNumber = seq; }

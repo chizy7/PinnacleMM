@@ -9,7 +9,7 @@
 using namespace pinnacle;
 
 // Benchmark for measuring order addition latency
-static void BM_OrderAddLatency(benchmark::State &state) {
+static void BM_OrderAddLatency(benchmark::State& state) {
   // Setup order book
   auto orderBook = std::make_shared<OrderBook>("BTC-USD");
   int orderId = 0;
@@ -29,7 +29,7 @@ static void BM_OrderAddLatency(benchmark::State &state) {
 }
 
 // Benchmark for measuring order book lookup latency
-static void BM_OrderBookQueryLatency(benchmark::State &state) {
+static void BM_OrderBookQueryLatency(benchmark::State& state) {
   // Setup order book with some orders
   auto orderBook = std::make_shared<OrderBook>("BTC-USD");
 

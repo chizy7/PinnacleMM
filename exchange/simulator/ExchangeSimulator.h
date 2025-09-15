@@ -105,7 +105,7 @@ public:
    * @param frequency Activity frequency (trades per minute)
    * @param volumeRatio Ratio of market volume (0.0-1.0)
    */
-  void addMarketParticipant(const std::string &type, double frequency,
+  void addMarketParticipant(const std::string& type, double frequency,
                             double volumeRatio);
 
 private:

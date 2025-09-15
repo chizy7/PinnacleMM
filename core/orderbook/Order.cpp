@@ -3,7 +3,7 @@
 
 namespace pinnacle {
 
-Order::Order(const std::string &orderId, const std::string &symbol,
+Order::Order(const std::string& orderId, const std::string& symbol,
              OrderSide side, OrderType type, double price, double quantity,
              uint64_t timestamp)
     : m_orderId(orderId), m_symbol(symbol), m_side(side), m_type(type),
@@ -20,7 +20,7 @@ Order::Order(const std::string &orderId, const std::string &symbol,
   m_lastUpdateTime.store(timestamp, std::memory_order_relaxed);
 }
 
-Order::Order(Order &&other) noexcept
+Order::Order(Order&& other) noexcept
     : m_orderId(std::move(other.m_orderId)),
       m_symbol(std::move(other.m_symbol)), m_side(other.m_side),
       m_type(other.m_type), m_price(other.m_price),
@@ -35,7 +35,7 @@ Order::Order(Order &&other) noexcept
                          std::memory_order_relaxed);
 }
 
-Order &Order::operator=(Order &&other) noexcept {
+Order& Order::operator=(Order&& other) noexcept {
   if (this != &other) {
     m_orderId = std::move(other.m_orderId);
     m_symbol = std::move(other.m_symbol);
@@ -152,7 +152,7 @@ bool Order::isCompleted() const {
          currentStatus == OrderStatus::EXPIRED;
 }
 
-bool Order::operator<(const Order &other) const {
+bool Order::operator<(const Order& other) const {
   // Primary ordering by price (buy: higher price has priority, sell: lower
   // price has priority)
   if (m_side == OrderSide::BUY) {
@@ -169,7 +169,7 @@ bool Order::operator<(const Order &other) const {
   return m_timestamp > other.m_timestamp;
 }
 
-bool Order::operator>(const Order &other) const { return other < *this; }
+bool Order::operator>(const Order& other) const { return other < *this; }
 
 void Order::updateLastUpdateTime(uint64_t timestamp) {
   m_lastUpdateTime.store(timestamp, std::memory_order_release);

@@ -23,7 +23,7 @@ std::vector<MarketData> createTestMarketData() {
 }
 
 // Helper function to create execution request
-ExecutionRequest createTestExecutionRequest(const std::string &strategy,
+ExecutionRequest createTestExecutionRequest(const std::string& strategy,
                                             double quantity) {
   ExecutionRequest request;
   request.requestId =
@@ -42,7 +42,7 @@ ExecutionRequest createTestExecutionRequest(const std::string &strategy,
 // Strategy Planning Benchmarks
 // =============================================================================
 
-static void BM_BestPriceStrategy_Planning(benchmark::State &state) {
+static void BM_BestPriceStrategy_Planning(benchmark::State& state) {
   BestPriceStrategy strategy;
   auto marketData = createTestMarketData();
   auto request = createTestExecutionRequest("BEST_PRICE", 1.0);
@@ -53,7 +53,7 @@ static void BM_BestPriceStrategy_Planning(benchmark::State &state) {
   }
 }
 
-static void BM_TWAPStrategy_Planning(benchmark::State &state) {
+static void BM_TWAPStrategy_Planning(benchmark::State& state) {
   TWAPStrategy strategy(static_cast<int>(state.range(0)),
                         std::chrono::seconds(30));
   auto marketData = createTestMarketData();
@@ -65,7 +65,7 @@ static void BM_TWAPStrategy_Planning(benchmark::State &state) {
   }
 }
 
-static void BM_VWAPStrategy_Planning(benchmark::State &state) {
+static void BM_VWAPStrategy_Planning(benchmark::State& state) {
   VWAPStrategy strategy(0.15); // 15% participation rate
   auto marketData = createTestMarketData();
   auto request = createTestExecutionRequest("VWAP", 5.0);
@@ -76,7 +76,7 @@ static void BM_VWAPStrategy_Planning(benchmark::State &state) {
   }
 }
 
-static void BM_MarketImpactStrategy_Planning(benchmark::State &state) {
+static void BM_MarketImpactStrategy_Planning(benchmark::State& state) {
   MarketImpactStrategy strategy(0.003); // 0.3% threshold
   auto marketData = createTestMarketData();
   auto request = createTestExecutionRequest("MARKET_IMPACT", 20.0);
@@ -91,7 +91,7 @@ static void BM_MarketImpactStrategy_Planning(benchmark::State &state) {
 // OrderRouter End-to-End Benchmarks
 // =============================================================================
 
-static void BM_OrderRouter_SubmitOrder(benchmark::State &state) {
+static void BM_OrderRouter_SubmitOrder(benchmark::State& state) {
   OrderRouter router;
   router.initialize();
   router.start();
@@ -103,7 +103,7 @@ static void BM_OrderRouter_SubmitOrder(benchmark::State &state) {
 
   // Update market data
   auto marketData = createTestMarketData();
-  for (const auto &data : marketData) {
+  for (const auto& data : marketData) {
     router.updateMarketData(data.venue, data);
   }
 
@@ -129,7 +129,7 @@ static void BM_OrderRouter_SubmitOrder(benchmark::State &state) {
   router.stop();
 }
 
-static void BM_OrderRouter_MultipleStrategies(benchmark::State &state) {
+static void BM_OrderRouter_MultipleStrategies(benchmark::State& state) {
   OrderRouter router;
   router.initialize();
   router.start();
@@ -140,7 +140,7 @@ static void BM_OrderRouter_MultipleStrategies(benchmark::State &state) {
 
   // Update market data
   auto marketData = createTestMarketData();
-  for (const auto &data : marketData) {
+  for (const auto& data : marketData) {
     router.updateMarketData(data.venue, data);
   }
 
@@ -170,7 +170,7 @@ static void BM_OrderRouter_MultipleStrategies(benchmark::State &state) {
 // Market Data Processing Benchmarks
 // =============================================================================
 
-static void BM_OrderRouter_MarketDataUpdate(benchmark::State &state) {
+static void BM_OrderRouter_MarketDataUpdate(benchmark::State& state) {
   OrderRouter router;
   router.initialize();
   router.start();
@@ -208,7 +208,7 @@ static void BM_OrderRouter_MarketDataUpdate(benchmark::State &state) {
 // Large Order Routing Benchmarks
 // =============================================================================
 
-static void BM_OrderRouter_LargeOrderTWAP(benchmark::State &state) {
+static void BM_OrderRouter_LargeOrderTWAP(benchmark::State& state) {
   OrderRouter router;
   router.initialize();
   router.start();
@@ -245,14 +245,14 @@ static void BM_OrderRouter_LargeOrderTWAP(benchmark::State &state) {
   router.stop();
 }
 
-static void BM_OrderRouter_MultiVenueVWAP(benchmark::State &state) {
+static void BM_OrderRouter_MultiVenueVWAP(benchmark::State& state) {
   OrderRouter router;
   router.initialize();
   router.start();
 
   // Add multiple venues
   std::vector<std::string> venues = {"Venue1", "Venue2", "Venue3", "Venue4"};
-  for (const auto &venue : venues) {
+  for (const auto& venue : venues) {
     router.addVenue(venue, "websocket");
   }
 
@@ -282,7 +282,7 @@ static void BM_OrderRouter_MultiVenueVWAP(benchmark::State &state) {
 // Concurrent Routing Benchmarks
 // =============================================================================
 
-static void BM_OrderRouter_ConcurrentSubmissions(benchmark::State &state) {
+static void BM_OrderRouter_ConcurrentSubmissions(benchmark::State& state) {
   OrderRouter router;
   router.initialize();
   router.start();
@@ -312,7 +312,7 @@ static void BM_OrderRouter_ConcurrentSubmissions(benchmark::State &state) {
       });
     }
 
-    for (auto &thread : threads) {
+    for (auto& thread : threads) {
       thread.join();
     }
   }

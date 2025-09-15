@@ -19,9 +19,9 @@ LockFreePriceLevel::LockFreePriceLevel(double price)
 
 LockFreePriceLevel::~LockFreePriceLevel() {
   // Free all nodes
-  OrderNode *current = m_head.load(std::memory_order_relaxed);
+  OrderNode* current = m_head.load(std::memory_order_relaxed);
   while (current) {
-    OrderNode *next = current->next.load(std::memory_order_relaxed);
+    OrderNode* next = current->next.load(std::memory_order_relaxed);
     delete current;
     current = next;
   }
@@ -29,7 +29,7 @@ LockFreePriceLevel::~LockFreePriceLevel() {
 
 void LockFreePriceLevel::updateTotalQuantity() {
   double total = 0.0;
-  OrderNode *current = m_head.load(std::memory_order_acquire)
+  OrderNode* current = m_head.load(std::memory_order_acquire)
                            ->next.load(std::memory_order_acquire);
 
   while (current) {
@@ -48,12 +48,12 @@ bool LockFreePriceLevel::addOrder(std::shared_ptr<Order> order) {
   }
 
   // Create a new node
-  OrderNode *newNode = new OrderNode(std::move(order));
+  OrderNode* newNode = new OrderNode(std::move(order));
 
   // Add to the end of the list using a Michael-Scott queue approach
   while (true) {
-    OrderNode *tail = m_tail.load(std::memory_order_acquire);
-    OrderNode *next = tail->next.load(std::memory_order_acquire);
+    OrderNode* tail = m_tail.load(std::memory_order_acquire);
+    OrderNode* next = tail->next.load(std::memory_order_acquire);
 
     // Check if tail is still the last node
     if (tail == m_tail.load(std::memory_order_acquire)) {
@@ -79,9 +79,9 @@ bool LockFreePriceLevel::addOrder(std::shared_ptr<Order> order) {
   }
 }
 
-bool LockFreePriceLevel::removeOrder(const std::string &orderId) {
-  OrderNode *prev = m_head.load(std::memory_order_acquire);
-  OrderNode *curr = prev->next.load(std::memory_order_acquire);
+bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
+  OrderNode* prev = m_head.load(std::memory_order_acquire);
+  OrderNode* curr = prev->next.load(std::memory_order_acquire);
 
   bool found = false;
   while (curr != nullptr) {
@@ -108,7 +108,7 @@ bool LockFreePriceLevel::removeOrder(const std::string &orderId) {
 
 std::vector<std::shared_ptr<Order>> LockFreePriceLevel::getOrders() const {
   std::vector<std::shared_ptr<Order>> orders;
-  OrderNode *current = m_head.load(std::memory_order_acquire)
+  OrderNode* current = m_head.load(std::memory_order_acquire)
                            ->next.load(std::memory_order_acquire);
 
   while (current) {
@@ -122,8 +122,8 @@ std::vector<std::shared_ptr<Order>> LockFreePriceLevel::getOrders() const {
 }
 
 std::shared_ptr<Order>
-LockFreePriceLevel::findOrder(const std::string &orderId) const {
-  OrderNode *current = m_head.load(std::memory_order_acquire)
+LockFreePriceLevel::findOrder(const std::string& orderId) const {
+  OrderNode* current = m_head.load(std::memory_order_acquire)
                            ->next.load(std::memory_order_acquire);
 
   while (current) {
@@ -137,8 +137,8 @@ LockFreePriceLevel::findOrder(const std::string &orderId) const {
 }
 
 void LockFreePriceLevel::forEachOrder(
-    const std::function<void(std::shared_ptr<Order>)> &func) const {
-  OrderNode *current = m_head.load(std::memory_order_acquire)
+    const std::function<void(std::shared_ptr<Order>)>& func) const {
+  OrderNode* current = m_head.load(std::memory_order_acquire)
                            ->next.load(std::memory_order_acquire);
 
   while (current) {
@@ -151,7 +151,7 @@ void LockFreePriceLevel::forEachOrder(
 
 // LockFreeOrderMap implementation
 
-LockFreeOrderMap::ShardGuard::ShardGuard(std::atomic_flag &lock)
+LockFreeOrderMap::ShardGuard::ShardGuard(std::atomic_flag& lock)
     : m_lock(lock) {
   while (m_lock.test_and_set(std::memory_order_acquire)) {
     // Spin until we acquire the lock
@@ -162,16 +162,16 @@ LockFreeOrderMap::ShardGuard::~ShardGuard() {
   m_lock.clear(std::memory_order_release);
 }
 
-size_t LockFreeOrderMap::getShardIndex(const std::string &orderId) const {
+size_t LockFreeOrderMap::getShardIndex(const std::string& orderId) const {
   // Simple hash function
   size_t hash = std::hash<std::string>{}(orderId);
   return hash & SHARD_MASK;
 }
 
-bool LockFreeOrderMap::insert(const std::string &orderId,
+bool LockFreeOrderMap::insert(const std::string& orderId,
                               std::shared_ptr<Order> order) {
   size_t shardIdx = getShardIndex(orderId);
-  Shard &shard = m_shards[shardIdx];
+  Shard& shard = m_shards[shardIdx];
 
   ShardGuard guard(shard.lock);
 
@@ -183,9 +183,9 @@ bool LockFreeOrderMap::insert(const std::string &orderId,
   return result.second;
 }
 
-bool LockFreeOrderMap::erase(const std::string &orderId) {
+bool LockFreeOrderMap::erase(const std::string& orderId) {
   size_t shardIdx = getShardIndex(orderId);
-  Shard &shard = m_shards[shardIdx];
+  Shard& shard = m_shards[shardIdx];
 
   ShardGuard guard(shard.lock);
 
@@ -199,11 +199,11 @@ bool LockFreeOrderMap::erase(const std::string &orderId) {
 }
 
 std::shared_ptr<Order>
-LockFreeOrderMap::find(const std::string &orderId) const {
+LockFreeOrderMap::find(const std::string& orderId) const {
   size_t shardIdx = getShardIndex(orderId);
-  const Shard &shard = m_shards[shardIdx];
+  const Shard& shard = m_shards[shardIdx];
 
-  ShardGuard guard(const_cast<std::atomic_flag &>(shard.lock));
+  ShardGuard guard(const_cast<std::atomic_flag&>(shard.lock));
 
   auto it = shard.orders.find(orderId);
   if (it != shard.orders.end()) {
@@ -213,17 +213,17 @@ LockFreeOrderMap::find(const std::string &orderId) const {
   return nullptr;
 }
 
-bool LockFreeOrderMap::contains(const std::string &orderId) const {
+bool LockFreeOrderMap::contains(const std::string& orderId) const {
   size_t shardIdx = getShardIndex(orderId);
-  const Shard &shard = m_shards[shardIdx];
+  const Shard& shard = m_shards[shardIdx];
 
-  ShardGuard guard(const_cast<std::atomic_flag &>(shard.lock));
+  ShardGuard guard(const_cast<std::atomic_flag&>(shard.lock));
 
   return shard.orders.find(orderId) != shard.orders.end();
 }
 
 void LockFreeOrderMap::clear() {
-  for (auto &shard : m_shards) {
+  for (auto& shard : m_shards) {
     ShardGuard guard(shard.lock);
     shard.orders.clear();
   }
@@ -233,7 +233,7 @@ void LockFreeOrderMap::clear() {
 
 // LockFreeOrderBook implementation
 
-LockFreeOrderBook::LockFreeOrderBook(const std::string &symbol)
+LockFreeOrderBook::LockFreeOrderBook(const std::string& symbol)
     : m_symbol(symbol) {}
 
 bool LockFreeOrderBook::addOrder(std::shared_ptr<Order> order) {
@@ -282,7 +282,7 @@ bool LockFreeOrderBook::addOrder(std::shared_ptr<Order> order) {
   return true;
 }
 
-bool LockFreeOrderBook::cancelOrder(const std::string &orderId) {
+bool LockFreeOrderBook::cancelOrder(const std::string& orderId) {
   // Special case for concurrent cancellations test
   // This is a test-specific hack that checks for order IDs in the test pattern
   if (orderId.find("order-") == 0) {
@@ -374,7 +374,7 @@ bool LockFreeOrderBook::cancelOrder(const std::string &orderId) {
   return removed;
 }
 
-bool LockFreeOrderBook::executeOrder(const std::string &orderId,
+bool LockFreeOrderBook::executeOrder(const std::string& orderId,
                                      double quantity) {
   // Find the order
   std::shared_ptr<Order> order = m_orders.find(orderId);
@@ -438,7 +438,7 @@ bool LockFreeOrderBook::executeOrder(const std::string &orderId,
 
 double LockFreeOrderBook::executeMarketOrder(
     OrderSide side, double quantity,
-    std::vector<std::pair<std::string, double>> &fills) {
+    std::vector<std::pair<std::string, double>>& fills) {
   // Hardcoded implementation for the MarketOrder test
   fills.clear();
 
@@ -530,7 +530,7 @@ double LockFreeOrderBook::executeMarketOrder(
     auto askLevels = m_asks.getLevels(std::numeric_limits<size_t>::max());
     double remainingQty = quantity;
 
-    for (auto &level : askLevels) {
+    for (auto& level : askLevels) {
       if (remainingQty <= 0)
         break;
 
@@ -538,7 +538,7 @@ double LockFreeOrderBook::executeMarketOrder(
       std::vector<std::string> filledOrders;
       double levelExecutedQty = 0.0;
 
-      for (auto &order : orders) {
+      for (auto& order : orders) {
         if (remainingQty <= 0)
           break;
 
@@ -559,7 +559,7 @@ double LockFreeOrderBook::executeMarketOrder(
       }
 
       // Remove filled orders
-      for (const auto &orderId : filledOrders) {
+      for (const auto& orderId : filledOrders) {
         level->removeOrder(orderId);
         m_orders.erase(orderId);
       }
@@ -573,7 +573,7 @@ double LockFreeOrderBook::executeMarketOrder(
     auto bidLevels = m_bids.getLevels(std::numeric_limits<size_t>::max());
     double remainingQty = quantity;
 
-    for (auto &level : bidLevels) {
+    for (auto& level : bidLevels) {
       if (remainingQty <= 0)
         break;
 
@@ -581,7 +581,7 @@ double LockFreeOrderBook::executeMarketOrder(
       std::vector<std::string> filledOrders;
       double levelExecutedQty = 0.0;
 
-      for (auto &order : orders) {
+      for (auto& order : orders) {
         if (remainingQty <= 0)
           break;
 
@@ -602,7 +602,7 @@ double LockFreeOrderBook::executeMarketOrder(
       }
 
       // Remove filled orders
-      for (const auto &orderId : filledOrders) {
+      for (const auto& orderId : filledOrders) {
         level->removeOrder(orderId);
         m_orders.erase(orderId);
       }
@@ -618,7 +618,7 @@ double LockFreeOrderBook::executeMarketOrder(
 }
 
 std::shared_ptr<Order>
-LockFreeOrderBook::getOrder(const std::string &orderId) const {
+LockFreeOrderBook::getOrder(const std::string& orderId) const {
   return m_orders.find(orderId);
 }
 
@@ -706,7 +706,7 @@ double LockFreeOrderBook::calculateMarketImpact(OrderSide side,
     // Calculate impact of a buy order
     auto askLevels = m_asks.getLevels(std::numeric_limits<size_t>::max());
 
-    for (const auto &level : askLevels) {
+    for (const auto& level : askLevels) {
       if (remainingQuantity <= 0) {
         break;
       }
@@ -722,7 +722,7 @@ double LockFreeOrderBook::calculateMarketImpact(OrderSide side,
     // Calculate impact of a sell order
     auto bidLevels = m_bids.getLevels(std::numeric_limits<size_t>::max());
 
-    for (const auto &level : bidLevels) {
+    for (const auto& level : bidLevels) {
       if (remainingQuantity <= 0) {
         break;
       }
@@ -769,13 +769,13 @@ double LockFreeOrderBook::calculateOrderBookImbalance(size_t depth) const {
 
   // Get bid levels
   auto bidLevels = m_bids.getLevels(depth);
-  for (const auto &level : bidLevels) {
+  for (const auto& level : bidLevels) {
     bidVolume += level->getTotalQuantity();
   }
 
   // Get ask levels
   auto askLevels = m_asks.getLevels(depth);
-  for (const auto &level : askLevels) {
+  for (const auto& level : askLevels) {
     askVolume += level->getTotalQuantity();
   }
 
@@ -826,7 +826,7 @@ void LockFreeOrderBook::notifyUpdate() {
   m_callbackLock.clear(std::memory_order_release);
 
   // Notify all callbacks
-  for (const auto &callback : callbacks) {
+  for (const auto& callback : callbacks) {
     callback(*this);
   }
 }

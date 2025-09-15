@@ -98,7 +98,7 @@ public:
   };
   typedef std::shared_ptr<connection> connection_ptr;
 
-  connection_ptr get_connection(const std::string &, std::error_code &) {
+  connection_ptr get_connection(const std::string&, std::error_code&) {
     return std::make_shared<connection>();
   }
 
@@ -111,11 +111,11 @@ public:
 
   // Send
   template <typename Message>
-  void send(connection_hdl, Message, frame::opcode, std::error_code &) {}
+  void send(connection_hdl, Message, frame::opcode, std::error_code&) {}
 
   // Close
-  void close(connection_hdl, close::status, const std::string &,
-             std::error_code &) {}
+  void close(connection_hdl, close::status, const std::string&,
+             std::error_code&) {}
 };
 } // namespace websocketpp_stub
 

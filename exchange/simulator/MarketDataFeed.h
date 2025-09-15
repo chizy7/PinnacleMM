@@ -75,8 +75,8 @@ public:
    * @return true if the subscription was successful, false otherwise
    */
   virtual bool subscribeToMarketUpdates(
-      const std::string &symbol,
-      std::function<void(const MarketUpdate &)> callback) = 0;
+      const std::string& symbol,
+      std::function<void(const MarketUpdate&)> callback) = 0;
 
   /**
    * @brief Subscribe to order book updates for a symbol
@@ -86,8 +86,8 @@ public:
    * @return true if the subscription was successful, false otherwise
    */
   virtual bool subscribeToOrderBookUpdates(
-      const std::string &symbol,
-      std::function<void(const OrderBookUpdate &)> callback) = 0;
+      const std::string& symbol,
+      std::function<void(const OrderBookUpdate&)> callback) = 0;
 
   /**
    * @brief Unsubscribe from market updates for a symbol
@@ -95,7 +95,7 @@ public:
    * @param symbol Trading symbol
    * @return true if the unsubscription was successful, false otherwise
    */
-  virtual bool unsubscribeFromMarketUpdates(const std::string &symbol) = 0;
+  virtual bool unsubscribeFromMarketUpdates(const std::string& symbol) = 0;
 
   /**
    * @brief Unsubscribe from order book updates for a symbol
@@ -103,21 +103,21 @@ public:
    * @param symbol Trading symbol
    * @return true if the unsubscription was successful, false otherwise
    */
-  virtual bool unsubscribeFromOrderBookUpdates(const std::string &symbol) = 0;
+  virtual bool unsubscribeFromOrderBookUpdates(const std::string& symbol) = 0;
 
   /**
    * @brief Publish a market update to subscribers
    *
    * @param update Market update to publish
    */
-  virtual void publishMarketUpdate(const MarketUpdate &update) = 0;
+  virtual void publishMarketUpdate(const MarketUpdate& update) = 0;
 
   /**
    * @brief Publish an order book update to subscribers
    *
    * @param update Order book update to publish
    */
-  virtual void publishOrderBookUpdate(const OrderBookUpdate &update) = 0;
+  virtual void publishOrderBookUpdate(const OrderBookUpdate& update) = 0;
 };
 
 /**
@@ -142,18 +142,18 @@ public:
   bool isRunning() const override;
 
   bool subscribeToMarketUpdates(
-      const std::string &symbol,
-      std::function<void(const MarketUpdate &)> callback) override;
+      const std::string& symbol,
+      std::function<void(const MarketUpdate&)> callback) override;
 
   bool subscribeToOrderBookUpdates(
-      const std::string &symbol,
-      std::function<void(const OrderBookUpdate &)> callback) override;
+      const std::string& symbol,
+      std::function<void(const OrderBookUpdate&)> callback) override;
 
-  bool unsubscribeFromMarketUpdates(const std::string &symbol) override;
-  bool unsubscribeFromOrderBookUpdates(const std::string &symbol) override;
+  bool unsubscribeFromMarketUpdates(const std::string& symbol) override;
+  bool unsubscribeFromOrderBookUpdates(const std::string& symbol) override;
 
-  void publishMarketUpdate(const MarketUpdate &update) override;
-  void publishOrderBookUpdate(const OrderBookUpdate &update) override;
+  void publishMarketUpdate(const MarketUpdate& update) override;
+  void publishOrderBookUpdate(const OrderBookUpdate& update) override;
 
   /**
    * @brief Set the update frequency
@@ -170,10 +170,10 @@ private:
 
   // Subscription management
   std::unordered_map<std::string,
-                     std::vector<std::function<void(const MarketUpdate &)>>>
+                     std::vector<std::function<void(const MarketUpdate&)>>>
       m_marketUpdateCallbacks;
   std::unordered_map<std::string,
-                     std::vector<std::function<void(const OrderBookUpdate &)>>>
+                     std::vector<std::function<void(const OrderBookUpdate&)>>>
       m_orderBookUpdateCallbacks;
   std::mutex m_callbacksMutex;
 

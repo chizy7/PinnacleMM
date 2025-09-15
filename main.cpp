@@ -54,7 +54,7 @@ int setupCredentials() {
   std::vector<std::string> exchanges = {"coinbase", "kraken", "gemini",
                                         "binance", "bitstamp"};
 
-  for (const auto &exchange : exchanges) {
+  for (const auto& exchange : exchanges) {
     std::cout << std::endl;
     std::cout << "--- " << exchange << " Configuration ---" << std::endl;
 
@@ -110,7 +110,7 @@ int setupCredentials() {
   if (!boost::filesystem::exists(configPath)) {
     try {
       boost::filesystem::create_directories(configPath);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cerr << "Failed to create config directory: " << e.what()
                 << std::endl;
       return 1;
@@ -134,7 +134,7 @@ int setupCredentials() {
   return 0;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   try {
     // Set up signal handlers
     std::signal(SIGINT, signalHandler);
@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
                  useLockFree ? "enabled" : "disabled");
 
     // Initialize persistence
-    auto &persistenceManager =
+    auto& persistenceManager =
         pinnacle::persistence::PersistenceManager::getInstance();
     std::string dataDirectory = "data"; // Default data directory from config
     if (!persistenceManager.initialize(dataDirectory)) {
@@ -260,7 +260,7 @@ int main(int argc, char *argv[]) {
       }
       std::string configPath = (projectRoot / "config").string();
 
-      auto &factory =
+      auto& factory =
           pinnacle::exchange::ExchangeConnectorFactory::getInstance();
       if (!factory.initialize(configPath, masterPassword)) {
         spdlog::error("Failed to initialize exchange connector factory");
@@ -277,9 +277,9 @@ int main(int argc, char *argv[]) {
       // Subscribe to market data and connect to order book
       marketDataFeed->subscribeToOrderBookUpdates(
           symbol, [orderBook,
-                   symbol](const pinnacle::exchange::OrderBookUpdate &update) {
+                   symbol](const pinnacle::exchange::OrderBookUpdate& update) {
             // Update order book with real market data
-            for (const auto &bid : update.bids) {
+            for (const auto& bid : update.bids) {
               if (bid.second > 0) {
                 auto order = std::make_shared<pinnacle::Order>(
                     "market_bid_" + std::to_string(bid.first), symbol,
@@ -289,7 +289,7 @@ int main(int argc, char *argv[]) {
                 orderBook->addOrder(order);
               }
             }
-            for (const auto &ask : update.asks) {
+            for (const auto& ask : update.asks) {
               if (ask.second > 0) {
                 auto order = std::make_shared<pinnacle::Order>(
                     "market_ask_" + std::to_string(ask.first), symbol,
@@ -378,7 +378,7 @@ int main(int argc, char *argv[]) {
 
     spdlog::info("Shutdown complete");
     return 0;
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("Error: {}", e.what());
     return 1;
   }

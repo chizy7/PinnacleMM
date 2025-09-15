@@ -22,7 +22,7 @@ graph TD
     A["data/"] --> C["snapshots/"]
 
     B --> D["[SYMBOL].journal"]
-    
+
     C --> E["[SYMBOL]/"]
     E --> F["[SYMBOL]-[TIMESTAMP].snapshot"]
 ```

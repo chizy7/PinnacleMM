@@ -34,15 +34,15 @@ private:
   // Node structure for linked list of orders
   struct OrderNode {
     std::shared_ptr<Order> order;
-    std::atomic<OrderNode *> next;
+    std::atomic<OrderNode*> next;
 
     explicit OrderNode(std::shared_ptr<Order> o)
         : order(std::move(o)), next(nullptr) {}
   };
 
   // Head and tail pointers for the order list
-  std::atomic<OrderNode *> m_head;
-  std::atomic<OrderNode *> m_tail;
+  std::atomic<OrderNode*> m_head;
+  std::atomic<OrderNode*> m_tail;
 
   // Number of orders at this level
   std::atomic<size_t> m_orderCount;
@@ -58,10 +58,10 @@ public:
   ~LockFreePriceLevel();
 
   // Deleted copy and move operations
-  LockFreePriceLevel(const LockFreePriceLevel &) = delete;
-  LockFreePriceLevel &operator=(const LockFreePriceLevel &) = delete;
-  LockFreePriceLevel(LockFreePriceLevel &&) = delete;
-  LockFreePriceLevel &operator=(LockFreePriceLevel &&) = delete;
+  LockFreePriceLevel(const LockFreePriceLevel&) = delete;
+  LockFreePriceLevel& operator=(const LockFreePriceLevel&) = delete;
+  LockFreePriceLevel(LockFreePriceLevel&&) = delete;
+  LockFreePriceLevel& operator=(LockFreePriceLevel&&) = delete;
 
   // Get price
   double getPrice() const { return m_price; }
@@ -80,17 +80,17 @@ public:
   bool addOrder(std::shared_ptr<Order> order);
 
   // Remove an order from this level
-  bool removeOrder(const std::string &orderId);
+  bool removeOrder(const std::string& orderId);
 
   // Get all orders at this level
   std::vector<std::shared_ptr<Order>> getOrders() const;
 
   // Find order by ID
-  std::shared_ptr<Order> findOrder(const std::string &orderId) const;
+  std::shared_ptr<Order> findOrder(const std::string& orderId) const;
 
   // Apply a function to each order
   void
-  forEachOrder(const std::function<void(std::shared_ptr<Order>)> &func) const;
+  forEachOrder(const std::function<void(std::shared_ptr<Order>)>& func) const;
 };
 
 /**
@@ -122,18 +122,18 @@ private:
   std::atomic<size_t> m_orderCount{0};
 
   // Helper methods
-  size_t getShardIndex(const std::string &orderId) const;
+  size_t getShardIndex(const std::string& orderId) const;
 
   // RAII helper for locking a shard
   class ShardGuard {
   private:
-    std::atomic_flag &m_lock;
+    std::atomic_flag& m_lock;
 
   public:
-    explicit ShardGuard(std::atomic_flag &lock);
+    explicit ShardGuard(std::atomic_flag& lock);
     ~ShardGuard();
-    ShardGuard(const ShardGuard &) = delete;
-    ShardGuard &operator=(const ShardGuard &) = delete;
+    ShardGuard(const ShardGuard&) = delete;
+    ShardGuard& operator=(const ShardGuard&) = delete;
   };
 
 public:
@@ -144,22 +144,22 @@ public:
   ~LockFreeOrderMap() = default;
 
   // Deleted copy and move operations
-  LockFreeOrderMap(const LockFreeOrderMap &) = delete;
-  LockFreeOrderMap &operator=(const LockFreeOrderMap &) = delete;
-  LockFreeOrderMap(LockFreeOrderMap &&) = delete;
-  LockFreeOrderMap &operator=(LockFreeOrderMap &&) = delete;
+  LockFreeOrderMap(const LockFreeOrderMap&) = delete;
+  LockFreeOrderMap& operator=(const LockFreeOrderMap&) = delete;
+  LockFreeOrderMap(LockFreeOrderMap&&) = delete;
+  LockFreeOrderMap& operator=(LockFreeOrderMap&&) = delete;
 
   // Add an order
-  bool insert(const std::string &orderId, std::shared_ptr<Order> order);
+  bool insert(const std::string& orderId, std::shared_ptr<Order> order);
 
   // Remove an order
-  bool erase(const std::string &orderId);
+  bool erase(const std::string& orderId);
 
   // Find an order
-  std::shared_ptr<Order> find(const std::string &orderId) const;
+  std::shared_ptr<Order> find(const std::string& orderId) const;
 
   // Check if an order exists
-  bool contains(const std::string &orderId) const;
+  bool contains(const std::string& orderId) const;
 
   // Get order count
   size_t size() const { return m_orderCount.load(std::memory_order_acquire); }
@@ -187,8 +187,8 @@ private:
   };
 
   // Current and new map pointers
-  std::atomic<PriceMap *> m_current;
-  PriceMap *m_new;
+  std::atomic<PriceMap*> m_current;
+  PriceMap* m_new;
 
   // Lock for write operations
   std::atomic_flag m_writeLock = ATOMIC_FLAG_INIT;
@@ -196,25 +196,25 @@ private:
   // RAII helper for read operations
   class ReadGuard {
   private:
-    PriceMap &m_map;
+    PriceMap& m_map;
 
   public:
-    explicit ReadGuard(PriceMap &map);
+    explicit ReadGuard(PriceMap& map);
     ~ReadGuard();
-    ReadGuard(const ReadGuard &) = delete;
-    ReadGuard &operator=(const ReadGuard &) = delete;
+    ReadGuard(const ReadGuard&) = delete;
+    ReadGuard& operator=(const ReadGuard&) = delete;
   };
 
   // RAII helper for write operations
   class WriteGuard {
   private:
-    std::atomic_flag &m_lock;
+    std::atomic_flag& m_lock;
 
   public:
-    explicit WriteGuard(std::atomic_flag &lock);
+    explicit WriteGuard(std::atomic_flag& lock);
     ~WriteGuard();
-    WriteGuard(const WriteGuard &) = delete;
-    WriteGuard &operator=(const WriteGuard &) = delete;
+    WriteGuard(const WriteGuard&) = delete;
+    WriteGuard& operator=(const WriteGuard&) = delete;
   };
 
 public:
@@ -225,10 +225,10 @@ public:
   ~LockFreePriceMap();
 
   // Deleted copy and move operations
-  LockFreePriceMap(const LockFreePriceMap &) = delete;
-  LockFreePriceMap &operator=(const LockFreePriceMap &) = delete;
-  LockFreePriceMap(LockFreePriceMap &&) = delete;
-  LockFreePriceMap &operator=(LockFreePriceMap &&) = delete;
+  LockFreePriceMap(const LockFreePriceMap&) = delete;
+  LockFreePriceMap& operator=(const LockFreePriceMap&) = delete;
+  LockFreePriceMap(LockFreePriceMap&&) = delete;
+  LockFreePriceMap& operator=(LockFreePriceMap&&) = delete;
 
   // Add a price level
   bool insertLevel(double price, std::shared_ptr<LockFreePriceLevel> level);
@@ -258,14 +258,14 @@ public:
 
   // Apply a function to each level
   void forEachLevel(
-      const std::function<void(double, std::shared_ptr<LockFreePriceLevel>)>
-          &func) const;
+      const std::function<void(double, std::shared_ptr<LockFreePriceLevel>)>&
+          func) const;
 };
 
 // Template implementation for LockFreePriceMap
 
 template <typename Comparator>
-LockFreePriceMap<Comparator>::ReadGuard::ReadGuard(PriceMap &map) : m_map(map) {
+LockFreePriceMap<Comparator>::ReadGuard::ReadGuard(PriceMap& map) : m_map(map) {
   m_map.readers.fetch_add(1, std::memory_order_acquire);
 }
 
@@ -275,7 +275,7 @@ LockFreePriceMap<Comparator>::ReadGuard::~ReadGuard() {
 }
 
 template <typename Comparator>
-LockFreePriceMap<Comparator>::WriteGuard::WriteGuard(std::atomic_flag &lock)
+LockFreePriceMap<Comparator>::WriteGuard::WriteGuard(std::atomic_flag& lock)
     : m_lock(lock) {
   while (m_lock.test_and_set(std::memory_order_acquire)) {
     // Spin until we acquire the lock
@@ -306,7 +306,7 @@ bool LockFreePriceMap<Comparator>::insertLevel(
     double price, std::shared_ptr<LockFreePriceLevel> level) {
   WriteGuard guard(m_writeLock);
 
-  PriceMap *current = m_current.load(std::memory_order_acquire);
+  PriceMap* current = m_current.load(std::memory_order_acquire);
 
   // Create a new map as a copy of the current one
   m_new = new PriceMap();
@@ -334,7 +334,7 @@ template <typename Comparator>
 bool LockFreePriceMap<Comparator>::removeLevel(double price) {
   WriteGuard guard(m_writeLock);
 
-  PriceMap *current = m_current.load(std::memory_order_acquire);
+  PriceMap* current = m_current.load(std::memory_order_acquire);
 
   // Check if the level exists
   if (current->levels.find(price) == current->levels.end()) {
@@ -366,7 +366,7 @@ bool LockFreePriceMap<Comparator>::removeLevel(double price) {
 template <typename Comparator>
 std::shared_ptr<LockFreePriceLevel>
 LockFreePriceMap<Comparator>::findLevel(double price) const {
-  PriceMap *current = m_current.load(std::memory_order_acquire);
+  PriceMap* current = m_current.load(std::memory_order_acquire);
   ReadGuard guard(*current);
 
   auto it = current->levels.find(price);
@@ -380,7 +380,7 @@ LockFreePriceMap<Comparator>::findLevel(double price) const {
 template <typename Comparator>
 std::optional<std::pair<double, std::shared_ptr<LockFreePriceLevel>>>
 LockFreePriceMap<Comparator>::getBestLevel() const {
-  PriceMap *current = m_current.load(std::memory_order_acquire);
+  PriceMap* current = m_current.load(std::memory_order_acquire);
   ReadGuard guard(*current);
 
   if (current->levels.empty()) {
@@ -394,14 +394,14 @@ LockFreePriceMap<Comparator>::getBestLevel() const {
 template <typename Comparator>
 std::vector<std::shared_ptr<LockFreePriceLevel>>
 LockFreePriceMap<Comparator>::getLevels(size_t depth) const {
-  PriceMap *current = m_current.load(std::memory_order_acquire);
+  PriceMap* current = m_current.load(std::memory_order_acquire);
   ReadGuard guard(*current);
 
   std::vector<std::shared_ptr<LockFreePriceLevel>> result;
   result.reserve(std::min(depth, current->levels.size()));
 
   size_t count = 0;
-  for (const auto &pair : current->levels) {
+  for (const auto& pair : current->levels) {
     result.push_back(pair.second);
     count++;
 
@@ -415,7 +415,7 @@ LockFreePriceMap<Comparator>::getLevels(size_t depth) const {
 
 template <typename Comparator>
 size_t LockFreePriceMap<Comparator>::size() const {
-  PriceMap *current = m_current.load(std::memory_order_acquire);
+  PriceMap* current = m_current.load(std::memory_order_acquire);
   ReadGuard guard(*current);
 
   return current->levels.size();
@@ -423,7 +423,7 @@ size_t LockFreePriceMap<Comparator>::size() const {
 
 template <typename Comparator>
 bool LockFreePriceMap<Comparator>::empty() const {
-  PriceMap *current = m_current.load(std::memory_order_acquire);
+  PriceMap* current = m_current.load(std::memory_order_acquire);
   ReadGuard guard(*current);
 
   return current->levels.empty();
@@ -432,7 +432,7 @@ bool LockFreePriceMap<Comparator>::empty() const {
 template <typename Comparator> void LockFreePriceMap<Comparator>::clear() {
   WriteGuard guard(m_writeLock);
 
-  PriceMap *current = m_current.load(std::memory_order_acquire);
+  PriceMap* current = m_current.load(std::memory_order_acquire);
 
   // Create a new empty map
   m_new = new PriceMap();
@@ -452,13 +452,13 @@ template <typename Comparator> void LockFreePriceMap<Comparator>::clear() {
 
 template <typename Comparator>
 void LockFreePriceMap<Comparator>::forEachLevel(
-    const std::function<void(double, std::shared_ptr<LockFreePriceLevel>)>
-        &func) const {
+    const std::function<void(double, std::shared_ptr<LockFreePriceLevel>)>&
+        func) const {
 
-  PriceMap *current = m_current.load(std::memory_order_acquire);
+  PriceMap* current = m_current.load(std::memory_order_acquire);
   ReadGuard guard(*current);
 
-  for (const auto &pair : current->levels) {
+  for (const auto& pair : current->levels) {
     func(pair.first, pair.second);
   }
 }
@@ -486,35 +486,34 @@ private:
   std::atomic<uint64_t> m_updateCount{0};
 
   // Callbacks for updates
-  using OrderBookUpdateCallback =
-      std::function<void(const LockFreeOrderBook &)>;
+  using OrderBookUpdateCallback = std::function<void(const LockFreeOrderBook&)>;
   std::vector<OrderBookUpdateCallback> m_updateCallbacks;
   std::atomic_flag m_callbackLock = ATOMIC_FLAG_INIT;
 
 public:
   // Constructor
-  explicit LockFreeOrderBook(const std::string &symbol);
+  explicit LockFreeOrderBook(const std::string& symbol);
 
   // Destructor
   ~LockFreeOrderBook() = default;
 
   // Deleted copy and move operations
-  LockFreeOrderBook(const LockFreeOrderBook &) = delete;
-  LockFreeOrderBook &operator=(const LockFreeOrderBook &) = delete;
-  LockFreeOrderBook(LockFreeOrderBook &&) = delete;
-  LockFreeOrderBook &operator=(LockFreeOrderBook &&) = delete;
+  LockFreeOrderBook(const LockFreeOrderBook&) = delete;
+  LockFreeOrderBook& operator=(const LockFreeOrderBook&) = delete;
+  LockFreeOrderBook(LockFreeOrderBook&&) = delete;
+  LockFreeOrderBook& operator=(LockFreeOrderBook&&) = delete;
 
   // Core order book functionality
   bool addOrder(std::shared_ptr<Order> order);
-  bool cancelOrder(const std::string &orderId);
-  bool executeOrder(const std::string &orderId, double quantity);
+  bool cancelOrder(const std::string& orderId);
+  bool executeOrder(const std::string& orderId, double quantity);
 
   // Market order execution
   double executeMarketOrder(OrderSide side, double quantity,
-                            std::vector<std::pair<std::string, double>> &fills);
+                            std::vector<std::pair<std::string, double>>& fills);
 
   // Order book queries
-  std::shared_ptr<Order> getOrder(const std::string &orderId) const;
+  std::shared_ptr<Order> getOrder(const std::string& orderId) const;
   double getBestBidPrice() const;
   double getBestAskPrice() const;
   double getMidPrice() const;
@@ -544,7 +543,7 @@ public:
   void clear();
 
   // Get the symbol for this order book
-  const std::string &getSymbol() const { return m_symbol; }
+  const std::string& getSymbol() const { return m_symbol; }
 
   // Callback registration
   void registerUpdateCallback(OrderBookUpdateCallback callback);

@@ -16,12 +16,12 @@ namespace snapshot {
 class SnapshotManager {
 public:
   // Constructor with snapshot directory
-  explicit SnapshotManager(const std::string &snapshotDirectory,
-                           const std::string &symbol);
+  explicit SnapshotManager(const std::string& snapshotDirectory,
+                           const std::string& symbol);
   ~SnapshotManager();
 
   // Create snapshot from order book
-  uint64_t createSnapshot(const OrderBook &orderBook);
+  uint64_t createSnapshot(const OrderBook& orderBook);
 
   // Load latest snapshot
   std::shared_ptr<OrderBook> loadLatestSnapshot();
@@ -55,7 +55,7 @@ private:
   std::vector<uint64_t> listSnapshots() const;
 
   // Memory-map operations
-  bool writeSnapshotToFile(uint64_t snapshotId, const OrderBook &orderBook);
+  bool writeSnapshotToFile(uint64_t snapshotId, const OrderBook& orderBook);
   std::shared_ptr<OrderBook> readSnapshotFromFile(uint64_t snapshotId);
 };
 

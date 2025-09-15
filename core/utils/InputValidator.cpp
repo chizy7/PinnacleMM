@@ -37,9 +37,9 @@ const std::vector<std::regex> InputValidator::PATH_TRAVERSAL_PATTERNS = {
     std::regex(R"(\.\.%2f)", std::regex_constants::icase)};
 
 ValidationResult
-InputValidator::validateString(const std::string &input, size_t minLength,
+InputValidator::validateString(const std::string& input, size_t minLength,
                                size_t maxLength,
-                               const std::string &allowedChars) {
+                               const std::string& allowedChars) {
   if (input.length() < minLength) {
     return ValidationResult(false, "String too short (minimum " +
                                        std::to_string(minLength) +
@@ -59,7 +59,7 @@ InputValidator::validateString(const std::string &input, size_t minLength,
   return ValidationResult(true);
 }
 
-ValidationResult InputValidator::validateDouble(const std::string &input,
+ValidationResult InputValidator::validateDouble(const std::string& input,
                                                 double minValue,
                                                 double maxValue) {
   try {
@@ -76,12 +76,12 @@ ValidationResult InputValidator::validateDouble(const std::string &input,
     }
 
     return ValidationResult(true);
-  } catch (const std::exception &) {
+  } catch (const std::exception&) {
     return ValidationResult(false, "Invalid numeric format");
   }
 }
 
-ValidationResult InputValidator::validateInteger(const std::string &input,
+ValidationResult InputValidator::validateInteger(const std::string& input,
                                                  int minValue, int maxValue) {
   try {
     int value = std::stoi(input);
@@ -93,12 +93,12 @@ ValidationResult InputValidator::validateInteger(const std::string &input,
     }
 
     return ValidationResult(true);
-  } catch (const std::exception &) {
+  } catch (const std::exception&) {
     return ValidationResult(false, "Invalid integer format");
   }
 }
 
-ValidationResult InputValidator::validateSymbol(const std::string &symbol) {
+ValidationResult InputValidator::validateSymbol(const std::string& symbol) {
   if (symbol.empty()) {
     return ValidationResult(false, "Symbol cannot be empty");
   }
@@ -149,7 +149,7 @@ ValidationResult InputValidator::validateQuantity(double quantity) {
   return ValidationResult(true);
 }
 
-ValidationResult InputValidator::validateOrderId(const std::string &orderId) {
+ValidationResult InputValidator::validateOrderId(const std::string& orderId) {
   if (orderId.empty()) {
     return ValidationResult(false, "Order ID cannot be empty");
   }
@@ -169,7 +169,7 @@ ValidationResult InputValidator::validateOrderId(const std::string &orderId) {
   return ValidationResult(true);
 }
 
-ValidationResult InputValidator::validateUrl(const std::string &url) {
+ValidationResult InputValidator::validateUrl(const std::string& url) {
   if (url.empty()) {
     return ValidationResult(false, "URL cannot be empty");
   }
@@ -188,7 +188,7 @@ ValidationResult InputValidator::validateUrl(const std::string &url) {
   return ValidationResult(true);
 }
 
-ValidationResult InputValidator::validateIPAddress(const std::string &ip) {
+ValidationResult InputValidator::validateIPAddress(const std::string& ip) {
   std::regex ipPattern(R"(^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$)");
   if (!std::regex_match(ip, ipPattern)) {
     return ValidationResult(false, "Invalid IP address format");
@@ -221,7 +221,7 @@ ValidationResult InputValidator::validatePort(int port) {
   return ValidationResult(true);
 }
 
-ValidationResult InputValidator::validateApiKey(const std::string &apiKey) {
+ValidationResult InputValidator::validateApiKey(const std::string& apiKey) {
   if (apiKey.empty()) {
     return ValidationResult(false, "API key cannot be empty");
   }
@@ -245,7 +245,7 @@ ValidationResult InputValidator::validateApiKey(const std::string &apiKey) {
 }
 
 ValidationResult
-InputValidator::validateExchangeName(const std::string &exchange) {
+InputValidator::validateExchangeName(const std::string& exchange) {
   auto supportedExchanges = getSupportedExchanges();
   if (supportedExchanges.find(exchange) == supportedExchanges.end()) {
     return ValidationResult(false, "Unsupported exchange: " + exchange);
@@ -254,17 +254,17 @@ InputValidator::validateExchangeName(const std::string &exchange) {
   return ValidationResult(true);
 }
 
-ValidationResult InputValidator::validateJson(const std::string &jsonStr) {
+ValidationResult InputValidator::validateJson(const std::string& jsonStr) {
   try {
     auto parsed = nlohmann::json::parse(jsonStr);
     (void)parsed; // Suppress unused variable warning
     return ValidationResult(true);
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     return ValidationResult(false, "Invalid JSON: " + std::string(e.what()));
   }
 }
 
-ValidationResult InputValidator::validateFilePath(const std::string &path) {
+ValidationResult InputValidator::validateFilePath(const std::string& path) {
   if (path.empty()) {
     return ValidationResult(false, "File path cannot be empty");
   }
@@ -283,20 +283,20 @@ ValidationResult InputValidator::validateFilePath(const std::string &path) {
     }
 
     return ValidationResult(true);
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     return ValidationResult(false,
                             "Invalid file path: " + std::string(e.what()));
   }
 }
 
-ValidationResult InputValidator::validateConfigPath(const std::string &path) {
+ValidationResult InputValidator::validateConfigPath(const std::string& path) {
   auto fileResult = validateFilePath(path);
   if (!fileResult.valid) {
     return fileResult;
   }
 
   // Additional checks for config files
-  auto hasExtension = [&path](const std::string &ext) {
+  auto hasExtension = [&path](const std::string& ext) {
     return path.length() >= ext.length() &&
            path.substr(path.length() - ext.length()) == ext;
   };
@@ -310,7 +310,7 @@ ValidationResult InputValidator::validateConfigPath(const std::string &path) {
   return ValidationResult(true);
 }
 
-std::string InputValidator::sanitizeString(const std::string &input) {
+std::string InputValidator::sanitizeString(const std::string& input) {
   std::string result;
   result.reserve(input.length());
 
@@ -326,7 +326,7 @@ std::string InputValidator::sanitizeString(const std::string &input) {
   return result;
 }
 
-std::string InputValidator::sanitizeFilePath(const std::string &path) {
+std::string InputValidator::sanitizeFilePath(const std::string& path) {
   std::string result = path;
 
   // Remove any path traversal attempts
@@ -339,7 +339,7 @@ std::string InputValidator::sanitizeFilePath(const std::string &path) {
   return result;
 }
 
-std::string InputValidator::sanitizeSymbol(const std::string &symbol) {
+std::string InputValidator::sanitizeSymbol(const std::string& symbol) {
   std::string result;
   result.reserve(symbol.length());
 
@@ -352,7 +352,7 @@ std::string InputValidator::sanitizeSymbol(const std::string &symbol) {
   return result;
 }
 
-ValidationResult InputValidator::validatePassword(const std::string &password) {
+ValidationResult InputValidator::validatePassword(const std::string& password) {
   if (password.length() < 8) {
     return ValidationResult(false,
                             "Password must be at least 8 characters long");
@@ -385,8 +385,8 @@ ValidationResult InputValidator::validatePassword(const std::string &password) {
 }
 
 ValidationResult
-InputValidator::checkForSqlInjection(const std::string &input) {
-  for (const auto &pattern : SQL_INJECTION_PATTERNS) {
+InputValidator::checkForSqlInjection(const std::string& input) {
+  for (const auto& pattern : SQL_INJECTION_PATTERNS) {
     if (std::regex_search(input, pattern)) {
       spdlog::warn("Potential SQL injection attempt detected: {}",
                    input.substr(0, 50));
@@ -398,8 +398,8 @@ InputValidator::checkForSqlInjection(const std::string &input) {
   return ValidationResult(true);
 }
 
-ValidationResult InputValidator::checkForXss(const std::string &input) {
-  for (const auto &pattern : XSS_PATTERNS) {
+ValidationResult InputValidator::checkForXss(const std::string& input) {
+  for (const auto& pattern : XSS_PATTERNS) {
     if (std::regex_search(input, pattern)) {
       spdlog::warn("Potential XSS attempt detected: {}", input.substr(0, 50));
       return ValidationResult(
@@ -411,8 +411,8 @@ ValidationResult InputValidator::checkForXss(const std::string &input) {
 }
 
 ValidationResult
-InputValidator::checkForPathTraversal(const std::string &path) {
-  for (const auto &pattern : PATH_TRAVERSAL_PATTERNS) {
+InputValidator::checkForPathTraversal(const std::string& path) {
+  for (const auto& pattern : PATH_TRAVERSAL_PATTERNS) {
     if (std::regex_search(path, pattern)) {
       spdlog::warn("Potential path traversal attempt detected: {}", path);
       return ValidationResult(false,
@@ -424,8 +424,8 @@ InputValidator::checkForPathTraversal(const std::string &path) {
 }
 
 // Private helper functions
-bool InputValidator::containsOnlyAllowedChars(const std::string &input,
-                                              const std::string &allowed) {
+bool InputValidator::containsOnlyAllowedChars(const std::string& input,
+                                              const std::string& allowed) {
   for (char c : input) {
     if (allowed.find(c) == std::string::npos) {
       return false;

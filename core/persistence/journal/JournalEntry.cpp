@@ -9,7 +9,7 @@ namespace pinnacle {
 namespace persistence {
 namespace journal {
 
-JournalEntry::JournalEntry(EntryType type, const std::vector<uint8_t> &data)
+JournalEntry::JournalEntry(EntryType type, const std::vector<uint8_t>& data)
     : m_data(data) {
   m_header.sequenceNumber = 0; // Will be set by Journal
   m_header.timestamp = utils::TimeUtils::getCurrentNanos();
@@ -18,7 +18,7 @@ JournalEntry::JournalEntry(EntryType type, const std::vector<uint8_t> &data)
   m_header.checksum = calculateChecksum();
 }
 
-JournalEntry JournalEntry::createOrderAddedEntry(const Order &order) {
+JournalEntry JournalEntry::createOrderAddedEntry(const Order& order) {
   // Serialize order information
   std::ostringstream oss;
   oss << order.getOrderId() << "," << order.getSymbol() << ","
@@ -35,12 +35,12 @@ JournalEntry JournalEntry::createOrderAddedEntry(const Order &order) {
 }
 
 JournalEntry
-JournalEntry::createOrderCanceledEntry(const std::string &orderId) {
+JournalEntry::createOrderCanceledEntry(const std::string& orderId) {
   std::vector<uint8_t> binaryData(orderId.begin(), orderId.end());
   return JournalEntry(EntryType::ORDER_CANCELED, binaryData);
 }
 
-JournalEntry JournalEntry::createOrderExecutedEntry(const std::string &orderId,
+JournalEntry JournalEntry::createOrderExecutedEntry(const std::string& orderId,
                                                     double quantity) {
   std::ostringstream oss;
   oss << orderId << "," << std::fixed << std::setprecision(8) << quantity;
@@ -53,12 +53,12 @@ JournalEntry JournalEntry::createOrderExecutedEntry(const std::string &orderId,
 
 JournalEntry JournalEntry::createMarketOrderEntry(
     OrderSide side, double quantity,
-    const std::vector<std::pair<std::string, double>> &fills) {
+    const std::vector<std::pair<std::string, double>>& fills) {
   std::ostringstream oss;
   oss << static_cast<int>(side) << "," << std::fixed << std::setprecision(8)
       << quantity << "," << fills.size();
 
-  for (const auto &fill : fills) {
+  for (const auto& fill : fills) {
     oss << "," << fill.first << "," << std::fixed << std::setprecision(8)
         << fill.second;
   }
@@ -102,7 +102,7 @@ std::vector<uint8_t> JournalEntry::serialize() const {
   return buffer;
 }
 
-JournalEntry JournalEntry::deserialize(const uint8_t *data, size_t size) {
+JournalEntry JournalEntry::deserialize(const uint8_t* data, size_t size) {
   if (size < sizeof(JournalEntryHeader)) {
     throw std::runtime_error("Invalid journal entry size");
   }

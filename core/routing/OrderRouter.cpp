@@ -16,21 +16,21 @@ namespace routing {
 // =============================================================================
 
 std::vector<ExecutionRequest>
-BestPriceStrategy::planExecution(const ExecutionRequest &originalRequest,
-                                 const std::vector<MarketData> &marketData) {
+BestPriceStrategy::planExecution(const ExecutionRequest& originalRequest,
+                                 const std::vector<MarketData>& marketData) {
 
   if (marketData.empty()) {
     return {}; // No venues available
   }
 
   // Find venue with best price
-  const MarketData *bestVenue = nullptr;
+  const MarketData* bestVenue = nullptr;
   double bestPrice =
       (originalRequest.order.getSide() == pinnacle::OrderSide::BUY)
           ? std::numeric_limits<double>::max()
           : 0.0;
 
-  for (const auto &venue : marketData) {
+  for (const auto& venue : marketData) {
     double price = (originalRequest.order.getSide() == pinnacle::OrderSide::BUY)
                        ? venue.askPrice
                        : venue.bidPrice;
@@ -75,8 +75,8 @@ BestPriceStrategy::planExecution(const ExecutionRequest &originalRequest,
 // =============================================================================
 
 std::vector<ExecutionRequest>
-TWAPStrategy::planExecution(const ExecutionRequest &originalRequest,
-                            const std::vector<MarketData> &marketData) {
+TWAPStrategy::planExecution(const ExecutionRequest& originalRequest,
+                            const std::vector<MarketData>& marketData) {
 
   std::vector<ExecutionRequest> requests;
 
@@ -85,10 +85,10 @@ TWAPStrategy::planExecution(const ExecutionRequest &originalRequest,
   }
 
   // Find best venue for TWAP execution
-  const MarketData *bestVenue = nullptr;
+  const MarketData* bestVenue = nullptr;
   double bestScore = -1.0;
 
-  for (const auto &venue : marketData) {
+  for (const auto& venue : marketData) {
     // Score based on liquidity and impact
     double liquidityScore = venue.bidSize + venue.askSize;
     double impactScore = 1.0 / (1.0 + venue.impactCost);
@@ -147,8 +147,8 @@ TWAPStrategy::planExecution(const ExecutionRequest &originalRequest,
 // =============================================================================
 
 std::vector<ExecutionRequest>
-VWAPStrategy::planExecution(const ExecutionRequest &originalRequest,
-                            const std::vector<MarketData> &marketData) {
+VWAPStrategy::planExecution(const ExecutionRequest& originalRequest,
+                            const std::vector<MarketData>& marketData) {
 
   std::vector<ExecutionRequest> requests;
 
@@ -158,7 +158,7 @@ VWAPStrategy::planExecution(const ExecutionRequest &originalRequest,
 
   // Calculate total market volume
   double totalMarketVolume = 0.0;
-  for (const auto &venue : marketData) {
+  for (const auto& venue : marketData) {
     totalMarketVolume += venue.recentVolume;
   }
 
@@ -183,7 +183,7 @@ VWAPStrategy::planExecution(const ExecutionRequest &originalRequest,
               ? totalQuantity - (sliceQuantity * (numTimeSlices - 1))
               : sliceQuantity;
 
-      for (const auto &venue : marketData) {
+      for (const auto& venue : marketData) {
         if (venue.recentVolume <= 0)
           continue;
 
@@ -212,7 +212,7 @@ VWAPStrategy::planExecution(const ExecutionRequest &originalRequest,
     }
   } else {
     // Single slice, distribute by volume across venues
-    for (const auto &venue : marketData) {
+    for (const auto& venue : marketData) {
       if (venue.recentVolume <= 0)
         continue;
 
@@ -248,21 +248,21 @@ VWAPStrategy::planExecution(const ExecutionRequest &originalRequest,
 // =============================================================================
 
 std::vector<ExecutionRequest>
-MarketImpactStrategy::planExecution(const ExecutionRequest &originalRequest,
-                                    const std::vector<MarketData> &marketData) {
+MarketImpactStrategy::planExecution(const ExecutionRequest& originalRequest,
+                                    const std::vector<MarketData>& marketData) {
 
   std::vector<ExecutionRequest> requests;
 
   // Sort venues by market impact (ascending)
   std::vector<MarketData> sortedVenues = marketData;
   std::sort(sortedVenues.begin(), sortedVenues.end(),
-            [](const MarketData &a, const MarketData &b) {
+            [](const MarketData& a, const MarketData& b) {
               return a.impactCost < b.impactCost;
             });
 
   double remainingQuantity = originalRequest.order.getQuantity();
 
-  for (const auto &venue : sortedVenues) {
+  for (const auto& venue : sortedVenues) {
     if (remainingQuantity <= 0)
       break;
     if (venue.impactCost > m_maxImpactThreshold)
@@ -365,7 +365,7 @@ bool OrderRouter::stop() {
   return true;
 }
 
-std::string OrderRouter::submitOrder(const ExecutionRequest &request) {
+std::string OrderRouter::submitOrder(const ExecutionRequest& request) {
   std::string requestId = generateRequestId();
 
   ExecutionRequest modifiedRequest;
@@ -405,18 +405,18 @@ std::string OrderRouter::submitOrder(const ExecutionRequest &request) {
   return requestId;
 }
 
-bool OrderRouter::cancelOrder(const std::string &requestId) {
+bool OrderRouter::cancelOrder(const std::string& requestId) {
   return m_cancelQueue.tryEnqueue(requestId);
 }
 
 void OrderRouter::setExecutionCallback(
-    std::function<void(const ExecutionResult &)> callback) {
+    std::function<void(const ExecutionResult&)> callback) {
   std::lock_guard<std::mutex> lock(m_callbackMutex);
   m_executionCallback = callback;
 }
 
-bool OrderRouter::addVenue(const std::string &venueName,
-                           const std::string &connectionType) {
+bool OrderRouter::addVenue(const std::string& venueName,
+                           const std::string& connectionType) {
   std::lock_guard<std::mutex> lock(m_venuesMutex);
 
   VenueConnection venue;
@@ -431,8 +431,8 @@ bool OrderRouter::addVenue(const std::string &venueName,
   return true;
 }
 
-void OrderRouter::updateMarketData(const std::string &venue,
-                                   const MarketData &data) {
+void OrderRouter::updateMarketData(const std::string& venue,
+                                   const MarketData& data) {
   std::lock_guard<std::mutex> lock(m_venuesMutex);
 
   auto it = m_venues.find(venue);
@@ -442,7 +442,7 @@ void OrderRouter::updateMarketData(const std::string &venue,
   }
 }
 
-void OrderRouter::setRoutingStrategy(const std::string &strategyName) {
+void OrderRouter::setRoutingStrategy(const std::string& strategyName) {
   if (m_strategies.find(strategyName) != m_strategies.end()) {
     m_currentStrategy = strategyName;
     std::cout << "Switched to routing strategy: " << strategyName << std::endl;
@@ -469,8 +469,8 @@ std::string OrderRouter::getStatistics() const {
 
   {
     std::lock_guard<std::mutex> venueLock(
-        const_cast<std::mutex &>(m_venuesMutex));
-    for (const auto &venue : m_venues) {
+        const_cast<std::mutex&>(m_venuesMutex));
+    for (const auto& venue : m_venues) {
       if (venue.second.isActive) {
         oss << venue.first << " ";
       }
@@ -506,7 +506,7 @@ void OrderRouter::routingThreadLoop() {
           strategy->second->planExecution(request, marketData);
 
       // Execute child requests
-      for (auto &childRequest : childRequests) {
+      for (auto& childRequest : childRequests) {
         executeOrder(childRequest);
       }
 
@@ -556,8 +556,8 @@ void OrderRouter::monitoringThreadLoop() {
       std::lock_guard<std::mutex> lock(m_executionsMutex);
       auto now = utils::TimeUtils::getCurrentNanos();
 
-      for (auto &pair : m_activeExecutions) {
-        auto &execution = pair.second;
+      for (auto& pair : m_activeExecutions) {
+        auto& execution = pair.second;
 
         // Check for timeouts
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
@@ -571,7 +571,7 @@ void OrderRouter::monitoringThreadLoop() {
     }
 
     // Process completed executions
-    for (const auto &requestId : completedExecutions) {
+    for (const auto& requestId : completedExecutions) {
       processCompletedExecution(requestId);
     }
 
@@ -580,17 +580,17 @@ void OrderRouter::monitoringThreadLoop() {
 }
 
 std::vector<MarketData>
-OrderRouter::getAllMarketData(const std::string & /* symbol */) {
+OrderRouter::getAllMarketData(const std::string& /* symbol */) {
   std::lock_guard<std::mutex> lock(m_venuesMutex);
 
   std::vector<MarketData> marketData;
   auto now = utils::TimeUtils::getCurrentNanos();
 
-  for (const auto &venue : m_venues) {
+  for (const auto& venue : m_venues) {
     if (!venue.second.isActive)
       continue;
 
-    const auto &data = venue.second.lastMarketData;
+    const auto& data = venue.second.lastMarketData;
 
     // Check if market data is recent (within last 5 seconds)
     if (now - data.timestamp < 5000000000ULL) { // 5 seconds in nanoseconds
@@ -601,7 +601,7 @@ OrderRouter::getAllMarketData(const std::string & /* symbol */) {
   return marketData;
 }
 
-void OrderRouter::executeOrder(const ExecutionRequest &request) {
+void OrderRouter::executeOrder(const ExecutionRequest& request) {
   // Simulate order execution - in reality this would connect to actual
   // exchanges
   ExecutionResult result;
@@ -617,7 +617,7 @@ void OrderRouter::executeOrder(const ExecutionRequest &request) {
   updateExecutionResult(result);
 }
 
-void OrderRouter::updateExecutionResult(const ExecutionResult &result) {
+void OrderRouter::updateExecutionResult(const ExecutionResult& result) {
   {
     std::lock_guard<std::mutex> lock(m_executionsMutex);
 
@@ -668,7 +668,7 @@ void OrderRouter::initializeStrategies() {
   m_strategies["MARKET_IMPACT"] = std::make_unique<MarketImpactStrategy>();
 }
 
-void OrderRouter::processCompletedExecution(const std::string &requestId) {
+void OrderRouter::processCompletedExecution(const std::string& requestId) {
   std::lock_guard<std::mutex> lock(m_executionsMutex);
 
   auto it = m_activeExecutions.find(requestId);

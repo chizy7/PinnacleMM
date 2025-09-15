@@ -5,18 +5,25 @@
 // Simple FIX message test without hffix dependency
 class SimpleFIXMessage {
 public:
-  std::string createLogonMessage(const std::string &senderCompId,
-                                 const std::string &targetCompId) {
+  std::string createLogonMessage(const std::string& senderCompId,
+                                 const std::string& targetCompId) {
     std::stringstream msg;
-    msg << "8=FIX.4.2" << "\x01";            // BeginString
-    msg << "9=XXX" << "\x01";                // BodyLength (will calculate)
-    msg << "35=A" << "\x01";                 // MsgType=Logon
-    msg << "49=" << senderCompId << "\x01";  // SenderCompID
-    msg << "56=" << targetCompId << "\x01";  // TargetCompID
-    msg << "34=1" << "\x01";                 // MsgSeqNum
-    msg << "52=20240901-10:00:00" << "\x01"; // SendingTime
-    msg << "98=0" << "\x01";                 // EncryptMethod=None
-    msg << "108=30" << "\x01";               // HeartBtInt=30 seconds
+    msg << "8=FIX.4.2"
+        << "\x01"; // BeginString
+    msg << "9=XXX"
+        << "\x01"; // BodyLength (will calculate)
+    msg << "35=A"
+        << "\x01";                          // MsgType=Logon
+    msg << "49=" << senderCompId << "\x01"; // SenderCompID
+    msg << "56=" << targetCompId << "\x01"; // TargetCompID
+    msg << "34=1"
+        << "\x01"; // MsgSeqNum
+    msg << "52=20240901-10:00:00"
+        << "\x01"; // SendingTime
+    msg << "98=0"
+        << "\x01"; // EncryptMethod=None
+    msg << "108=30"
+        << "\x01"; // HeartBtInt=30 seconds
 
     std::string body = msg.str();
     size_t bodyStart = body.find("35=");
@@ -39,28 +46,42 @@ public:
     return result;
   }
 
-  std::string createMarketDataRequest(const std::string &symbol) {
+  std::string createMarketDataRequest(const std::string& symbol) {
     std::stringstream msg;
-    msg << "8=FIX.4.2" << "\x01";            // BeginString
-    msg << "9=XXX" << "\x01";                // BodyLength (placeholder)
-    msg << "35=V" << "\x01";                 // MsgType=MarketDataRequest
-    msg << "49=CLIENT1" << "\x01";           // SenderCompID
-    msg << "56=IBKRFIX" << "\x01";           // TargetCompID
-    msg << "34=2" << "\x01";                 // MsgSeqNum
-    msg << "52=20240901-10:01:00" << "\x01"; // SendingTime
-    msg << "262=MD001" << "\x01";            // MDReqID
-    msg << "263=1" << "\x01"; // SubscriptionRequestType=Snapshot+Updates
-    msg << "264=1" << "\x01"; // MarketDepth=1
-    msg << "267=2" << "\x01"; // NoMDEntryTypes=2
-    msg << "269=0" << "\x01"; // MDEntryType=Bid
-    msg << "269=1" << "\x01"; // MDEntryType=Offer
-    msg << "146=1" << "\x01"; // NoRelatedSym=1
+    msg << "8=FIX.4.2"
+        << "\x01"; // BeginString
+    msg << "9=XXX"
+        << "\x01"; // BodyLength (placeholder)
+    msg << "35=V"
+        << "\x01"; // MsgType=MarketDataRequest
+    msg << "49=CLIENT1"
+        << "\x01"; // SenderCompID
+    msg << "56=IBKRFIX"
+        << "\x01"; // TargetCompID
+    msg << "34=2"
+        << "\x01"; // MsgSeqNum
+    msg << "52=20240901-10:01:00"
+        << "\x01"; // SendingTime
+    msg << "262=MD001"
+        << "\x01"; // MDReqID
+    msg << "263=1"
+        << "\x01"; // SubscriptionRequestType=Snapshot+Updates
+    msg << "264=1"
+        << "\x01"; // MarketDepth=1
+    msg << "267=2"
+        << "\x01"; // NoMDEntryTypes=2
+    msg << "269=0"
+        << "\x01"; // MDEntryType=Bid
+    msg << "269=1"
+        << "\x01"; // MDEntryType=Offer
+    msg << "146=1"
+        << "\x01";                    // NoRelatedSym=1
     msg << "55=" << symbol << "\x01"; // Symbol
 
     return msg.str();
   }
 
-  void parseMessage(const std::string &message) {
+  void parseMessage(const std::string& message) {
     std::cout << "Parsing FIX message:" << std::endl;
     size_t pos = 0;
     while (pos < message.length()) {

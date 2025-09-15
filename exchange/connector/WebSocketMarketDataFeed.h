@@ -59,18 +59,18 @@ public:
   bool isRunning() const override;
 
   bool subscribeToMarketUpdates(
-      const std::string &symbol,
-      std::function<void(const MarketUpdate &)> callback) override;
+      const std::string& symbol,
+      std::function<void(const MarketUpdate&)> callback) override;
 
   bool subscribeToOrderBookUpdates(
-      const std::string &symbol,
-      std::function<void(const OrderBookUpdate &)> callback) override;
+      const std::string& symbol,
+      std::function<void(const OrderBookUpdate&)> callback) override;
 
-  bool unsubscribeFromMarketUpdates(const std::string &symbol) override;
-  bool unsubscribeFromOrderBookUpdates(const std::string &symbol) override;
+  bool unsubscribeFromMarketUpdates(const std::string& symbol) override;
+  bool unsubscribeFromOrderBookUpdates(const std::string& symbol) override;
 
-  void publishMarketUpdate(const MarketUpdate &update) override;
-  void publishOrderBookUpdate(const OrderBookUpdate &update) override;
+  void publishMarketUpdate(const MarketUpdate& update) override;
+  void publishOrderBookUpdate(const OrderBookUpdate& update) override;
 
   /**
    * @brief Set connection parameters
@@ -78,14 +78,14 @@ public:
    * @param endpoint WebSocket endpoint URL
    * @param useSSL Whether to use SSL/TLS
    */
-  void setConnectionParams(const std::string &endpoint, bool useSSL = true);
+  void setConnectionParams(const std::string& endpoint, bool useSSL = true);
 
   /**
    * @brief Set authentication parameters
    *
    * @param exchangeName Name of the exchange
    */
-  void setAuthParams(const std::string &exchangeName);
+  void setAuthParams(const std::string& exchangeName);
 
   /**
    * @brief Get connection status message
@@ -124,10 +124,10 @@ private:
 
   // Subscription management
   std::unordered_map<std::string,
-                     std::vector<std::function<void(const MarketUpdate &)>>>
+                     std::vector<std::function<void(const MarketUpdate&)>>>
       m_marketUpdateCallbacks;
   std::unordered_map<std::string,
-                     std::vector<std::function<void(const OrderBookUpdate &)>>>
+                     std::vector<std::function<void(const OrderBookUpdate&)>>>
       m_orderBookUpdateCallbacks;
   std::vector<std::string> m_pendingSubscriptions;
   std::mutex m_callbacksMutex;
@@ -145,25 +145,25 @@ private:
   // Event handlers
   void onConnect();
   void onDisconnect();
-  void onError(const std::string &error);
-  void onMessage(const std::string &message);
+  void onError(const std::string& error);
+  void onMessage(const std::string& message);
 
   // Message parsing
-  void parseMessage(const std::string &message);
-  MarketUpdate parseMarketUpdate(const std::string &message);
-  OrderBookUpdate parseOrderBookUpdate(const std::string &message);
+  void parseMessage(const std::string& message);
+  MarketUpdate parseMarketUpdate(const std::string& message);
+  OrderBookUpdate parseOrderBookUpdate(const std::string& message);
 
   // Subscription methods
-  bool sendSubscription(const std::string &symbol);
-  bool sendSubscriptionInternal(const std::string &symbol);
-  std::string createSubscriptionMessage(const std::string &symbol);
+  bool sendSubscription(const std::string& symbol);
+  bool sendSubscriptionInternal(const std::string& symbol);
+  std::string createSubscriptionMessage(const std::string& symbol);
   std::string createAuthenticationMessage();
 
   // Timer creation helper method
   void createTimer(long duration);
 
   // Add this helper method
-  template <typename Callback> auto wrapWithStrand(Callback &&cb) {
+  template <typename Callback> auto wrapWithStrand(Callback&& cb) {
     return std::forward<Callback>(cb);
   }
 

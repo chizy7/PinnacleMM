@@ -17,8 +17,8 @@ CertificatePinner::CertificatePinner() : m_enabled(true) {
   initializeDefaultPins();
 }
 
-void CertificatePinner::addPin(const std::string &hostname,
-                               const std::string &sha256Pin, bool enforce) {
+void CertificatePinner::addPin(const std::string& hostname,
+                               const std::string& sha256Pin, bool enforce) {
   auto it = m_pins.find(hostname);
   if (it != m_pins.end()) {
     it->second.sha256Pins.push_back(sha256Pin);
@@ -32,8 +32,8 @@ void CertificatePinner::addPin(const std::string &hostname,
   spdlog::info("Added certificate pin for {}, enforce: {}", hostname, enforce);
 }
 
-bool CertificatePinner::verifyCertificate(const std::string &hostname,
-                                          X509 *cert) {
+bool CertificatePinner::verifyCertificate(const std::string& hostname,
+                                          X509* cert) {
   if (!m_enabled || !cert) {
     return true; // Pass through if disabled or no certificate
   }
@@ -45,7 +45,7 @@ bool CertificatePinner::verifyCertificate(const std::string &hostname,
     return true;
   }
 
-  const auto &pinConfig = it->second;
+  const auto& pinConfig = it->second;
 
   // Get certificate fingerprint
   std::string certFingerprint = getCertificateFingerprint(cert);
@@ -55,7 +55,7 @@ bool CertificatePinner::verifyCertificate(const std::string &hostname,
   }
 
   // Check if certificate matches any pinned certificates
-  for (const auto &pin : pinConfig.sha256Pins) {
+  for (const auto& pin : pinConfig.sha256Pins) {
     if (certFingerprint == pin) {
       spdlog::debug("Certificate pin matched for {}", hostname);
       return true;
@@ -75,7 +75,7 @@ bool CertificatePinner::verifyCertificate(const std::string &hostname,
   }
 }
 
-bool CertificatePinner::loadPinsFromFile(const std::string &configPath) {
+bool CertificatePinner::loadPinsFromFile(const std::string& configPath) {
   try {
     std::ifstream file(configPath);
     if (!file.is_open()) {
@@ -93,7 +93,7 @@ bool CertificatePinner::loadPinsFromFile(const std::string &configPath) {
       return false;
     }
 
-    for (const auto &[hostname, pinData] : config["certificate_pins"].items()) {
+    for (const auto& [hostname, pinData] : config["certificate_pins"].items()) {
       if (!pinData.contains("pins") || !pinData["pins"].is_array()) {
         spdlog::warn("Invalid pin data for hostname: {}", hostname);
         continue;
@@ -101,7 +101,7 @@ bool CertificatePinner::loadPinsFromFile(const std::string &configPath) {
 
       bool enforce = pinData.value("enforce", true);
 
-      for (const auto &pin : pinData["pins"]) {
+      for (const auto& pin : pinData["pins"]) {
         if (pin.is_string()) {
           addPin(hostname, pin.get<std::string>(), enforce);
         }
@@ -113,19 +113,19 @@ bool CertificatePinner::loadPinsFromFile(const std::string &configPath) {
     spdlog::info("Loaded certificate pins from: {}", configPath);
     return true;
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("Failed to load certificate pins: {}", e.what());
     return false;
   }
 }
 
-bool CertificatePinner::savePinsToFile(const std::string &configPath) {
+bool CertificatePinner::savePinsToFile(const std::string& configPath) {
   try {
     nlohmann::json config;
     config["enabled"] = m_enabled;
     config["certificate_pins"] = nlohmann::json::object();
 
-    for (const auto &[hostname, pinConfig] : m_pins) {
+    for (const auto& [hostname, pinConfig] : m_pins) {
       nlohmann::json hostData;
       hostData["enforce"] = pinConfig.enforcePin;
       hostData["pins"] = pinConfig.sha256Pins;
@@ -146,13 +146,13 @@ bool CertificatePinner::savePinsToFile(const std::string &configPath) {
     spdlog::info("Saved certificate pins to: {}", configPath);
     return true;
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     spdlog::error("Failed to save certificate pins: {}", e.what());
     return false;
   }
 }
 
-std::string CertificatePinner::getCertificateFingerprint(X509 *cert) {
+std::string CertificatePinner::getCertificateFingerprint(X509* cert) {
   unsigned char hash[SHA256_DIGEST_LENGTH];
 
   CertificatePinner pinner;
@@ -184,14 +184,14 @@ void CertificatePinner::initializeDefaultPins() {
 }
 
 bool CertificatePinner::extractPublicKeyHash(
-    X509 *cert, unsigned char hash[SHA256_DIGEST_LENGTH]) {
-  EVP_PKEY *pubkey = X509_get_pubkey(cert);
+    X509* cert, unsigned char hash[SHA256_DIGEST_LENGTH]) {
+  EVP_PKEY* pubkey = X509_get_pubkey(cert);
   if (!pubkey) {
     return false;
   }
 
   // Extract DER-encoded public key
-  unsigned char *pubkey_der = nullptr;
+  unsigned char* pubkey_der = nullptr;
   int pubkey_der_len = i2d_PUBKEY(pubkey, &pubkey_der);
 
   EVP_PKEY_free(pubkey);
@@ -207,17 +207,17 @@ bool CertificatePinner::extractPublicKeyHash(
   return true;
 }
 
-std::string CertificatePinner::hashToBase64(const unsigned char *hash,
+std::string CertificatePinner::hashToBase64(const unsigned char* hash,
                                             size_t length) {
-  BIO *bio = BIO_new(BIO_s_mem());
-  BIO *b64 = BIO_new(BIO_f_base64());
+  BIO* bio = BIO_new(BIO_s_mem());
+  BIO* b64 = BIO_new(BIO_f_base64());
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   bio = BIO_push(b64, bio);
 
   BIO_write(bio, hash, length);
   BIO_flush(bio);
 
-  BUF_MEM *bufferPtr;
+  BUF_MEM* bufferPtr;
   BIO_get_mem_ptr(bio, &bufferPtr);
 
   std::string result(bufferPtr->data, bufferPtr->length);
@@ -226,10 +226,10 @@ std::string CertificatePinner::hashToBase64(const unsigned char *hash,
   return result;
 }
 
-size_t CertificatePinner::base64ToHash(const std::string &base64,
-                                       unsigned char *hash, size_t maxLength) {
-  BIO *bio = BIO_new_mem_buf(base64.c_str(), base64.length());
-  BIO *b64 = BIO_new(BIO_f_base64());
+size_t CertificatePinner::base64ToHash(const std::string& base64,
+                                       unsigned char* hash, size_t maxLength) {
+  BIO* bio = BIO_new_mem_buf(base64.c_str(), base64.length());
+  BIO* b64 = BIO_new(BIO_f_base64());
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   bio = BIO_push(b64, bio);
 
@@ -248,9 +248,9 @@ std::shared_ptr<CertificatePinner> getGlobalCertificatePinner() {
   return g_certificatePinner;
 }
 
-int certificatePinningCallback(int preverify_ok, X509_STORE_CTX *ctx) {
+int certificatePinningCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   // Get the certificate being verified
-  X509 *cert = X509_STORE_CTX_get_current_cert(ctx);
+  X509* cert = X509_STORE_CTX_get_current_cert(ctx);
   if (!cert) {
     return preverify_ok;
   }

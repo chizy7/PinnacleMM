@@ -18,31 +18,31 @@ namespace exchange {
 
 class ExchangeConnectorFactory {
 public:
-  static ExchangeConnectorFactory &getInstance();
+  static ExchangeConnectorFactory& getInstance();
 
   ExchangeConnectorFactory();
   ~ExchangeConnectorFactory();
 
-  bool initialize(const std::string &configPath,
-                  const std::string &masterPassword);
+  bool initialize(const std::string& configPath,
+                  const std::string& masterPassword);
   bool isInitialized() const { return m_isInitialized; }
 
   std::shared_ptr<MarketDataFeed>
-  getMarketDataFeed(const std::string &exchangeName);
-  bool isExchangeSupported(const std::string &exchangeName) const;
+  getMarketDataFeed(const std::string& exchangeName);
+  bool isExchangeSupported(const std::string& exchangeName) const;
   std::vector<std::string> getSupportedExchanges() const;
 
   bool setApiCredentials(
-      const std::string &exchangeName, const std::string &apiKey,
-      const std::string &apiSecret,
-      const std::optional<std::string> &passphrase = std::nullopt);
+      const std::string& exchangeName, const std::string& apiKey,
+      const std::string& apiSecret,
+      const std::optional<std::string>& passphrase = std::nullopt);
 
-  bool hasApiCredentials(const std::string &exchangeName) const;
+  bool hasApiCredentials(const std::string& exchangeName) const;
   bool saveApiCredentials();
 
 private:
   WebSocketMarketDataFeed::Exchange
-  getExchangeEnum(const std::string &exchangeName) const;
+  getExchangeEnum(const std::string& exchangeName) const;
 
   bool m_isInitialized;
   std::string m_configPath;

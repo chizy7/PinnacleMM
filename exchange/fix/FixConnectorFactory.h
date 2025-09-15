@@ -32,7 +32,7 @@ public:
   /**
    * @brief Get factory instance (singleton)
    */
-  static FixConnectorFactory &getInstance();
+  static FixConnectorFactory& getInstance();
 
   /**
    * @brief Create FIX connector for specified exchange
@@ -42,7 +42,7 @@ public:
    * @return Shared pointer to FIX connector
    */
   // Placeholder for now - returning nullptr until hffix API is resolved
-  void *createConnector(Exchange exchange,
+  void* createConnector(Exchange exchange,
                         std::shared_ptr<utils::ApiCredentials> credentials);
 
   /**
@@ -52,18 +52,18 @@ public:
    * @param credentials API credentials
    * @return Shared pointer to FIX connector
    */
-  void *getConnector(Exchange exchange,
+  void* getConnector(Exchange exchange,
                      std::shared_ptr<utils::ApiCredentials> credentials);
 
   /**
    * @brief Check if exchange supports FIX protocol
    */
-  bool isFixSupported(const std::string &exchangeName);
+  bool isFixSupported(const std::string& exchangeName);
 
   /**
    * @brief Convert string to Exchange enum
    */
-  Exchange stringToExchange(const std::string &exchangeName);
+  Exchange stringToExchange(const std::string& exchangeName);
 
   /**
    * @brief FIX Configuration structure
@@ -90,20 +90,20 @@ private:
   ~FixConnectorFactory() = default;
 
   // Non-copyable
-  FixConnectorFactory(const FixConnectorFactory &) = delete;
-  FixConnectorFactory &operator=(const FixConnectorFactory &) = delete;
+  FixConnectorFactory(const FixConnectorFactory&) = delete;
+  FixConnectorFactory& operator=(const FixConnectorFactory&) = delete;
 
   /**
    * @brief Active connectors cache - placeholder
    */
-  std::unordered_map<std::string, void *> m_connectors;
+  std::unordered_map<std::string, void*> m_connectors;
   std::mutex m_connectorsMutex;
 
   /**
    * @brief Generate unique key for connector caching
    */
   std::string generateConnectorKey(Exchange exchange,
-                                   const std::string &apiKey);
+                                   const std::string& apiKey);
 };
 
 } // namespace fix

@@ -7,12 +7,12 @@ namespace pinnacle {
 namespace exchange {
 namespace fix {
 
-FixConnectorFactory &FixConnectorFactory::getInstance() {
+FixConnectorFactory& FixConnectorFactory::getInstance() {
   static FixConnectorFactory instance;
   return instance;
 }
 
-void *FixConnectorFactory::createConnector(
+void* FixConnectorFactory::createConnector(
     Exchange exchange, std::shared_ptr<utils::ApiCredentials> credentials) {
 
   if (!credentials) {
@@ -54,7 +54,7 @@ void *FixConnectorFactory::createConnector(
   }
 }
 
-void *FixConnectorFactory::getConnector(
+void* FixConnectorFactory::getConnector(
     Exchange exchange, std::shared_ptr<utils::ApiCredentials> credentials) {
 
   if (!credentials) {
@@ -80,7 +80,7 @@ void *FixConnectorFactory::getConnector(
   return connector;
 }
 
-bool FixConnectorFactory::isFixSupported(const std::string &exchangeName) {
+bool FixConnectorFactory::isFixSupported(const std::string& exchangeName) {
   std::string lowerName = exchangeName;
   std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
                  ::tolower);
@@ -91,7 +91,7 @@ bool FixConnectorFactory::isFixSupported(const std::string &exchangeName) {
 }
 
 FixConnectorFactory::Exchange
-FixConnectorFactory::stringToExchange(const std::string &exchangeName) {
+FixConnectorFactory::stringToExchange(const std::string& exchangeName) {
   std::string lowerName = exchangeName;
   std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
                  ::tolower);
@@ -172,7 +172,7 @@ FixConnectorFactory::getDefaultFixConfig(Exchange exchange) {
 
 std::string
 FixConnectorFactory::generateConnectorKey(Exchange exchange,
-                                          const std::string &apiKey) {
+                                          const std::string& apiKey) {
   std::stringstream ss;
   ss << static_cast<int>(exchange) << "_" << apiKey;
   return ss.str();

@@ -83,13 +83,13 @@ struct StrategyConfig {
   // Validate the configuration parameters
   // @param errorReason If validation fails, this will contain the reason
   // @return true if configuration is valid, false otherwise
-  bool validate(std::string &errorReason) const;
+  bool validate(std::string& errorReason) const;
 
   // Load from JSON file
-  bool loadFromFile(const std::string &filename);
+  bool loadFromFile(const std::string& filename);
 
   // Save to JSON file
-  bool saveToFile(const std::string &filename) const;
+  bool saveToFile(const std::string& filename) const;
 
   // Create a string representation
   std::string toString() const;

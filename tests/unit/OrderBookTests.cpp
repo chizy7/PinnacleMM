@@ -309,7 +309,7 @@ TEST_F(OrderBookTest, ConcurrentOperations) {
   }
 
   // Wait for all threads to finish
-  for (auto &thread : threads) {
+  for (auto& thread : threads) {
     thread.join();
   }
 
@@ -326,7 +326,7 @@ TEST_F(OrderBookTest, UpdateCallbacks) {
 
   // Register update callback
   orderBook->registerUpdateCallback(
-      [&callbackCount](const OrderBook &) { callbackCount++; });
+      [&callbackCount](const OrderBook&) { callbackCount++; });
 
   // Add orders
   orderBook->addOrder(createBuyOrder(10000.0, 1.0));
@@ -344,7 +344,7 @@ TEST_F(OrderBookTest, UpdateCallbacks) {
   EXPECT_EQ(callbackCount, 4);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

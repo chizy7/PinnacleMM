@@ -4,13 +4,13 @@
 
 namespace pinnacle {
 
-LockFreeOrderBook::LockFreeOrderBook(const std::string &symbol)
+LockFreeOrderBook::LockFreeOrderBook(const std::string& symbol)
     : OrderBook(symbol),
       m_lockFreeOrderBook(std::make_unique<utils::LockFreeOrderBook>(symbol)) {
 
   // Register for updates from the lock-free order book
   m_lockFreeOrderBook->registerUpdateCallback(
-      [this](const utils::LockFreeOrderBook &) {
+      [this](const utils::LockFreeOrderBook&) {
         this->onLockFreeOrderBookUpdate();
       });
 }
@@ -19,7 +19,7 @@ LockFreeOrderBook::~LockFreeOrderBook() = default;
 
 void LockFreeOrderBook::onLockFreeOrderBookUpdate() {
   // Manually trigger all callbacks with this order book
-  for (const auto &callback : m_callbacks) {
+  for (const auto& callback : m_callbacks) {
     callback(*this);
   }
 }
@@ -28,23 +28,23 @@ bool LockFreeOrderBook::addOrder(std::shared_ptr<Order> order) {
   return m_lockFreeOrderBook->addOrder(order);
 }
 
-bool LockFreeOrderBook::cancelOrder(const std::string &orderId) {
+bool LockFreeOrderBook::cancelOrder(const std::string& orderId) {
   return m_lockFreeOrderBook->cancelOrder(orderId);
 }
 
-bool LockFreeOrderBook::executeOrder(const std::string &orderId,
+bool LockFreeOrderBook::executeOrder(const std::string& orderId,
                                      double quantity) {
   return m_lockFreeOrderBook->executeOrder(orderId, quantity);
 }
 
 double LockFreeOrderBook::executeMarketOrder(
     OrderSide side, double quantity,
-    std::vector<std::pair<std::string, double>> &fills) {
+    std::vector<std::pair<std::string, double>>& fills) {
   return m_lockFreeOrderBook->executeMarketOrder(side, quantity, fills);
 }
 
 std::shared_ptr<Order>
-LockFreeOrderBook::getOrder(const std::string &orderId) const {
+LockFreeOrderBook::getOrder(const std::string& orderId) const {
   return m_lockFreeOrderBook->getOrder(orderId);
 }
 
@@ -85,12 +85,12 @@ std::vector<PriceLevel> LockFreeOrderBook::getBidLevels(size_t depth) const {
   auto lockFreeLevels = m_lockFreeOrderBook->getBidLevels(depth);
 
   // Convert lock-free price levels to regular price levels
-  for (const auto &lockFreeLevel : lockFreeLevels) {
+  for (const auto& lockFreeLevel : lockFreeLevels) {
     PriceLevel level(lockFreeLevel->getPrice());
 
     // Add orders to the level
     auto orders = lockFreeLevel->getOrders();
-    for (const auto &order : orders) {
+    for (const auto& order : orders) {
       level.addOrder(order);
     }
 
@@ -105,12 +105,12 @@ std::vector<PriceLevel> LockFreeOrderBook::getAskLevels(size_t depth) const {
   auto lockFreeLevels = m_lockFreeOrderBook->getAskLevels(depth);
 
   // Convert lock-free price levels to regular price levels
-  for (const auto &lockFreeLevel : lockFreeLevels) {
+  for (const auto& lockFreeLevel : lockFreeLevels) {
     PriceLevel level(lockFreeLevel->getPrice());
 
     // Add orders to the level
     auto orders = lockFreeLevel->getOrders();
-    for (const auto &order : orders) {
+    for (const auto& order : orders) {
       level.addOrder(order);
     }
 

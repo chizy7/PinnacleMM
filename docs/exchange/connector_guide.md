@@ -18,21 +18,21 @@ The exchange connector system follows a layered design:
 ```mermaid
 flowchart TD
     A[Strategy Layer] --> B[Exchange Connector Layer]
-    
+
     subgraph ExchangeLayer["Exchange Connector Layer"]
         C[Market Data Feed] --- D[Order Executor]
     end
-    
+
     B --> ExchangeLayer
     ExchangeLayer --> E[Network/Transport Layer]
-    
+
     subgraph NetworkLayer["Network/Transport Layer"]
         F[WebSocket] --- G[REST API]
         G --- H[FIX Protocol]
     end
-    
+
     E --> NetworkLayer
-    
+
     style A fill:#f6ffed,stroke:#52c41a,stroke-width:2px
     style ExchangeLayer fill:#e6f7ff,stroke:#1890ff,stroke-width:2px
     style NetworkLayer fill:#fff2e8,stroke:#fa8c16,stroke-width:2px
@@ -76,7 +76,7 @@ classDiagram
         +subscribeToMarketUpdates()
         +subscribeToOrderBookUpdates()
     }
-    
+
     class ExchangeConnectorFactory {
         +createConnector(Exchange, ApiCredentials) ExchangeConnector
         -createCoinbaseConnector() ExchangeConnector
@@ -85,7 +85,7 @@ classDiagram
         -createBinanceConnector() ExchangeConnector
         -createBitstampConnector() ExchangeConnector
     }
-    
+
     class MarketDataFeed {
         <<interface>>
         +start() bool
@@ -96,7 +96,7 @@ classDiagram
         +publishMarketUpdate()
         +publishOrderBookUpdate()
     }
-    
+
     class WebSocketMarketDataFeed {
         -Exchange m_exchange
         -ApiCredentials* m_credentials
@@ -107,7 +107,7 @@ classDiagram
         +onMessage()
         +parseMessage()
     }
-    
+
     class ApiCredentials {
         -map<string, string> m_apiKeys
         -map<string, string> m_apiSecrets
@@ -118,7 +118,7 @@ classDiagram
         +getApiSecret(exchange) string
         +getPassphrase(exchange) string
     }
-    
+
     class OrderExecutor {
         <<interface>>
         +submitOrder() string
@@ -126,7 +126,7 @@ classDiagram
         +modifyOrder() bool
         +getOrderStatus() OrderStatus
     }
-    
+
     ExchangeConnectorFactory ..> ExchangeConnector : creates
     ExchangeConnector --> MarketDataFeed : uses
     ExchangeConnector --> OrderExecutor : uses
@@ -148,28 +148,28 @@ public:
         std::shared_ptr<utils::ApiCredentials> credentials,
         std::shared_ptr<MarketDataFeed> marketDataFeed
     );
-    
+
     // Core functionality
     bool start();
     bool stop();
     bool isRunning() const;
     std::string getStatus() const;
-    
+
     // Market data subscription
     bool subscribeToMarketUpdates(
         const std::string& symbol,
         std::function<void(const MarketUpdate&)> callback
     );
-    
+
     bool subscribeToOrderBookUpdates(
         const std::string& symbol,
         std::function<void(const OrderBookUpdate&)> callback
     );
-    
+
     // Configuration
     void setRateLimits(int perSecond, int perMinute);
     void setRetryPolicy(int maxRetries, int retryDelayMs);
-    
+
     // Accessors
     std::shared_ptr<MarketDataFeed> getMarketDataFeed() const;
     std::shared_ptr<OrderExecutor> getOrderExecutor() const;
@@ -189,26 +189,26 @@ public:
         Exchange exchange,
         std::shared_ptr<utils::ApiCredentials> credentials
     );
-    
+
     // MarketDataFeed interface implementation
     bool start() override;
     bool stop() override;
     bool isRunning() const override;
-    
+
     bool subscribeToMarketUpdates(
         const std::string& symbol,
         std::function<void(const MarketUpdate&)> callback
     ) override;
-    
+
     bool subscribeToOrderBookUpdates(
         const std::string& symbol,
         std::function<void(const OrderBookUpdate&)> callback
     ) override;
-    
+
     // Configuration
     void setConnectionParams(const std::string& endpoint, bool useSSL = true);
     void setAuthParams(const std::string& exchangeName);
-    
+
     // Status
     std::string getStatusMessage() const;
 };
@@ -317,18 +317,18 @@ sequenceDiagram
     participant Exchange as Remote Exchange
 
     User->>Main: Start with --mode live
-    
+
     Main->>APICredentials: loadFromFile()
     APICredentials-->>Main: Prompt for master password
     User->>APICredentials: Enter password
     APICredentials->>APICredentials: Decrypt credentials
     APICredentials-->>Main: Credentials loaded
-    
+
     Main->>Factory: createConnector(Exchange::COINBASE, credentials)
     Factory->>Connector: Create ExchangeConnector
     Connector->>WebSocket: Create WebSocketMarketDataFeed
     Factory-->>Main: Return connector
-    
+
     Main->>Connector: start()
     Connector->>WebSocket: start()
     WebSocket->>APICredentials: getApiKey()
@@ -342,7 +342,7 @@ sequenceDiagram
     Exchange-->>WebSocket: Subscription confirmed
     WebSocket-->>Connector: WebSocket started
     Connector-->>Main: Connector started
-    
+
     Exchange->>WebSocket: Market update message
     WebSocket->>WebSocket: Parse message
     WebSocket->>Connector: Notify update
@@ -358,19 +358,19 @@ int main() {
     // Load credentials
     auto credentials = std::make_shared<pinnacle::utils::ApiCredentials>();
     credentials->loadFromFile("credentials.dat", "masterPassword");
-    
+
     // Create connector configuration
     pinnacle::exchange::ConnectorConfig config;
     config.rateLimitPerSecond = 10;
     config.maxRetries = 3;
-    
+
     // Create exchange connector
     auto connector = pinnacle::exchange::ExchangeConnectorFactory::createConnector(
         pinnacle::exchange::Exchange::COINBASE,
         credentials,
         config
     );
-    
+
     // Start the connector
     if (connector->start()) {
         std::cout << "Connected to exchange" << std::endl;
@@ -378,21 +378,21 @@ int main() {
         std::cerr << "Failed to connect" << std::endl;
         return 1;
     }
-    
+
     // Subscribe to market updates
     connector->subscribeToMarketUpdates("BTC-USD", [](const auto& update) {
         std::cout << "Price: " << update.price << ", Volume: " << update.volume << std::endl;
     });
-    
+
     // Main loop
     while (true) {
         // Do something
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    
+
     // Stop the connector
     connector->stop();
-    
+
     return 0;
 }
 ```
@@ -439,26 +439,26 @@ The connector system implements exchange rate limiting to avoid being blocked:
 ```cpp
 bool ExchangeConnector::checkRateLimit() {
     std::lock_guard<std::mutex> lock(m_rateLimitMutex);
-    
+
     auto now = std::chrono::steady_clock::now();
     auto sinceLast = std::chrono::duration_cast<std::chrono::milliseconds>(
         now - m_lastRequestTime).count();
-    
+
     // Reset counters if a second has passed
     if (sinceLast >= 1000) {
         m_requestsThisSecond = 0;
         m_lastRequestTime = now;
     }
-    
+
     // Check rate limits
     if (m_requestsThisSecond >= m_rateLimitPerSecond) {
         return false;
     }
-    
+
     // Increment counters
     m_requestsThisSecond++;
     m_requestsThisMinute++;
-    
+
     return true;
 }
 ```
@@ -479,16 +479,16 @@ bool sendRequest(const std::string& request) {
             }
         } catch (const std::exception& e) {
             // Log the error
-            spdlog::error("Request failed (attempt {}/{}): {}", 
+            spdlog::error("Request failed (attempt {}/{}): {}",
                 attempt + 1, m_maxRetries + 1, e.what());
         }
-        
+
         // Wait before retrying
         if (attempt < m_maxRetries) {
             utils::TimeUtils::sleepForMillis(m_retryDelayMs);
         }
     }
-    
+
     return false;
 }
 ```

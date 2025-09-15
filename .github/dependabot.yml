@@ -13,7 +13,7 @@ updates:
     commit-message:
       prefix: "ci"
       include: "scope"
-      
+
   # NPM dependencies (if I add any Node.js tooling)
   - package-ecosystem: "npm"
     directory: "/"

@@ -48,7 +48,7 @@ struct AuditEvent {
   bool success;
   std::string additionalData;
 
-  AuditEvent(AuditEventType t, const std::string &desc, bool s = true)
+  AuditEvent(AuditEventType t, const std::string& desc, bool s = true)
       : type(t), description(desc), timestamp(std::chrono::system_clock::now()),
         success(s) {}
 };
@@ -62,7 +62,7 @@ public:
   /**
    * @brief Get singleton instance
    */
-  static AuditLogger &getInstance();
+  static AuditLogger& getInstance();
 
   /**
    * @brief Initialize audit logger
@@ -72,7 +72,7 @@ public:
    * @param maxFiles Maximum number of rotating log files
    * @return true if initialized successfully
    */
-  bool initialize(const std::string &logPath,
+  bool initialize(const std::string& logPath,
                   size_t maxFileSize = 10 * 1024 * 1024, // 10MB
                   size_t maxFiles = 5);
 
@@ -81,7 +81,7 @@ public:
    *
    * @param event Audit event to log
    */
-  void logEvent(const AuditEvent &event);
+  void logEvent(const AuditEvent& event);
 
   /**
    * @brief Log authentication event
@@ -90,8 +90,8 @@ public:
    * @param userId User identifier
    * @param source Source of authentication attempt
    */
-  void logAuthentication(bool success, const std::string &userId,
-                         const std::string &source);
+  void logAuthentication(bool success, const std::string& userId,
+                         const std::string& source);
 
   /**
    * @brief Log credential access
@@ -100,8 +100,8 @@ public:
    * @param credentialType Type of credential accessed
    * @param success Whether access was successful
    */
-  void logCredentialAccess(const std::string &userId,
-                           const std::string &credentialType, bool success);
+  void logCredentialAccess(const std::string& userId,
+                           const std::string& credentialType, bool success);
 
   /**
    * @brief Log network connection
@@ -110,8 +110,8 @@ public:
    * @param success Whether connection succeeded
    * @param protocol Protocol used
    */
-  void logNetworkConnection(const std::string &destination, bool success,
-                            const std::string &protocol = "");
+  void logNetworkConnection(const std::string& destination, bool success,
+                            const std::string& protocol = "");
 
   /**
    * @brief Log order activity
@@ -122,8 +122,8 @@ public:
    * @param symbol Trading symbol
    * @param success Whether action succeeded
    */
-  void logOrderActivity(const std::string &userId, const std::string &orderId,
-                        const std::string &action, const std::string &symbol,
+  void logOrderActivity(const std::string& userId, const std::string& orderId,
+                        const std::string& action, const std::string& symbol,
                         bool success);
 
   /**
@@ -134,8 +134,8 @@ public:
    * @param action Action performed (read, write, modify)
    * @param success Whether action succeeded
    */
-  void logConfigAccess(const std::string &userId, const std::string &configPath,
-                       const std::string &action, bool success);
+  void logConfigAccess(const std::string& userId, const std::string& configPath,
+                       const std::string& action, bool success);
 
   /**
    * @brief Log suspicious activity
@@ -144,9 +144,9 @@ public:
    * @param source Source of activity
    * @param severity Severity level
    */
-  void logSuspiciousActivity(const std::string &description,
-                             const std::string &source,
-                             const std::string &severity = "medium");
+  void logSuspiciousActivity(const std::string& description,
+                             const std::string& source,
+                             const std::string& severity = "medium");
 
   /**
    * @brief Log system event
@@ -154,7 +154,7 @@ public:
    * @param event Event description
    * @param success Whether event was successful
    */
-  void logSystemEvent(const std::string &event, bool success);
+  void logSystemEvent(const std::string& event, bool success);
 
   /**
    * @brief Set current user session
@@ -162,8 +162,8 @@ public:
    * @param userId Current user ID
    * @param sessionId Current session ID
    */
-  void setCurrentSession(const std::string &userId,
-                         const std::string &sessionId);
+  void setCurrentSession(const std::string& userId,
+                         const std::string& sessionId);
 
   /**
    * @brief Enable or disable audit logging
@@ -201,7 +201,7 @@ private:
    * @param event Audit event
    * @return JSON formatted string
    */
-  std::string formatEventAsJson(const AuditEvent &event);
+  std::string formatEventAsJson(const AuditEvent& event);
 
   /**
    * @brief Get current timestamp as ISO string

@@ -52,22 +52,22 @@ public:
   /**
    * @brief Deleted copy constructor
    */
-  LockFreeQueue(const LockFreeQueue &) = delete;
+  LockFreeQueue(const LockFreeQueue&) = delete;
 
   /**
    * @brief Deleted copy assignment operator
    */
-  LockFreeQueue &operator=(const LockFreeQueue &) = delete;
+  LockFreeQueue& operator=(const LockFreeQueue&) = delete;
 
   /**
    * @brief Deleted move constructor
    */
-  LockFreeQueue(LockFreeQueue &&) = delete;
+  LockFreeQueue(LockFreeQueue&&) = delete;
 
   /**
    * @brief Deleted move assignment operator
    */
-  LockFreeQueue &operator=(LockFreeQueue &&) = delete;
+  LockFreeQueue& operator=(LockFreeQueue&&) = delete;
 
   /**
    * @brief Try to enqueue an element
@@ -75,7 +75,7 @@ public:
    * @param item Element to enqueue
    * @return true if the element was enqueued, false if the queue was full
    */
-  bool tryEnqueue(const T &item) {
+  bool tryEnqueue(const T& item) {
     const size_t currentWrite = m_writeIndex.load(std::memory_order_relaxed);
     const size_t nextWrite = (currentWrite + 1) & MASK;
 
@@ -95,7 +95,7 @@ public:
    * @param item Element to enqueue
    * @return true if the element was enqueued, false if the queue was full
    */
-  bool tryEnqueue(T &&item) {
+  bool tryEnqueue(T&& item) {
     const size_t currentWrite = m_writeIndex.load(std::memory_order_relaxed);
     const size_t nextWrite = (currentWrite + 1) & MASK;
 
@@ -214,12 +214,12 @@ public:
   /**
    * @brief Deleted copy constructor
    */
-  LockFreeMPMCQueue(const LockFreeMPMCQueue &) = delete;
+  LockFreeMPMCQueue(const LockFreeMPMCQueue&) = delete;
 
   /**
    * @brief Deleted assignment operator
    */
-  LockFreeMPMCQueue &operator=(const LockFreeMPMCQueue &) = delete;
+  LockFreeMPMCQueue& operator=(const LockFreeMPMCQueue&) = delete;
 
   /**
    * @brief Try to enqueue an element
@@ -228,8 +228,8 @@ public:
    * @return true if the element was enqueued successfully, false if the queue
    * was full
    */
-  bool tryEnqueue(const T &data) {
-    Cell *cell;
+  bool tryEnqueue(const T& data) {
+    Cell* cell;
     size_t pos;
     size_t seq;
 
@@ -276,8 +276,8 @@ public:
    * @return true if the element was enqueued successfully, false if the queue
    * was full
    */
-  bool tryEnqueue(T &&data) {
-    Cell *cell;
+  bool tryEnqueue(T&& data) {
+    Cell* cell;
     size_t pos;
     size_t seq;
 
@@ -324,8 +324,8 @@ public:
    * @return true if an element was dequeued successfully, false if the queue
    * was empty
    */
-  bool tryDequeue(T &result) {
-    Cell *cell;
+  bool tryDequeue(T& result) {
+    Cell* cell;
     size_t pos;
     size_t seq;
 

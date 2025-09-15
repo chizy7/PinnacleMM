@@ -111,8 +111,13 @@ if(NOT WEBSOCKETPP_INCLUDE_DIRS)
   FetchContent_Declare(
     websocketpp
     GIT_REPOSITORY https://github.com/zaphoyd/websocketpp.git
-    GIT_TAG 0.8.2)
-  FetchContent_MakeAvailable(websocketpp)
+    GIT_TAG 0.8.2
+    GIT_SHALLOW TRUE)
+  # Don't build WebSocket++ as a project, just make headers available
+  FetchContent_GetProperties(websocketpp)
+  if(NOT websocketpp_POPULATED)
+    FetchContent_Populate(websocketpp)
+  endif()
   set(WEBSOCKETPP_INCLUDE_DIRS ${websocketpp_SOURCE_DIR})
 endif()
 
@@ -288,8 +293,23 @@ endif()
 
 # Benchmarks
 if(BUILD_BENCHMARKS)
-  # Find Google Benchmark
-  find_package(benchmark REQUIRED)
+  # Find Google Benchmark with fallback to FetchContent
+  find_package(benchmark QUIET)
+  if(NOT benchmark_FOUND)
+    message(STATUS "benchmark not found, downloading...")
+    FetchContent_Declare(
+      benchmark
+      GIT_REPOSITORY https://github.com/google/benchmark.git
+      GIT_TAG v1.8.3
+      GIT_SHALLOW TRUE)
+    set(BENCHMARK_ENABLE_TESTING
+        OFF
+        CACHE BOOL "Enable testing of the benchmark library.")
+    set(BENCHMARK_ENABLE_GTEST_TESTS
+        OFF
+        CACHE BOOL "Enable building the unit tests which depend on gtest")
+    FetchContent_MakeAvailable(benchmark)
+  endif()
 
   # Latency benchmarks
   add_executable(latency_benchmark tests/performance/LatencyBenchmark.cpp)

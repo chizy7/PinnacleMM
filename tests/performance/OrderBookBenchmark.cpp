@@ -12,15 +12,15 @@
 using namespace pinnacle;
 
 // Helper functions to create orders
-std::shared_ptr<Order> createOrder(const std::string &id,
-                                   const std::string &symbol, OrderSide side,
+std::shared_ptr<Order> createOrder(const std::string& id,
+                                   const std::string& symbol, OrderSide side,
                                    double price, double quantity) {
   return std::make_shared<Order>(id, symbol, side, OrderType::LIMIT, price,
                                  quantity, utils::TimeUtils::getCurrentNanos());
 }
 
 // Benchmark for adding orders to mutex-based OrderBook
-static void BM_OrderBook_AddOrder(benchmark::State &state) {
+static void BM_OrderBook_AddOrder(benchmark::State& state) {
   // Set up the order book
   auto orderBook = std::make_shared<OrderBook>("BTC-USD");
 
@@ -46,7 +46,7 @@ static void BM_OrderBook_AddOrder(benchmark::State &state) {
     state.ResumeTiming();
 
     // Add orders to the order book
-    for (const auto &order : orders) {
+    for (const auto& order : orders) {
       orderBook->addOrder(order);
     }
 
@@ -57,7 +57,7 @@ static void BM_OrderBook_AddOrder(benchmark::State &state) {
 }
 
 // Benchmark for adding orders to lock-free OrderBook
-static void BM_LockFreeOrderBook_AddOrder(benchmark::State &state) {
+static void BM_LockFreeOrderBook_AddOrder(benchmark::State& state) {
   // Set up the order book
   auto orderBook = std::make_shared<LockFreeOrderBook>("BTC-USD");
 
@@ -83,7 +83,7 @@ static void BM_LockFreeOrderBook_AddOrder(benchmark::State &state) {
     state.ResumeTiming();
 
     // Add orders to the order book
-    for (const auto &order : orders) {
+    for (const auto& order : orders) {
       orderBook->addOrder(order);
     }
 
@@ -94,7 +94,7 @@ static void BM_LockFreeOrderBook_AddOrder(benchmark::State &state) {
 }
 
 // Benchmark for executing market orders on mutex-based OrderBook
-static void BM_OrderBook_ExecuteMarketOrder(benchmark::State &state) {
+static void BM_OrderBook_ExecuteMarketOrder(benchmark::State& state) {
   // Set up the order book
   auto orderBook = std::make_shared<OrderBook>("BTC-USD");
 
@@ -129,7 +129,7 @@ static void BM_OrderBook_ExecuteMarketOrder(benchmark::State &state) {
 }
 
 // Benchmark for executing market orders on lock-free OrderBook
-static void BM_LockFreeOrderBook_ExecuteMarketOrder(benchmark::State &state) {
+static void BM_LockFreeOrderBook_ExecuteMarketOrder(benchmark::State& state) {
   // Set up the order book
   auto orderBook = std::make_shared<LockFreeOrderBook>("BTC-USD");
 
@@ -164,7 +164,7 @@ static void BM_LockFreeOrderBook_ExecuteMarketOrder(benchmark::State &state) {
 }
 
 // Benchmark for concurrent operations on mutex-based OrderBook
-static void BM_OrderBook_ConcurrentOperations(benchmark::State &state) {
+static void BM_OrderBook_ConcurrentOperations(benchmark::State& state) {
   // Set up the order book
   auto orderBook = std::make_shared<OrderBook>("BTC-USD");
 
@@ -231,7 +231,7 @@ static void BM_OrderBook_ConcurrentOperations(benchmark::State &state) {
     }
 
     // Wait for all threads to finish
-    for (auto &thread : threads) {
+    for (auto& thread : threads) {
       thread.join();
     }
 
@@ -242,7 +242,7 @@ static void BM_OrderBook_ConcurrentOperations(benchmark::State &state) {
 }
 
 // Benchmark for concurrent operations on lock-free OrderBook
-static void BM_LockFreeOrderBook_ConcurrentOperations(benchmark::State &state) {
+static void BM_LockFreeOrderBook_ConcurrentOperations(benchmark::State& state) {
   // Set up the order book
   auto orderBook = std::make_shared<LockFreeOrderBook>("BTC-USD");
 
@@ -309,7 +309,7 @@ static void BM_LockFreeOrderBook_ConcurrentOperations(benchmark::State &state) {
     }
 
     // Wait for all threads to finish
-    for (auto &thread : threads) {
+    for (auto& thread : threads) {
       thread.join();
     }
 

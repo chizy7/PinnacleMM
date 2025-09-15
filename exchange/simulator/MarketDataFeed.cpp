@@ -58,8 +58,8 @@ bool SimulatedMarketDataFeed::isRunning() const {
 }
 
 bool SimulatedMarketDataFeed::subscribeToMarketUpdates(
-    const std::string &symbol,
-    std::function<void(const MarketUpdate &)> callback) {
+    const std::string& symbol,
+    std::function<void(const MarketUpdate&)> callback) {
 
   // Acquire lock for callback registration
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
@@ -71,8 +71,8 @@ bool SimulatedMarketDataFeed::subscribeToMarketUpdates(
 }
 
 bool SimulatedMarketDataFeed::subscribeToOrderBookUpdates(
-    const std::string &symbol,
-    std::function<void(const OrderBookUpdate &)> callback) {
+    const std::string& symbol,
+    std::function<void(const OrderBookUpdate&)> callback) {
 
   // Acquire lock for callback registration
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
@@ -84,7 +84,7 @@ bool SimulatedMarketDataFeed::subscribeToOrderBookUpdates(
 }
 
 bool SimulatedMarketDataFeed::unsubscribeFromMarketUpdates(
-    const std::string &symbol) {
+    const std::string& symbol) {
   // Acquire lock for callback management
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
 
@@ -95,7 +95,7 @@ bool SimulatedMarketDataFeed::unsubscribeFromMarketUpdates(
 }
 
 bool SimulatedMarketDataFeed::unsubscribeFromOrderBookUpdates(
-    const std::string &symbol) {
+    const std::string& symbol) {
   // Acquire lock for callback management
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
 
@@ -105,7 +105,7 @@ bool SimulatedMarketDataFeed::unsubscribeFromOrderBookUpdates(
   return true;
 }
 
-void SimulatedMarketDataFeed::publishMarketUpdate(const MarketUpdate &update) {
+void SimulatedMarketDataFeed::publishMarketUpdate(const MarketUpdate& update) {
   // Acquire lock for callback access
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
 
@@ -113,14 +113,14 @@ void SimulatedMarketDataFeed::publishMarketUpdate(const MarketUpdate &update) {
   auto it = m_marketUpdateCallbacks.find(update.symbol);
   if (it != m_marketUpdateCallbacks.end()) {
     // Call all registered callbacks
-    for (const auto &callback : it->second) {
+    for (const auto& callback : it->second) {
       callback(update);
     }
   }
 }
 
 void SimulatedMarketDataFeed::publishOrderBookUpdate(
-    const OrderBookUpdate &update) {
+    const OrderBookUpdate& update) {
   // Acquire lock for callback access
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
 
@@ -128,7 +128,7 @@ void SimulatedMarketDataFeed::publishOrderBookUpdate(
   auto it = m_orderBookUpdateCallbacks.find(update.symbol);
   if (it != m_orderBookUpdateCallbacks.end()) {
     // Call all registered callbacks
-    for (const auto &callback : it->second) {
+    for (const auto& callback : it->second) {
       callback(update);
     }
   }
@@ -177,8 +177,8 @@ void SimulatedMarketDataFeed::generateSimulatedData() {
   std::lock_guard<std::mutex> lock(m_callbacksMutex);
 
   // Generate market updates for all subscribed symbols
-  for (const auto &pair : m_marketUpdateCallbacks) {
-    const std::string &symbol = pair.first;
+  for (const auto& pair : m_marketUpdateCallbacks) {
+    const std::string& symbol = pair.first;
 
     // Generate random price and volume
     double price =
@@ -199,8 +199,8 @@ void SimulatedMarketDataFeed::generateSimulatedData() {
   }
 
   // Generate order book updates for all subscribed symbols
-  for (const auto &pair : m_orderBookUpdateCallbacks) {
-    const std::string &symbol = pair.first;
+  for (const auto& pair : m_orderBookUpdateCallbacks) {
+    const std::string& symbol = pair.first;
 
     // Create order book update
     OrderBookUpdate update;
@@ -223,11 +223,11 @@ void SimulatedMarketDataFeed::generateSimulatedData() {
 
     // Sort bid levels (descending by price)
     std::sort(update.bids.begin(), update.bids.end(),
-              [](const auto &a, const auto &b) { return a.first > b.first; });
+              [](const auto& a, const auto& b) { return a.first > b.first; });
 
     // Sort ask levels (ascending by price)
     std::sort(update.asks.begin(), update.asks.end(),
-              [](const auto &a, const auto &b) { return a.first < b.first; });
+              [](const auto& a, const auto& b) { return a.first < b.first; });
 
     // Publish to all subscribers
     publishOrderBookUpdate(update);

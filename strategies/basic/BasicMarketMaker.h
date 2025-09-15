@@ -29,7 +29,7 @@ public:
    * @param symbol Trading symbol
    * @param config Strategy configuration
    */
-  BasicMarketMaker(const std::string &symbol, const StrategyConfig &config);
+  BasicMarketMaker(const std::string& symbol, const StrategyConfig& config);
 
   /**
    * @brief Destructor
@@ -70,7 +70,7 @@ public:
    *
    * @param orderBook Reference to the updated order book
    */
-  void onOrderBookUpdate(const OrderBook &orderBook);
+  void onOrderBookUpdate(const OrderBook& orderBook);
 
   /**
    * @brief Handle trade notifications
@@ -81,7 +81,7 @@ public:
    * @param side Trade side (buy or sell)
    * @param timestamp Trade timestamp
    */
-  void onTrade(const std::string &symbol, double price, double quantity,
+  void onTrade(const std::string& symbol, double price, double quantity,
                OrderSide side, uint64_t timestamp);
 
   /**
@@ -92,7 +92,7 @@ public:
    * @param filledQuantity Filled quantity
    * @param timestamp Update timestamp
    */
-  void onOrderUpdate(const std::string &orderId, OrderStatus status,
+  void onOrderUpdate(const std::string& orderId, OrderStatus status,
                      double filledQuantity, uint64_t timestamp);
 
   /**
@@ -122,7 +122,7 @@ public:
    * @param config New strategy configuration
    * @return true if the configuration was updated successfully, false otherwise
    */
-  bool updateConfig(const StrategyConfig &config);
+  bool updateConfig(const StrategyConfig& config);
 
 private:
   // Strategy identification
