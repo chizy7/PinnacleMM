@@ -356,6 +356,14 @@ int main(int argc, char** argv) {
   // Give threads time to complete and ensure all destructors run
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+  // Force garbage collection - any remaining order book references should be
+  // released This is important because benchmark objects may still hold
+  // references
+  if (std::getenv("JOURNAL_PATH")) {
+    // In CI environment, being extra careful about cleanup
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  }
+
   // Properly shutdown persistence before cleanup
   persistenceManager.shutdown();
 

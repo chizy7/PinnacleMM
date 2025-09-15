@@ -1,5 +1,7 @@
 #include "../../core/orderbook/OrderBook.h"
+#include "../../core/persistence/PersistenceManager.h"
 #include "../../core/utils/TimeUtils.h"
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <memory>
 
@@ -15,11 +17,26 @@ TEST(ExecutionTest, PlaceholderTest) {
 // Setup for future execution tests
 class ExecutionTestFixture : public ::testing::Test {
 protected:
-  void SetUp() override { orderBook = std::make_shared<OrderBook>("BTC-USD"); }
+  void SetUp() override {
+    // Initialize persistence manager with a temporary directory
+    tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_test";
+    std::filesystem::create_directories(tempDir);
+    auto& persistenceManager = persistence::PersistenceManager::getInstance();
+    persistenceManager.initialize(tempDir.string());
 
-  void TearDown() override { orderBook->clear(); }
+    orderBook = std::make_shared<OrderBook>("BTC-USD");
+  }
+
+  void TearDown() override {
+    orderBook->clear();
+    // Clean up temporary directory
+    if (std::filesystem::exists(tempDir)) {
+      std::filesystem::remove_all(tempDir);
+    }
+  }
 
   std::shared_ptr<OrderBook> orderBook;
+  std::filesystem::path tempDir;
 };
 
 // Test order execution via the order book directly

@@ -1,7 +1,9 @@
 #include "../../core/orderbook/OrderBook.h"
+#include "../../core/persistence/PersistenceManager.h"
 #include "../../core/utils/TimeUtils.h"
 #include "../../strategies/basic/BasicMarketMaker.h"
 #include "../../strategies/config/StrategyConfig.h"
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <memory>
 
@@ -12,6 +14,12 @@ using namespace pinnacle::strategy;
 class StrategyTestFixture : public ::testing::Test {
 protected:
   void SetUp() override {
+    // Initialize persistence manager with a temporary directory
+    tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_test";
+    std::filesystem::create_directories(tempDir);
+    auto& persistenceManager = persistence::PersistenceManager::getInstance();
+    persistenceManager.initialize(tempDir.string());
+
     // Create order book
     orderBook = std::make_shared<OrderBook>("BTC-USD");
 
@@ -31,11 +39,16 @@ protected:
       strategy->stop();
     }
     orderBook->clear();
+    // Clean up temporary directory
+    if (std::filesystem::exists(tempDir)) {
+      std::filesystem::remove_all(tempDir);
+    }
   }
 
   std::shared_ptr<OrderBook> orderBook;
   StrategyConfig config;
   std::shared_ptr<BasicMarketMaker> strategy;
+  std::filesystem::path tempDir;
 };
 
 // Test strategy initialization
