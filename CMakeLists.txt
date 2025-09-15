@@ -199,8 +199,15 @@ set(EXCHANGE_SOURCES
 # Create core library
 add_library(core STATIC ${CORE_SOURCES})
 target_link_libraries(
-  core PUBLIC Threads::Threads Boost::system Boost::filesystem OpenSSL::SSL
-              OpenSSL::Crypto nlohmann_json::nlohmann_json)
+  core
+  PUBLIC Threads::Threads
+         Boost::system
+         Boost::filesystem
+         OpenSSL::SSL
+         OpenSSL::Crypto
+         nlohmann_json::nlohmann_json
+         spdlog::spdlog
+         fmt::fmt)
 
 # Create strategy library
 add_library(strategy STATIC ${STRATEGY_SOURCES})
