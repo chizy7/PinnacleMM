@@ -97,4 +97,4 @@ PointerAlignment: Left
 ReflowComments: true
 SortIncludes: true
 SortUsingDeclarations: true
-Standard: Cpp11
+Standard: Cpp20

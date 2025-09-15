@@ -12,7 +12,7 @@
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg" alt="C++"></a>
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/status-Phase%203%20In%20Progress-yellow.svg" alt="Status"></a>
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://tokei.rs/b1/github/chizy7/PinnacleMM?category=code" alt="Lines of Code"></a>
-    <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/build-passing-brightgreen.svg" alt="Build Status"></a>
+    <a href="https://github.com/chizy7/PinnacleMM/actions/workflows/ci.yml"><img src="https://github.com/chizy7/PinnacleMM/workflows/CI%2FCD%20Pipeline/badge.svg" alt="Build Status"></a>
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/latency-microsecond-blue.svg" alt="Performance"></a>
   </p>
 

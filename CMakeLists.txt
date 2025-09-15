@@ -108,11 +108,14 @@ find_path(WEBSOCKETPP_INCLUDE_DIRS websocketpp/client.hpp
           HINTS /usr/local/include /usr/include /opt/homebrew/include)
 if(NOT WEBSOCKETPP_INCLUDE_DIRS)
   message(STATUS "WebSocket++ not found in system, downloading...")
+  # Set policy to handle older CMake versions in WebSocket++
+  set(CMAKE_POLICY_DEFAULT_CMP0048 NEW)
   FetchContent_Declare(
     websocketpp
     GIT_REPOSITORY https://github.com/zaphoyd/websocketpp.git
     GIT_TAG 0.8.2
-    GIT_SHALLOW TRUE)
+    GIT_SHALLOW TRUE
+    CONFIGURE_COMMAND "" BUILD_COMMAND "")
   FetchContent_MakeAvailable(websocketpp)
   set(WEBSOCKETPP_INCLUDE_DIRS ${websocketpp_SOURCE_DIR})
 endif()

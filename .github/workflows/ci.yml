@@ -24,12 +24,12 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential libboost-all-dev libssl-dev nlohmann-json3-dev libgtest-dev libbenchmark-dev
+        sudo apt-get install -y cmake build-essential libboost-all-dev libssl-dev nlohmann-json3-dev libgtest-dev libbenchmark-dev libwebsocketpp-dev
 
     - name: Setup dependencies (macOS)
       if: runner.os == 'macOS'
       run: |
-        brew install cmake boost openssl nlohmann-json googletest google-benchmark
+        brew install cmake boost openssl nlohmann-json googletest google-benchmark websocketpp
 
     - name: Configure CMake
       run: |
@@ -89,7 +89,7 @@ jobs:
     - name: Setup dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential libboost-all-dev libssl-dev nlohmann-json3-dev
+        sudo apt-get install -y cmake build-essential libboost-all-dev libssl-dev nlohmann-json3-dev libspdlog-dev libfmt-dev
 
     - name: Build for analysis
       run: |
