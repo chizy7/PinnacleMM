@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # GitHub Actions dependencies
+  # GitHub Actions dependencies only
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -12,18 +12,4 @@ updates:
       - "chizy7"
     commit-message:
       prefix: "ci"
-      include: "scope"
-
-  # NPM dependencies (if I add any Node.js tooling)
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "chizy7"
-    assignees:
-      - "chizy7"
-    commit-message:
-      prefix: "deps"
       include: "scope"
