@@ -23,7 +23,7 @@ jobs:
 
     - name: Run pre-commit checks on Dependabot PR
       if: steps.check-author.outputs.is_dependabot == 'true'
-      uses: pre-commit/action@v3.0.0
+      uses: pre-commit/action@v3.0.1
 
     - name: Check update type
       id: update-type
