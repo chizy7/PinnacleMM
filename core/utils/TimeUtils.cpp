@@ -66,9 +66,9 @@ bool TimeUtils::isNanosecondPrecisionAvailable() {
     auto start = clock::now();
     auto end = clock::now();
 
-    auto diff =
+    auto diff = static_cast<uint64_t>(
         std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
-            .count();
+            .count());
 
     // If the difference is 0, the clock doesn't have enough precision
     if (diff > 0 && diff < minDiff) {

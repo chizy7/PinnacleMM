@@ -113,11 +113,7 @@ if(NOT WEBSOCKETPP_INCLUDE_DIRS)
     GIT_REPOSITORY https://github.com/zaphoyd/websocketpp.git
     GIT_TAG 0.8.2
     GIT_SHALLOW TRUE)
-  # Don't build WebSocket++ as a project, just make headers available
-  FetchContent_GetProperties(websocketpp)
-  if(NOT websocketpp_POPULATED)
-    FetchContent_Populate(websocketpp)
-  endif()
+  FetchContent_MakeAvailable(websocketpp)
   set(WEBSOCKETPP_INCLUDE_DIRS ${websocketpp_SOURCE_DIR})
 endif()
 
@@ -251,31 +247,40 @@ target_link_libraries(
 if(BUILD_TESTS)
   enable_testing()
 
-  # Find Google Test
-  find_package(GTest REQUIRED)
-  include_directories(${GTEST_INCLUDE_DIRS})
+  # Find Google Test with fallback to FetchContent
+  find_package(GTest QUIET)
+  if(NOT GTest_FOUND)
+    message(STATUS "GTest not found, downloading...")
+    FetchContent_Declare(
+      googletest
+      GIT_REPOSITORY https://github.com/google/googletest.git
+      GIT_TAG v1.14.0
+      GIT_SHALLOW TRUE)
+    set(gtest_force_shared_crt
+        ON
+        CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+  endif()
 
   # Order book tests
   add_executable(orderbook_tests tests/unit/OrderBookTests.cpp)
-  target_link_libraries(orderbook_tests core ${GTEST_LIBRARIES}
-                        Threads::Threads)
+  target_link_libraries(orderbook_tests core gtest_main gtest Threads::Threads)
   add_test(NAME OrderBookTests COMMAND orderbook_tests)
 
   # Lock-free order book tests
   add_executable(lockfree_orderbook_tests tests/unit/LockFreeOrderBookTests.cpp)
-  target_link_libraries(lockfree_orderbook_tests core ${GTEST_LIBRARIES}
+  target_link_libraries(lockfree_orderbook_tests core gtest_main gtest
                         Threads::Threads)
   add_test(NAME LockFreeOrderBookTests COMMAND lockfree_orderbook_tests)
 
   # Execution tests
   add_executable(execution_tests tests/unit/ExecutionTests.cpp)
-  target_link_libraries(execution_tests core ${GTEST_LIBRARIES}
-                        Threads::Threads)
+  target_link_libraries(execution_tests core gtest_main gtest Threads::Threads)
   add_test(NAME ExecutionTests COMMAND execution_tests)
 
   # Strategy tests
   add_executable(strategy_tests tests/unit/StrategyTests.cpp)
-  target_link_libraries(strategy_tests core strategy ${GTEST_LIBRARIES}
+  target_link_libraries(strategy_tests core strategy gtest_main gtest
                         Threads::Threads)
   add_test(NAME StrategyTests COMMAND strategy_tests)
 

@@ -116,6 +116,7 @@ jobs:
         file: ./Dockerfile
         push: false
         tags: pinnaclemm:test
+        load: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
 

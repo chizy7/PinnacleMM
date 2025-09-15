@@ -42,7 +42,7 @@ void SecureInput::clearSensitiveString(std::string& sensitive) {
 }
 
 #ifdef _WIN32
-std::string SecureInput::readPasswordWindows(const std::string& prompt) {
+std::string SecureInput::readPasswordWindows(const std::string& /* prompt */) {
   std::string password;
   int ch;
 
@@ -62,7 +62,7 @@ std::string SecureInput::readPasswordWindows(const std::string& prompt) {
   return password;
 }
 #else
-std::string SecureInput::readPasswordUnix(const std::string& prompt) {
+std::string SecureInput::readPasswordUnix(const std::string& /* prompt */) {
   std::string password;
   struct termios old_termios, new_termios;
 
