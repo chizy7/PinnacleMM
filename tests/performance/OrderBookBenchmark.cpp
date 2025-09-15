@@ -13,24 +13,6 @@
 
 using namespace pinnacle;
 
-// Global persistence initialization for benchmarks
-class BenchmarkEnvironment : public benchmark::Environment {
-public:
-  void SetUp() override {
-    auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
-    std::filesystem::create_directories(tempDir);
-    auto& persistenceManager = persistence::PersistenceManager::getInstance();
-    persistenceManager.initialize(tempDir.string());
-  }
-
-  void TearDown() override {
-    auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
-    if (std::filesystem::exists(tempDir)) {
-      std::filesystem::remove_all(tempDir);
-    }
-  }
-};
-
 // Helper functions to create orders
 std::shared_ptr<Order> createOrder(const std::string& id,
                                    const std::string& symbol, OrderSide side,
@@ -352,9 +334,17 @@ BENCHMARK(BM_LockFreeOrderBook_ConcurrentOperations)
     ->Arg(16);
 
 int main(int argc, char** argv) {
-  benchmark::RegisterGlobalEnvironment(new BenchmarkEnvironment);
+  auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
+  std::filesystem::create_directories(tempDir);
+  auto& persistenceManager = persistence::PersistenceManager::getInstance();
+  persistenceManager.initialize(tempDir.string());
+
   benchmark::Initialize(&argc, argv);
   benchmark::RunSpecifiedBenchmarks();
   benchmark::Shutdown();
+
+  if (std::filesystem::exists(tempDir)) {
+    std::filesystem::remove_all(tempDir);
+  }
   return 0;
 }

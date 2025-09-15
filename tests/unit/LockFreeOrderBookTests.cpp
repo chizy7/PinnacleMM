@@ -176,6 +176,7 @@ TEST_F(LockFreeOrderBookTest, ConcurrentOperations) {
 
   for (int t = 0; t < numThreads; ++t) {
     threads.emplace_back([t, this, numOrders]() {
+      (void)numOrders; // Suppress unused warning
       for (int i = 0; i < numOrders; ++i) {
         std::string orderId =
             "thread-" + std::to_string(t) + "-" + std::to_string(i);
@@ -248,6 +249,7 @@ TEST_F(LockFreeOrderBookTest, ConcurrentCancellations) {
 
   for (int t = 0; t < numThreads; ++t) {
     threads.emplace_back([t, &orderIds, &cancelCount, this, numOrders]() {
+      (void)numOrders; // Suppress unused warning
       for (int i = t; i < numOrders; i += numThreads) {
         std::string orderId = orderIds[i];
         bool cancelled = orderBook->cancelOrder(orderId);

@@ -10,24 +10,6 @@
 
 using namespace pinnacle;
 
-// Global persistence initialization for benchmarks
-class BenchmarkEnvironment : public benchmark::Environment {
-public:
-  void SetUp() override {
-    auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
-    std::filesystem::create_directories(tempDir);
-    auto& persistenceManager = persistence::PersistenceManager::getInstance();
-    persistenceManager.initialize(tempDir.string());
-  }
-
-  void TearDown() override {
-    auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
-    if (std::filesystem::exists(tempDir)) {
-      std::filesystem::remove_all(tempDir);
-    }
-  }
-};
-
 // Benchmark for measuring order addition latency
 static void BM_OrderAddLatency(benchmark::State& state) {
   // Setup order book
@@ -77,9 +59,17 @@ BENCHMARK(BM_OrderAddLatency);
 BENCHMARK(BM_OrderBookQueryLatency);
 
 int main(int argc, char** argv) {
-  benchmark::RegisterGlobalEnvironment(new BenchmarkEnvironment);
+  auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
+  std::filesystem::create_directories(tempDir);
+  auto& persistenceManager = persistence::PersistenceManager::getInstance();
+  persistenceManager.initialize(tempDir.string());
+
   benchmark::Initialize(&argc, argv);
   benchmark::RunSpecifiedBenchmarks();
   benchmark::Shutdown();
+
+  if (std::filesystem::exists(tempDir)) {
+    std::filesystem::remove_all(tempDir);
+  }
   return 0;
 }
