@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libboost-all-dev \
     libgtest-dev \
     git \
+    ca-certificates \
     libspdlog-dev \
     libfmt-dev \
     libssl-dev \
@@ -33,7 +34,9 @@ RUN cmake . && make && cp lib/libgtest*.a /usr/lib/
 
 # Install Google Benchmark
 WORKDIR /tmp
-RUN git clone https://github.com/google/benchmark.git
+RUN git config --global http.sslverify false && \
+    git clone https://github.com/google/benchmark.git && \
+    git config --global --unset http.sslverify
 WORKDIR /tmp/benchmark
 RUN cmake -E make_directory build && \
     cmake -E chdir build cmake -DBENCHMARK_DOWNLOAD_DEPENDENCIES=on -DCMAKE_BUILD_TYPE=Release .. && \
