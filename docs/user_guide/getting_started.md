@@ -82,13 +82,17 @@ The simplest way to start is with the simulation mode (no API keys needed):
 **First-time setup** - Configure your exchange API credentials:
 
 ```bash
+# Using the native script (recommended)
+./run-native.sh --setup-credentials
+
+# Or directly
 ./pinnaclemm --setup-credentials
 ```
 
 Follow the interactive prompts to:
-1. Set a master password (encrypts all API keys)
-2. Enter your Coinbase Pro API credentials
-3. Optionally configure other exchanges
+1. Set a master password (secure input with hidden characters, encrypts all API keys with AES-256-CBC + unique salt)
+2. Enter your Coinbase Pro API credentials (input validation prevents common attacks)
+3. Optionally configure other exchanges with comprehensive security validation
 
 **Run with live Coinbase market data**:
 
@@ -201,9 +205,12 @@ docker run -d --name pinnaclemm pinnaclemm --symbol ETH-USD --verbose
 
 ### Runtime Issues
 
-- **"Failed to load secure config"**: Run `./pinnaclemm --setup-credentials` first
+- **"Failed to load secure config"**: Run `./run-native.sh --setup-credentials` first
 - **"Authentication failure"**: Check your API credentials and master password
+- **"Key derivation failed"**: Your config file may be corrupted; delete and recreate credentials
 - **WebSocket connection issues**: Verify internet connection and exchange endpoints
+- **Certificate validation errors**: Certificate pinning may be blocking connection; check logs
+- **Rate limit exceeded**: Wait for cooldown period or check rate limiting configuration
 - **Simulation Not Starting**: Check the log file for detailed error messages
 - **Performance Problems**: Try running with `--verbose` for more detailed output
 - **Empty order book in live mode**: Normal for ticker-only data; order book requires level2 authentication
@@ -219,10 +226,13 @@ docker run -d --name pinnaclemm pinnaclemm --symbol ETH-USD --verbose
 
 ### Security Best Practices
 
-- **Strong Master Password**: Use a unique, strong password for credential encryption
+- **Strong Master Password**: Use a unique, strong password for credential encryption (minimum 8 characters with mixed case, numbers, and symbols)
 - **API Key Permissions**: Limit to "View" only for market data
 - **IP Restrictions**: Set IP restrictions on your Coinbase API keys
 - **Regular Rotation**: Rotate API credentials periodically
+- **Secure Environment**: Run PinnacleMM on secure systems with up-to-date software
+- **Monitor Logs**: Check audit logs regularly for security events
+- **Clean Shutdown**: Use Ctrl+C for graceful shutdown to clear sensitive memory
 
 ## Next Steps
 

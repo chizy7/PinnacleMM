@@ -13,14 +13,14 @@ class OrderBook {
 public:
     // Constructor
     explicit OrderBook(const std::string& symbol);
-    
+
     // Order management
     bool addOrder(std::shared_ptr<Order> order);
     bool cancelOrder(const std::string& orderId);
     bool executeOrder(const std::string& orderId, double quantity);
-    double executeMarketOrder(OrderSide side, double quantity, 
+    double executeMarketOrder(OrderSide side, double quantity,
                              std::vector<std::pair<std::string, double>>& fills);
-    
+
     // Order book queries
     std::shared_ptr<Order> getOrder(const std::string& orderId) const;
     double getBestBidPrice() const;
@@ -28,28 +28,28 @@ public:
     double getMidPrice() const;
     double getSpread() const;
     size_t getOrderCount() const;
-    
+
     // Level queries
     size_t getBidLevels() const;
     size_t getAskLevels() const;
     double getVolumeAtPrice(double price) const;
     std::vector<PriceLevel> getBidLevels(size_t depth) const;
     std::vector<PriceLevel> getAskLevels(size_t depth) const;
-    
+
     // Market depth calculations
     double calculateMarketImpact(OrderSide side, double quantity) const;
     double calculateVolumeWeightedAveragePrice(OrderSide side, double quantity) const;
     double calculateOrderBookImbalance(size_t depth) const;
-    
+
     // Take a snapshot of the current order book state
     std::shared_ptr<OrderBookSnapshot> getSnapshot() const;
-    
+
     // Clear the order book
     void clear();
-    
+
     // Get the symbol for this order book
     const std::string& getSymbol() const;
-    
+
     // Callback registration for order book events
     using OrderBookUpdateCallback = std::function<void(const OrderBook&)>;
     void registerUpdateCallback(OrderBookUpdateCallback callback);
@@ -73,7 +73,7 @@ public:
         double quantity,
         uint64_t timestamp
     );
-    
+
     // Getters
     const std::string& getOrderId() const;
     const std::string& getSymbol() const;
@@ -86,14 +86,14 @@ public:
     double getRemainingQuantity() const;
     uint64_t getTimestamp() const;
     uint64_t getLastUpdateTime() const;
-    
+
     // Modifiers
     void updateStatus(OrderStatus newStatus);
     bool fill(double fillQuantity, uint64_t timestamp);
     bool cancel(uint64_t timestamp);
     bool reject(uint64_t timestamp);
     bool expire(uint64_t timestamp);
-    
+
     // Utility methods
     bool isBuy() const;
     bool isSell() const;
@@ -140,25 +140,25 @@ class BasicMarketMaker {
 public:
     // Constructor
     BasicMarketMaker(const std::string& symbol, const StrategyConfig& config);
-    
+
     // Strategy lifecycle
     bool initialize(std::shared_ptr<OrderBook> orderBook);
     bool start();
     bool stop();
     bool isRunning() const;
-    
+
     // Event handlers
     void onOrderBookUpdate(const OrderBook& orderBook);
-    void onTrade(const std::string& symbol, double price, double quantity, 
+    void onTrade(const std::string& symbol, double price, double quantity,
                 OrderSide side, uint64_t timestamp);
-    void onOrderUpdate(const std::string& orderId, OrderStatus status, 
+    void onOrderUpdate(const std::string& orderId, OrderStatus status,
                       double filledQuantity, uint64_t timestamp);
-    
+
     // Statistics and state
     std::string getStatistics() const;
     double getPosition() const;
     double getPnL() const;
-    
+
     // Configuration
     bool updateConfig(const StrategyConfig& config);
 };
@@ -173,7 +173,7 @@ struct StrategyConfig {
     // General strategy parameters
     std::string strategyName = "BasicMarketMaker";
     std::string symbol = "BTC-USD";
-    
+
     // Quote parameters
     double baseSpreadBps = 10.0;        // Base spread in basis points
     double minSpreadBps = 5.0;          // Minimum spread in basis points
@@ -181,20 +181,20 @@ struct StrategyConfig {
     double orderQuantity = 0.01;        // Base order quantity
     double minOrderQuantity = 0.001;    // Minimum order quantity
     double maxOrderQuantity = 1.0;      // Maximum order quantity
-    
+
     // Market making parameters
     double targetPosition = 0.0;        // Target position (0 = neutral)
     double maxPosition = 10.0;          // Maximum absolute position
     double inventorySkewFactor = 0.5;   // How much to skew quotes based on inventory (0-1)
-    
+
     // Risk parameters
     double maxDrawdownPct = 5.0;        // Maximum drawdown percentage before stopping
     double stopLossPct = 3.0;           // Stop loss percentage for individual position
     double takeProfitPct = 5.0;         // Take profit percentage for individual position
-    
+
     // Timing parameters
     uint64_t quoteUpdateIntervalMs = 100;  // Quote update interval in milliseconds
-    
+
     // Validate the configuration parameters
     // Returns false if validation fails and populates errorReason with descriptive message
     bool validate(std::string& errorReason) const;
@@ -212,12 +212,12 @@ class ExchangeSimulator {
 public:
     // Constructor
     explicit ExchangeSimulator(std::shared_ptr<OrderBook> orderBook);
-    
+
     // Simulator lifecycle
     bool start();
     bool stop();
     bool isRunning() const;
-    
+
     // Configuration
     void setMarketDataFeed(std::shared_ptr<MarketDataFeed> marketDataFeed);
     void setVolatility(double volatility);
@@ -235,19 +235,19 @@ Interface for market data feeds.
 class MarketDataFeed {
 public:
     virtual ~MarketDataFeed() = default;
-    
+
     virtual bool start() = 0;
     virtual bool stop() = 0;
     virtual bool isRunning() const = 0;
-    
+
     virtual bool subscribeToMarketUpdates(
         const std::string& symbol,
         std::function<void(const MarketUpdate&)> callback) = 0;
-    
+
     virtual bool subscribeToOrderBookUpdates(
         const std::string& symbol,
         std::function<void(const OrderBookUpdate&)> callback) = 0;
-    
+
     virtual bool unsubscribeFromMarketUpdates(const std::string& symbol) = 0;
     virtual bool unsubscribeFromOrderBookUpdates(const std::string& symbol) = 0;
 };
@@ -266,18 +266,18 @@ public:
     static uint64_t getCurrentMicros();
     static uint64_t getCurrentMillis();
     static uint64_t getCurrentSeconds();
-    
+
     static std::string nanosToTimestamp(uint64_t nanos);
     static void sleepForNanos(uint64_t nanos);
     static void sleepForMicros(uint64_t micros);
     static void sleepForMillis(uint64_t millis);
-    
+
     template<typename Func>
     static uint64_t measureExecutionTimeNanos(Func&& func);
-    
+
     template<typename Func>
     static uint64_t measureExecutionTimeMicros(Func&& func);
-    
+
     static uint64_t getDiffNanos(uint64_t start_nanos, uint64_t end_nanos);
     static std::string getCurrentISOTimestamp();
     static bool isNanosecondPrecisionAvailable();
@@ -293,11 +293,11 @@ template<typename T, size_t Capacity>
 class LockFreeQueue {
 public:
     LockFreeQueue() = default;
-    
+
     bool tryEnqueue(const T& item);
     bool tryEnqueue(T&& item);
     std::optional<T> tryDequeue();
-    
+
     bool isEmpty() const;
     size_t size() const;
     constexpr size_t capacity() const;
@@ -307,11 +307,11 @@ template<typename T, size_t Capacity>
 class LockFreeMPMCQueue {
 public:
     LockFreeMPMCQueue();
-    
+
     bool tryEnqueue(const T& data);
     bool tryEnqueue(T&& data);
     bool tryDequeue(T& result);
-    
+
     bool isEmpty() const;
     size_t approximateSize() const;
     constexpr size_t capacity() const;
@@ -329,7 +329,7 @@ struct PriceLevel {
     double price;
     double totalQuantity;
     std::vector<std::shared_ptr<Order>> orders;
-    
+
     explicit PriceLevel(double price);
     void addOrder(std::shared_ptr<Order> order);
     bool removeOrder(const std::string& orderId);
@@ -350,7 +350,7 @@ public:
         std::vector<PriceLevel> bids,
         std::vector<PriceLevel> asks
     );
-    
+
     const std::string& getSymbol() const;
     uint64_t getTimestamp() const;
     const std::vector<PriceLevel>& getBids() const;
@@ -416,12 +416,12 @@ PinnacleMM includes secure credential management for live exchange connectivity:
 
 bool setupCredentials() {
     auto credentials = std::make_shared<pinnacle::utils::ApiCredentials>();
-    
+
     // Interactive setup with encryption
     std::string masterPassword;
     std::cout << "Create master password: ";
     std::getline(std::cin, masterPassword);
-    
+
     // Add exchange credentials
     std::string apiKey, apiSecret, passphrase;
     std::cout << "API Key: ";
@@ -430,7 +430,7 @@ bool setupCredentials() {
     std::getline(std::cin, apiSecret);
     std::cout << "API Passphrase: ";
     std::getline(std::cin, passphrase);
-    
+
     credentials->setCredentials("coinbase", apiKey, apiSecret, passphrase);
     return credentials->saveToFile("secure_config.json", masterPassword);
 }
@@ -455,7 +455,7 @@ auto marketDataFeed = std::make_shared<pinnacle::exchange::WebSocketMarketDataFe
 
 // Subscribe to real-time ticker updates
 marketDataFeed->subscribeToMarketUpdates("BTC-USD", [](const auto& update) {
-    std::cout << "Live BTC Price: $" << update.price 
+    std::cout << "Live BTC Price: $" << update.price
               << ", Volume: " << update.volume << std::endl;
 });
 

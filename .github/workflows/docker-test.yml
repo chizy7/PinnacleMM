@@ -1,0 +1,73 @@
+name: Docker Script Testing
+
+on:
+  pull_request:
+    paths:
+      - 'run-docker.sh'
+      - 'Dockerfile'
+      - '.github/workflows/docker-test.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'run-docker.sh'
+      - 'Dockerfile'
+  workflow_dispatch:
+
+jobs:
+  test-docker-script:
+    name: Test Docker Scripts
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Make scripts executable
+      run: |
+        chmod +x run-docker.sh
+        chmod +x cleanup.sh
+
+    - name: Test Docker script - Build
+      run: |
+        ./run-docker.sh build
+
+    - name: Verify Docker image exists
+      run: |
+        docker images | grep pinnaclemm
+
+    - name: Test direct Docker run
+      run: |
+        docker run --rm pinnaclemm --help
+
+    - name: Test Docker script - Help
+      run: |
+        ./run-docker.sh --help
+
+    - name: Test Docker script - Simulation mode
+      run: |
+        ./run-docker.sh -m simulation -s BTC-USD &
+        sleep 10
+
+    - name: Test Docker script - Logs
+      run: |
+        timeout 10s ./run-docker.sh logs || true
+
+    - name: Test Docker script - Stop
+      run: |
+        ./run-docker.sh stop || true
+
+    - name: Test Docker script - Custom parameters
+      run: |
+        ./run-docker.sh -s ETH-USD -v &
+        sleep 5
+        ./run-docker.sh stop || true
+
+    - name: Clean up Docker resources
+      run: |
+        ./run-docker.sh clean || true

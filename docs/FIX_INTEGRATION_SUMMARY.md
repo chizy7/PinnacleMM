@@ -70,7 +70,7 @@
 ```bash
 cd build && ./fix_basic_test
 # ✓ Factory instance created
-# ✓ Interactive Brokers FIX support: Yes  
+# ✓ Interactive Brokers FIX support: Yes
 # ✓ Configuration system working
 ```
 
@@ -79,7 +79,7 @@ cd build && ./fix_basic_test
 - Integration with master password system
 - Exchange-specific credential handling
 
-### 3. Order Management  
+### 3. Order Management
 - Order object creation and validation
 - FIX message construction for orders
 - Order ID mapping and tracking
@@ -132,7 +132,7 @@ cd build && ./fix_basic_test
 - **Regulatory Compliance**: Proper audit trails and message logging
 - **Performance**: Microsecond-level message processing capabilities
 
-### Competitive Advantage  
+### Competitive Advantage
 - **Dual Protocol Support**: Both WebSocket (retail) and FIX (institutional)
 - **Ultra-Low Latency**: hffix library optimized for HFT
 - **Production Grade**: Comprehensive error handling and session management
@@ -157,12 +157,12 @@ cd build && ./fix_basic_test
 - **FIX Logon**: < 100ms
 - **Message Processing**: < 10μs per message
 - **Order Round-Trip**: < 1ms (to IB Gateway)
-- **Market Data Latency**: < 500μs  
+- **Market Data Latency**: < 500μs
 - **Memory Usage**: < 10MB additional footprint
 
 ### Monitoring Points:
 - FIX session state and sequence numbers
-- Message queue depths and processing times  
+- Message queue depths and processing times
 - Network latency to exchange gateways
 - Error rates and reconnection events
 

@@ -12,25 +12,25 @@ The PinnacleMM Advanced Order Routing System is a professional-grade smart order
 graph LR
     A[OrderRouter] --> B[RoutingStrategy]
     B --> C[VenueConnector]
-    
+
     A -.->|manages| A1[Strategy Mgmt]
     A -.->|manages| A2[Venue Mgmt]
     A -.->|executes| A3[Execution]
     A -.->|tracks| A4[Monitoring]
-    
+
     B -.->|implements| B1[BEST_PRICE]
     B -.->|implements| B2[TWAP]
     B -.->|implements| B3[VWAP]
     B -.->|implements| B4[MARKET_IMPACT]
-    
+
     C -.->|uses| C1[WebSocket]
     C -.->|uses| C2[FIX Protocol]
     C -.->|provides| C3[Market Data]
     C -.->|handles| C4[Order Exec]
-    
+
     classDef mainComponent fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef feature fill:#f3e5f5,stroke:#4a148c,stroke-width:1px
-    
+
     class A,B,C mainComponent
     class A1,A2,A3,A4,B1,B2,B3,B4,C1,C2,C3,C4 feature
 ```
@@ -122,18 +122,18 @@ public:
     bool start();
     bool stop();
     bool isRunning() const;
-    
+
     // Order management
     std::string submitOrder(const ExecutionRequest& request);
     bool cancelOrder(const std::string& requestId);
     std::vector<ExecutionResult> getExecutionStatus(const std::string& requestId);
-    
+
     // Configuration
     bool addVenue(const std::string& venueName, const std::string& connectionType);
     bool removeVenue(const std::string& venueName);
     void setRoutingStrategy(const std::string& strategyName);
     void updateMarketData(const std::string& venue, const MarketData& data);
-    
+
     // Monitoring
     std::string getStatistics() const;
     void setExecutionCallback(std::function<void(const ExecutionResult&)> callback);
@@ -248,7 +248,7 @@ std::string requestId = router.submitOrder(request);
 ```cpp
 // Set up execution callback for real-time updates
 router.setExecutionCallback([](const ExecutionResult& result) {
-    std::cout << "Fill received: " << result.venue 
+    std::cout << "Fill received: " << result.venue
               << " " << result.filledQuantity << " @ " << result.avgFillPrice << std::endl;
 });
 
@@ -267,7 +267,7 @@ std::cout << router.getStatistics() << std::endl;
 ### Latency Metrics
 
 - **Strategy Planning**: < 10 microseconds
-- **Market Data Processing**: < 5 microseconds  
+- **Market Data Processing**: < 5 microseconds
 - **Order Execution**: ~1 millisecond (including venue latency)
 - **End-to-End Routing**: < 1.5 milliseconds
 
@@ -295,7 +295,7 @@ TWAPStrategy twapStrategy(
     std::chrono::seconds(30)         // Interval between slices
 );
 
-// VWAP Strategy Configuration  
+// VWAP Strategy Configuration
 VWAPStrategy vwapStrategy(
     0.15                             // Participation rate (15%)
 );
@@ -332,7 +332,7 @@ Testing BestPriceStrategy...
 ✓ BestPriceStrategy selected venue: Binance
 Testing TWAPStrategy...
 ✓ TWAPStrategy created 5 slices, total quantity: 10
-Testing VWAPStrategy...  
+Testing VWAPStrategy...
 ✓ VWAPStrategy allocated total quantity: 4.28571
 Testing MarketImpactStrategy...
 ✓ MarketImpactStrategy created 1 orders
@@ -361,7 +361,7 @@ All OrderRouter tests passed successfully!
 ### Best Practices
 
 1. **Venue Selection**: Choose venues with complementary liquidity profiles
-2. **Strategy Selection**: Match strategy to order characteristics and market conditions  
+2. **Strategy Selection**: Match strategy to order characteristics and market conditions
 3. **Risk Management**: Always set appropriate slippage and timeout limits
 4. **Monitoring**: Implement comprehensive logging and alerting
 5. **Testing**: Thoroughly test with historical data before live deployment
@@ -388,10 +388,10 @@ void BasicMarketMaker::placeOrder(OrderSide side, double price, double quantity)
     ExecutionRequest request;
     request.order = Order(generateOrderId(), m_symbol, side, OrderType::LIMIT, price, quantity, getCurrentTime());
     request.routingStrategy = "BEST_PRICE"; // Use best price for market making
-    
+
     // Submit to router instead of direct OrderBook placement
     std::string requestId = m_orderRouter->submitOrder(request);
-    
+
     // Track the request
     m_pendingRequests[requestId] = {side, price, quantity};
 }

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/chizy7/PinnacleMM/tree/main/docs
+    about: Check the documentation for guides and API reference
+  - name: Discussions
+    url: https://github.com/chizy7/PinnacleMM/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: Performance Benchmarks
+    url: https://github.com/chizy7/PinnacleMM/tree/main/docs/PERFORMANCE_BENCHMARKS.md
+    about: View current performance benchmarks and optimization guides

@@ -70,31 +70,31 @@ show_usage() {
 # Function to check dependencies
 check_dependencies() {
     local missing_deps=()
-    
+
     # Check for required tools
     if ! command -v cmake >/dev/null 2>&1; then
         missing_deps+=("cmake")
     fi
-    
+
     if ! command -v make >/dev/null 2>&1; then
         missing_deps+=("make")
     fi
-    
+
     if ! command -v g++ >/dev/null 2>&1 && ! command -v clang++ >/dev/null 2>&1; then
         missing_deps+=("g++ or clang++")
     fi
-    
+
     if [[ ${#missing_deps[@]} -gt 0 ]]; then
         print_error "Missing required dependencies: ${missing_deps[*]}"
         print_info "Please install the missing dependencies and try again."
-        
+
         if [[ "$OSTYPE" == "darwin"* ]]; then
             print_info "On macOS, install with: brew install cmake"
         elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
             print_info "On Ubuntu/Debian: sudo apt-get install cmake build-essential"
             print_info "On CentOS/RHEL: sudo yum install cmake gcc-c++ make"
         fi
-        
+
         exit 1
     fi
 }
@@ -102,20 +102,20 @@ check_dependencies() {
 # Function to build the project
 build_project() {
     print_info "Building PinnacleMM..."
-    
+
     # Create build directory if it doesn't exist
     if [[ ! -d "$BUILD_DIR" ]]; then
         mkdir -p "$BUILD_DIR"
     fi
-    
+
     cd "$BUILD_DIR"
-    
+
     # Configure with CMake
     cmake .. || {
         print_error "CMake configuration failed"
         exit 1
     }
-    
+
     # Build with appropriate number of cores
     local cores
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -123,12 +123,12 @@ build_project() {
     else
         cores=$(nproc)
     fi
-    
+
     make -j"$cores" || {
         print_error "Build failed"
         exit 1
     }
-    
+
     cd ..
     print_success "Build completed successfully!"
 }
@@ -136,14 +136,14 @@ build_project() {
 # Function to run tests
 run_tests() {
     print_info "Running tests..."
-    
+
     if [[ ! -f "$BUILD_DIR/pinnaclemm" ]]; then
         print_warning "Project not built. Building first..."
         build_project
     fi
-    
+
     cd "$BUILD_DIR"
-    
+
     # Run all tests
     local test_files=(
         "orderbook_tests"
@@ -152,9 +152,9 @@ run_tests() {
         "strategy_tests"
         "fix_basic_test"
     )
-    
+
     local failed_tests=()
-    
+
     for test in "${test_files[@]}"; do
         if [[ -f "$test" ]]; then
             print_info "Running $test..."
@@ -168,9 +168,9 @@ run_tests() {
             print_warning "$test not found (may not be built)"
         fi
     done
-    
+
     cd ..
-    
+
     if [[ ${#failed_tests[@]} -eq 0 ]]; then
         print_success "All tests passed!"
     else
@@ -182,20 +182,20 @@ run_tests() {
 # Function to run benchmarks
 run_benchmarks() {
     print_info "Running benchmarks..."
-    
+
     if [[ ! -f "$BUILD_DIR/pinnaclemm" ]]; then
         print_warning "Project not built. Building first..."
         build_project
     fi
-    
+
     cd "$BUILD_DIR"
-    
+
     local benchmark_files=(
         "latency_benchmark"
         "throughput_benchmark"
         "orderbook_benchmark"
     )
-    
+
     for benchmark in "${benchmark_files[@]}"; do
         if [[ -f "$benchmark" ]]; then
             print_info "Running $benchmark..."
@@ -204,7 +204,7 @@ run_benchmarks() {
             print_warning "$benchmark not found"
         fi
     done
-    
+
     cd ..
 }
 
@@ -298,7 +298,7 @@ ARGS="--mode $MODE --symbol $SYMBOL"
 
 if [[ "$MODE" == "live" ]]; then
     ARGS="$ARGS --exchange $EXCHANGE"
-    
+
     # Check if credentials are configured
     if [[ ! -f "config/secure_config.json" ]]; then
         print_warning "No API credentials found."
@@ -330,4 +330,4 @@ fi
 
 # Run the application
 cd "$BUILD_DIR"
-./pinnaclemm $ARGS
+./pinnaclemm "$ARGS"

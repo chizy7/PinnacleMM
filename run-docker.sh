@@ -91,10 +91,18 @@ while [[ $# -gt 0 ]]; do
             ;;
         logs)
             print_info "Showing container logs..."
-            docker logs -f pinnaclemm 2>/dev/null || docker logs -f pinnaclemm-live 2>/dev/null || {
-                print_error "No running PinnacleMM containers found"
-                exit 1
-            }
+            # Check if we're in CI environment and use non-follow mode
+            if [[ "${CI:-false}" == "true" ]]; then
+                docker logs --tail 50 pinnaclemm 2>/dev/null || docker logs --tail 50 pinnaclemm-live 2>/dev/null || {
+                    print_error "No PinnacleMM containers found"
+                    exit 1
+                }
+            else
+                docker logs -f pinnaclemm 2>/dev/null || docker logs -f pinnaclemm-live 2>/dev/null || {
+                    print_error "No running PinnacleMM containers found"
+                    exit 1
+                }
+            fi
             exit 0
             ;;
         stop)
@@ -151,13 +159,13 @@ DOCKER_ARGS="--mode $MODE --symbol $SYMBOL"
 if [[ "$MODE" == "live" ]]; then
     CONTAINER_NAME="pinnaclemm-live"
     DOCKER_ARGS="$DOCKER_ARGS --exchange $EXCHANGE"
-    
+
     # Check if config directory exists for live mode
     if [[ ! -d "config" ]]; then
         print_warning "Config directory not found. Creating..."
         mkdir -p config
     fi
-    
+
     # Check if credentials are configured
     if [[ ! -f "config/secure_config.json" ]]; then
         print_warning "No API credentials found. You'll need to set them up first."
@@ -184,13 +192,13 @@ if [[ "$MODE" == "live" ]]; then
     print_info "Running in live mode (interactive for password input)..."
     docker run -it --name "$CONTAINER_NAME" \
         -v "$(pwd)/config:/app/config" \
-        pinnaclemm $DOCKER_ARGS
+        pinnaclemm "$DOCKER_ARGS"
 else
     # Simulation mode - detached
     print_info "Running in simulation mode (detached)..."
     docker run -d --name "$CONTAINER_NAME" \
-        pinnaclemm $DOCKER_ARGS
-    
+        pinnaclemm "$DOCKER_ARGS"
+
     print_success "Container started successfully!"
     print_info "Container ID: $(docker ps -q -f name=$CONTAINER_NAME)"
     print_info "View logs with: $0 logs"
