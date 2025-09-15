@@ -171,7 +171,7 @@ static void BM_OrderBook_ConcurrentOperations(benchmark::State& state) {
   // Set up the order book
   auto orderBook = std::make_shared<OrderBook>("BTC-USD");
 
-  // Random number generator
+  // Random number generator for setup only
   std::mt19937 rng(42); // Fixed seed for reproducibility
   std::uniform_real_distribution<double> priceDist(9000.0, 11000.0);
   std::uniform_real_distribution<double> quantityDist(0.1, 1.0);
@@ -198,8 +198,13 @@ static void BM_OrderBook_ConcurrentOperations(benchmark::State& state) {
 
     // Launch threads
     for (int t = 0; t < numThreads; ++t) {
-      threads.emplace_back([&orderBook, &rng, &priceDist, &quantityDist,
-                            &sideDist, &threadCounter, t]() {
+      threads.emplace_back([&orderBook, &threadCounter, t]() {
+        // Each thread needs its own RNG to avoid race conditions
+        std::mt19937 localRng(42 + t); // Different seed per thread
+        std::uniform_real_distribution<double> localPriceDist(9000.0, 11000.0);
+        std::uniform_real_distribution<double> localQuantityDist(0.1, 1.0);
+        std::bernoulli_distribution localSideDist(0.5);
+
         int localCounter =
             threadCounter.fetch_add(1, std::memory_order_relaxed);
 
@@ -209,9 +214,10 @@ static void BM_OrderBook_ConcurrentOperations(benchmark::State& state) {
 
           if (op == 0) {
             // Add a new order
-            OrderSide side = sideDist(rng) ? OrderSide::BUY : OrderSide::SELL;
-            double price = priceDist(rng);
-            double quantity = quantityDist(rng);
+            OrderSide side =
+                localSideDist(localRng) ? OrderSide::BUY : OrderSide::SELL;
+            double price = localPriceDist(localRng);
+            double quantity = localQuantityDist(localRng);
             std::string orderId =
                 "t" + std::to_string(t) + "-order-" + std::to_string(i);
             orderBook->addOrder(
@@ -225,9 +231,9 @@ static void BM_OrderBook_ConcurrentOperations(benchmark::State& state) {
           } else {
             // Execute a market order
             std::vector<std::pair<std::string, double>> fills;
-            orderBook->executeMarketOrder(sideDist(rng) ? OrderSide::BUY
-                                                        : OrderSide::SELL,
-                                          quantityDist(rng), fills);
+            orderBook->executeMarketOrder(
+                localSideDist(localRng) ? OrderSide::BUY : OrderSide::SELL,
+                localQuantityDist(localRng), fills);
           }
         }
       });
@@ -276,8 +282,13 @@ static void BM_LockFreeOrderBook_ConcurrentOperations(benchmark::State& state) {
 
     // Launch threads
     for (int t = 0; t < numThreads; ++t) {
-      threads.emplace_back([&orderBook, &rng, &priceDist, &quantityDist,
-                            &sideDist, &threadCounter, t]() {
+      threads.emplace_back([&orderBook, &threadCounter, t]() {
+        // Each thread needs its own RNG to avoid race conditions
+        std::mt19937 localRng(42 + t); // Different seed per thread
+        std::uniform_real_distribution<double> localPriceDist(9000.0, 11000.0);
+        std::uniform_real_distribution<double> localQuantityDist(0.1, 1.0);
+        std::bernoulli_distribution localSideDist(0.5);
+
         int localCounter =
             threadCounter.fetch_add(1, std::memory_order_relaxed);
 
@@ -287,9 +298,10 @@ static void BM_LockFreeOrderBook_ConcurrentOperations(benchmark::State& state) {
 
           if (op == 0) {
             // Add a new order
-            OrderSide side = sideDist(rng) ? OrderSide::BUY : OrderSide::SELL;
-            double price = priceDist(rng);
-            double quantity = quantityDist(rng);
+            OrderSide side =
+                localSideDist(localRng) ? OrderSide::BUY : OrderSide::SELL;
+            double price = localPriceDist(localRng);
+            double quantity = localQuantityDist(localRng);
             std::string orderId =
                 "t" + std::to_string(t) + "-order-" + std::to_string(i);
             orderBook->addOrder(
@@ -303,9 +315,9 @@ static void BM_LockFreeOrderBook_ConcurrentOperations(benchmark::State& state) {
           } else {
             // Execute a market order
             std::vector<std::pair<std::string, double>> fills;
-            orderBook->executeMarketOrder(sideDist(rng) ? OrderSide::BUY
-                                                        : OrderSide::SELL,
-                                          quantityDist(rng), fills);
+            orderBook->executeMarketOrder(
+                localSideDist(localRng) ? OrderSide::BUY : OrderSide::SELL,
+                localQuantityDist(localRng), fills);
           }
         }
       });
