@@ -343,6 +343,8 @@ int main(int argc, char** argv) {
   benchmark::RunSpecifiedBenchmarks();
   benchmark::Shutdown();
 
+  // Properly shutdown persistence before cleanup
+  persistenceManager.shutdown();
   if (std::filesystem::exists(tempDir)) {
     std::filesystem::remove_all(tempDir);
   }
