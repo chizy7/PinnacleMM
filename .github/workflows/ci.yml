@@ -40,6 +40,8 @@ jobs:
         cmake --build build --config ${{ matrix.build_type }} -j$(nproc || sysctl -n hw.ncpu)
 
     - name: Run Unit Tests
+      env:
+        JOURNAL_PATH: /tmp/journals
       run: |
         cd build
         ./orderbook_tests
@@ -51,6 +53,8 @@ jobs:
 
     - name: Run Performance Benchmarks (Release only)
       if: matrix.build_type == 'Release'
+      env:
+        JOURNAL_PATH: /tmp/journals
       run: |
         cd build
         ./latency_benchmark --benchmark_min_time=1s

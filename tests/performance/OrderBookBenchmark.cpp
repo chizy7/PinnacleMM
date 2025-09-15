@@ -4,6 +4,7 @@
 #include "../../core/utils/TimeUtils.h"
 
 #include <benchmark/benchmark.h>
+#include <chrono>
 #include <filesystem>
 #include <memory>
 #include <random>
@@ -334,7 +335,16 @@ BENCHMARK(BM_LockFreeOrderBook_ConcurrentOperations)
     ->Arg(16);
 
 int main(int argc, char** argv) {
-  auto tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
+  // Use environment variable for journal path if available, otherwise use temp
+  // dir
+  const char* journal_path = std::getenv("JOURNAL_PATH");
+  std::filesystem::path tempDir;
+  if (journal_path) {
+    tempDir = std::filesystem::path(journal_path);
+  } else {
+    tempDir = std::filesystem::temp_directory_path() / "pinnaclemm_bench";
+  }
+
   std::filesystem::create_directories(tempDir);
   auto& persistenceManager = persistence::PersistenceManager::getInstance();
   persistenceManager.initialize(tempDir.string());
@@ -343,9 +353,18 @@ int main(int argc, char** argv) {
   benchmark::RunSpecifiedBenchmarks();
   benchmark::Shutdown();
 
+  // Give threads time to complete and ensure all destructors run
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
   // Properly shutdown persistence before cleanup
   persistenceManager.shutdown();
-  if (std::filesystem::exists(tempDir)) {
+
+  // Small delay before directory cleanup
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  if (std::filesystem::exists(tempDir) && !journal_path) {
+    // Only remove temp dir if we created it (not if user specified
+    // JOURNAL_PATH)
     std::filesystem::remove_all(tempDir);
   }
   return 0;

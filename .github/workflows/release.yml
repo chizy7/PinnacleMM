@@ -47,6 +47,8 @@ jobs:
         cmake --build build --config Release -j$(nproc)
 
     - name: Run Full Test Suite
+      env:
+        JOURNAL_PATH: /tmp/journals
       run: |
         cd build
         ./orderbook_tests
@@ -57,6 +59,8 @@ jobs:
         ./routing_test
 
     - name: Generate Performance Report
+      env:
+        JOURNAL_PATH: /tmp/journals
       run: |
         cd build
         echo "# Performance Benchmarks - $(date)" > ../performance_report.md
