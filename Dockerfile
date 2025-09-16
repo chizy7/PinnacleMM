@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     libssl3 \
     libcrypto++8 \
+    openssl \
     nlohmann-json3-dev \
     libwebsocketpp-dev \
     pkg-config \
@@ -31,14 +32,24 @@ ENV CMAKE_CXX_STANDARD_REQUIRED=ON
 ENV CC=/usr/bin/gcc-11
 ENV CXX=/usr/bin/g++-11
 ENV OPENSSL_ROOT_DIR=/usr
-ENV PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig
+ENV OPENSSL_INCLUDE_DIR=/usr/include
+ENV OPENSSL_CRYPTO_LIBRARY=/usr/lib/x86_64-linux-gnu/libcrypto.so
+ENV OPENSSL_SSL_LIBRARY=/usr/lib/x86_64-linux-gnu/libssl.so
+ENV PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig
 
-# Ensure OpenSSL libraries are properly linked
+# Ensure OpenSSL libraries are properly linked and architecture detection
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN ldconfig && \
     pkg-config --exists openssl || echo "OpenSSL pkg-config not found" && \
     find /usr -name "libssl*" -type f 2>/dev/null | head -10 && \
-    find /usr -name "libcrypto*" -type f 2>/dev/null | head -10
+    find /usr -name "libcrypto*" -type f 2>/dev/null | head -10 && \
+    echo "Detected architecture: $(uname -m)" && \
+    echo "Available library directories:" && \
+    ls -la /usr/lib/*/libssl* /usr/lib/*/libcrypto* 2>/dev/null || true && \
+    if [ "$(uname -m)" = "aarch64" ]; then \
+        export OPENSSL_CRYPTO_LIBRARY=/usr/lib/aarch64-linux-gnu/libcrypto.so; \
+        export OPENSSL_SSL_LIBRARY=/usr/lib/aarch64-linux-gnu/libssl.so; \
+    fi
 
 # Build Google Test
 WORKDIR /usr/src/googletest
@@ -63,13 +74,31 @@ COPY . .
 # Build the project with tests disabled
 RUN rm -rf build && mkdir -p build
 WORKDIR /app/build
-RUN cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_BENCHMARKS=OFF \
-    -DCMAKE_CXX_COMPILER=/usr/bin/g++-11 \
-    -DCMAKE_C_COMPILER=/usr/bin/gcc-11 \
-    -DCMAKE_CXX_FLAGS="-Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare" \
-    -DOPENSSL_ROOT_DIR=/usr \
-    -DOPENSSL_INCLUDE_DIR=/usr/include \
-    -DPkgConfig_EXECUTABLE=/usr/bin/pkg-config && \
+
+# Clear any cached CMake files and detect architecture for OpenSSL paths
+RUN rm -f CMakeCache.txt && \
+    ARCH=$(uname -m) && \
+    echo "Building for architecture: $ARCH" && \
+    if [ "$ARCH" = "aarch64" ]; then \
+        CRYPTO_LIB=/usr/lib/aarch64-linux-gnu/libcrypto.so; \
+        SSL_LIB=/usr/lib/aarch64-linux-gnu/libssl.so; \
+    else \
+        CRYPTO_LIB=/usr/lib/x86_64-linux-gnu/libcrypto.so; \
+        SSL_LIB=/usr/lib/x86_64-linux-gnu/libssl.so; \
+    fi && \
+    echo "Using OpenSSL libraries: $CRYPTO_LIB, $SSL_LIB" && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_BENCHMARKS=OFF \
+        -DCMAKE_CXX_COMPILER=/usr/bin/g++-11 \
+        -DCMAKE_C_COMPILER=/usr/bin/gcc-11 \
+        -DCMAKE_CXX_FLAGS="-Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare" \
+        -DOPENSSL_ROOT_DIR=/usr \
+        -DOPENSSL_INCLUDE_DIR=/usr/include \
+        -DOPENSSL_CRYPTO_LIBRARY="$CRYPTO_LIB" \
+        -DOPENSSL_SSL_LIBRARY="$SSL_LIB" \
+        -DPkgConfig_EXECUTABLE=/usr/bin/pkg-config \
+        -DCMAKE_VERBOSE_MAKEFILE=ON && \
     make -j"$(nproc)"
 
 # Create runtime image
