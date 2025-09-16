@@ -240,4 +240,5 @@ jobs:
         git config --local user.name "GitHub Action"
         git add docs/performance_baseline.json
         git diff --staged --quiet || git commit -m "chore: update performance baseline [skip ci]"
+        git pull --rebase origin main
         git push
