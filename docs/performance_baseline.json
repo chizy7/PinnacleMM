@@ -1,0 +1,68 @@
+{
+  "context": {
+    "date": "2025-09-16T02:18:10+00:00",
+    "host_name": "runnervmf4ws1",
+    "executable": "./latency_benchmark",
+    "num_cpus": 4,
+    "mhz_per_cpu": 3244,
+    "cpu_scaling_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 524288,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 33554432,
+        "num_sharing": 4
+      }
+    ],
+    "load_avg": [1.84863,0.699707,0.258301],
+    "library_build_type": "debug"
+  },
+  "benchmarks": [
+    {
+      "name": "BM_OrderAddLatency",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "BM_OrderAddLatency",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 32145,
+      "real_time": 6.3888881039028471e+04,
+      "cpu_time": 6.4035742043863946e+04,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_OrderBookQueryLatency",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "BM_OrderBookQueryLatency",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 41310369,
+      "real_time": 1.6975454298169019e+01,
+      "cpu_time": 1.6975077395217649e+01,
+      "time_unit": "ns"
+    }
+  ]
+}
