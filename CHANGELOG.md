@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/chizy7/PinnacleMM/compare/v1.0.0...v1.0.1) (2025-09-16)
+
+
+### Bug Fixes
+
+* add git pull --rebase before push in performance baseline job ([f31a152](https://github.com/chizy7/PinnacleMM/commit/f31a1525fc223fb5e7e2b85975457eb1f8f3d494))
+
 # 1.0.0 (2025-09-16)
 
 
