@@ -178,12 +178,12 @@ TEST_F(LockFreeOrderBookTest, ConcurrentOperations) {
   const int numOrders = 100; // Reduced for faster testing
   const int numThreads = 4;
 
-  // Atomic counter for callbacks
-  std::atomic<int> callbackCount(0);
+  // Heap-allocated counter for callbacks to avoid stack-use-after-return
+  auto callbackCount = std::make_shared<std::atomic<int>>(0);
 
-  // Register callback
-  orderBook->registerUpdateCallback([&callbackCount](const OrderBook&) {
-    callbackCount.fetch_add(1, std::memory_order_relaxed);
+  // Register callback with heap-allocated counter
+  orderBook->registerUpdateCallback([callbackCount](const OrderBook&) {
+    callbackCount->fetch_add(1, std::memory_order_relaxed);
   });
 
   // Launch threads to add orders concurrently
@@ -222,7 +222,7 @@ TEST_F(LockFreeOrderBookTest, ConcurrentOperations) {
   EXPECT_EQ(orderBook->getOrderCount(), numOrders * numThreads);
 
   // Verify that callbacks were called
-  EXPECT_GT(callbackCount.load(), 0);
+  EXPECT_GT(callbackCount->load(), 0);
 
   // Check that we have both bids and asks
   EXPECT_GT(orderBook->getBestBidPrice(), 0.0);
