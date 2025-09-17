@@ -18,9 +18,20 @@ LockFreeOrderBook::LockFreeOrderBook(const std::string& symbol)
 LockFreeOrderBook::~LockFreeOrderBook() = default;
 
 void LockFreeOrderBook::onLockFreeOrderBookUpdate() {
-  // Manually trigger all callbacks with this order book
-  for (const auto& callback : m_callbacks) {
-    callback(*this);
+  // Make a copy of callbacks under lock to avoid race conditions
+  std::vector<OrderBookUpdateCallback> callbacks;
+  {
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    callbacks = m_callbacks;
+  }
+
+  // Trigger all callbacks without holding the lock
+  for (const auto& callback : callbacks) {
+    try {
+      callback(*this);
+    } catch (...) {
+      // Silently ignore callback exceptions to prevent crashes
+    }
   }
 }
 
@@ -150,8 +161,9 @@ void LockFreeOrderBook::clear() { m_lockFreeOrderBook->clear(); }
 
 void LockFreeOrderBook::registerUpdateCallback(
     OrderBookUpdateCallback callback) {
-  // Store the callback in our local list
-  m_callbacks.push_back(callback);
+  // Store the callback in our local list with mutex protection
+  std::lock_guard<std::mutex> lock(m_callbackMutex);
+  m_callbacks.push_back(std::move(callback));
 
   // No need to call the base class method since not directly handling callbacks
 }

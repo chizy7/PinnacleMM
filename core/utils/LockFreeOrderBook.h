@@ -8,6 +8,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <thread>
 #include <unordered_map>
@@ -488,7 +489,7 @@ private:
   // Callbacks for updates
   using OrderBookUpdateCallback = std::function<void(const LockFreeOrderBook&)>;
   std::vector<OrderBookUpdateCallback> m_updateCallbacks;
-  std::atomic_flag m_callbackLock = ATOMIC_FLAG_INIT;
+  mutable std::mutex m_callbackMutex;
 
 public:
   // Constructor

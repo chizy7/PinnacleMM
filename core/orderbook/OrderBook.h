@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <functional>
+#include <future>
 #include <map>
 #include <memory>
 #include <optional>
@@ -53,6 +54,9 @@ class OrderBook {
 public:
   // Constructor
   explicit OrderBook(const std::string& symbol);
+
+  // Constructor with persistence control (for testing)
+  OrderBook(const std::string& symbol, bool enablePersistence);
 
   // Destructor
   ~OrderBook() = default;
@@ -139,6 +143,7 @@ private:
 
   // Callbacks for order book updates
   std::vector<OrderBookUpdateCallback> m_updateCallbacks;
+  mutable std::mutex m_callbackMutex;
 
   // Notify all registered callbacks about an update
   void notifyUpdate();

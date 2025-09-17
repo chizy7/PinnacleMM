@@ -87,11 +87,23 @@ bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
   while (curr != nullptr) {
     // Find the node to remove
     if (curr->order && curr->order->getOrderId() == orderId) {
-      // Logical deletion: null out the order pointer
       found = true;
-      curr->order = nullptr;
-      m_orderCount.fetch_sub(1, std::memory_order_release);
-      break;
+
+      // Perform atomic physical deletion to prevent memory leak
+      OrderNode* next = curr->next.load(std::memory_order_acquire);
+      if (prev->next.compare_exchange_strong(curr, next,
+                                             std::memory_order_release,
+                                             std::memory_order_relaxed)) {
+        // Successfully unlinked, safe to delete
+        delete curr;
+        m_orderCount.fetch_sub(1, std::memory_order_release);
+        break;
+      } else {
+        // CAS failed, retry from head (another thread modified the list)
+        prev = m_head.load(std::memory_order_acquire);
+        curr = prev->next.load(std::memory_order_acquire);
+        continue;
+      }
     }
 
     prev = curr;
@@ -800,36 +812,29 @@ void LockFreeOrderBook::clear() {
 
 void LockFreeOrderBook::registerUpdateCallback(
     OrderBookUpdateCallback callback) {
-  // Acquire lock for callback registration
-  while (m_callbackLock.test_and_set(std::memory_order_acquire)) {
-    // Spin until we acquire the lock
-  }
-
+  // Use mutex for callback registration instead of atomic_flag
+  std::lock_guard<std::mutex> lock(m_callbackMutex);
   m_updateCallbacks.push_back(std::move(callback));
-
-  m_callbackLock.clear(std::memory_order_release);
 }
 
 void LockFreeOrderBook::notifyUpdate() {
   // Increment update count
   m_updateCount.fetch_add(1, std::memory_order_release);
 
-  // Make a local copy of callbacks
+  // Make a local copy of callbacks under mutex protection
   std::vector<OrderBookUpdateCallback> callbacks;
-
-  // Acquire lock
-  while (m_callbackLock.test_and_set(std::memory_order_acquire)) {
-    // Spin until we acquire the lock
+  {
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    callbacks = m_updateCallbacks;
   }
 
-  callbacks = m_updateCallbacks;
-
-  // Release lock
-  m_callbackLock.clear(std::memory_order_release);
-
-  // Notify all callbacks
+  // Notify all callbacks without holding the lock
   for (const auto& callback : callbacks) {
-    callback(*this);
+    try {
+      callback(*this);
+    } catch (...) {
+      // Silently ignore callback exceptions to prevent crashes
+    }
   }
 }
 

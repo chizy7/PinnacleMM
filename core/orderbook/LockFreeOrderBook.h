@@ -3,6 +3,7 @@
 #include "../utils/LockFreeOrderBook.h"
 #include "OrderBook.h"
 #include <limits>
+#include <mutex>
 
 namespace pinnacle {
 
@@ -19,8 +20,9 @@ private:
   // Lock-free order book implementation
   std::unique_ptr<utils::LockFreeOrderBook> m_lockFreeOrderBook;
 
-  // Store callbacks locally
+  // Store callbacks locally with mutex protection
   std::vector<OrderBookUpdateCallback> m_callbacks;
+  mutable std::mutex m_callbackMutex;
 
   // Adapter for update callbacks
   void onLockFreeOrderBookUpdate();

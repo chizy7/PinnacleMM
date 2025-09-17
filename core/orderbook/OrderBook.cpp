@@ -6,6 +6,7 @@
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <spdlog/spdlog.h>
 #include <sstream>
 #include <stdexcept>
 
@@ -48,6 +49,14 @@ void PriceLevel::updateTotalQuantity() {
 OrderBook::OrderBook(const std::string& symbol) : m_symbol(symbol) {
   // Initialize persistence
   initializePersistence();
+}
+
+OrderBook::OrderBook(const std::string& symbol, bool enablePersistence)
+    : m_symbol(symbol) {
+  // Initialize persistence only if enabled
+  if (enablePersistence) {
+    initializePersistence();
+  }
 }
 
 bool OrderBook::addOrder(std::shared_ptr<Order> order) {
@@ -643,9 +652,8 @@ void OrderBook::clear() {
 }
 
 void OrderBook::registerUpdateCallback(OrderBookUpdateCallback callback) {
-  // Acquire write lock for callback registration
-  std::unique_lock<std::shared_mutex> lock(m_mutex);
-
+  // Use separate mutex for callback registration to avoid deadlock
+  std::lock_guard<std::mutex> lock(m_callbackMutex);
   m_updateCallbacks.push_back(std::move(callback));
 }
 
@@ -653,16 +661,20 @@ void OrderBook::notifyUpdate() {
   // Increment update counter
   m_updateCount.fetch_add(1, std::memory_order_relaxed);
 
-  // Create a local copy of callbacks while holding the read lock
+  // Create a local copy of callbacks with a separate mutex to avoid deadlock
   std::vector<OrderBookUpdateCallback> callbacks;
   {
-    std::shared_lock<std::shared_mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
     callbacks = m_updateCallbacks;
   }
 
-  // Notify all callbacks without holding the lock
+  // Notify all callbacks without holding any locks
   for (const auto& callback : callbacks) {
-    callback(*this);
+    try {
+      callback(*this);
+    } catch (...) {
+      // Silently ignore callback exceptions to prevent crashes
+    }
   }
 }
 
@@ -821,8 +833,7 @@ void OrderBook::initializePersistence() {
 
   if (!m_journal) {
     // Log warning but continue (persistence will be disabled)
-    std::cerr << "Failed to initialize persistence for " << m_symbol
-              << std::endl;
+    spdlog::warn("Failed to initialize persistence for symbol: {}", m_symbol);
     return;
   }
 
