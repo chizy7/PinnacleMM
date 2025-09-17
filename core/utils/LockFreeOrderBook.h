@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -47,6 +48,9 @@ private:
 
   // Number of orders at this level
   std::atomic<size_t> m_orderCount;
+
+  // Mutex to protect getOrders() from use-after-free
+  mutable std::shared_mutex m_nodeAccessMutex;
 
   // Helper methods
   void updateTotalQuantity();

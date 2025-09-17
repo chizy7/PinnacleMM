@@ -47,6 +47,9 @@ bool LockFreePriceLevel::addOrder(std::shared_ptr<Order> order) {
     return false;
   }
 
+  // Use exclusive lock to prevent readers during structure modification
+  std::unique_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
   // Create a new node
   OrderNode* newNode = new OrderNode(std::move(order));
 
@@ -80,6 +83,9 @@ bool LockFreePriceLevel::addOrder(std::shared_ptr<Order> order) {
 }
 
 bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
+  // Use exclusive lock to prevent readers from accessing during modification
+  std::unique_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
   OrderNode* prev = m_head.load(std::memory_order_acquire);
   OrderNode* curr = prev->next.load(std::memory_order_acquire);
 
@@ -89,21 +95,12 @@ bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
     if (curr->order && curr->order->getOrderId() == orderId) {
       found = true;
 
-      // Perform atomic physical deletion to prevent memory leak
-      OrderNode* next = curr->next.load(std::memory_order_acquire);
-      if (prev->next.compare_exchange_strong(curr, next,
-                                             std::memory_order_release,
-                                             std::memory_order_relaxed)) {
-        // Successfully unlinked, safe to delete
-        delete curr;
-        m_orderCount.fetch_sub(1, std::memory_order_release);
-        break;
-      } else {
-        // CAS failed, retry from head (another thread modified the list)
-        prev = m_head.load(std::memory_order_acquire);
-        curr = prev->next.load(std::memory_order_acquire);
-        continue;
-      }
+      // Logical deletion: null out the order pointer
+      // This prevents use-after-free while allowing safe traversal
+      // The Order object will be automatically cleaned up by shared_ptr
+      curr->order = nullptr;
+      m_orderCount.fetch_sub(1, std::memory_order_release);
+      break;
     }
 
     prev = curr;
@@ -120,10 +117,18 @@ bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
 
 std::vector<std::shared_ptr<Order>> LockFreePriceLevel::getOrders() const {
   std::vector<std::shared_ptr<Order>> orders;
-  OrderNode* current = m_head.load(std::memory_order_acquire)
-                           ->next.load(std::memory_order_acquire);
+
+  // Use shared lock to allow concurrent reads but prevent concurrent writes
+  std::shared_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
+  OrderNode* current = m_head.load(std::memory_order_acquire);
+  if (!current)
+    return orders;
+
+  current = current->next.load(std::memory_order_acquire);
 
   while (current) {
+    // Now safe to access since we hold the shared lock
     if (current->order) {
       orders.push_back(current->order);
     }
