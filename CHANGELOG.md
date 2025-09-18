@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/chizy7/PinnacleMM/compare/v1.0.1...v1.0.2) (2025-09-18)
+
+
+### Bug Fixes
+
+* resolve critical memory leak in LockFreeOrderBook and re-enable disabled tests ([6dc3e6d](https://github.com/chizy7/PinnacleMM/commit/6dc3e6de76f23405e40f5dfee73a56441d9a476c))
+
 ## [1.0.1](https://github.com/chizy7/PinnacleMM/compare/v1.0.0...v1.0.1) (2025-09-16)
 
 
