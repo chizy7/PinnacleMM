@@ -173,17 +173,17 @@ TEST_F(LockFreeOrderBookTest, MarketOrder) {
             9800.0); // Best bid price is still correct
 }
 
-// Test concurrent operations - DISABLED due to callback race conditions
-TEST_F(LockFreeOrderBookTest, DISABLED_ConcurrentOperations) {
+// Test concurrent operations
+TEST_F(LockFreeOrderBookTest, ConcurrentOperations) {
   const int numOrders = 100; // Reduced for faster testing
   const int numThreads = 4;
 
-  // Atomic counter for callbacks
-  std::atomic<int> callbackCount(0);
+  // Heap-allocated counter for callbacks to avoid stack-use-after-return
+  auto callbackCount = std::make_shared<std::atomic<int>>(0);
 
-  // Register callback
-  orderBook->registerUpdateCallback([&callbackCount](const OrderBook&) {
-    callbackCount.fetch_add(1, std::memory_order_relaxed);
+  // Register callback with heap-allocated counter
+  orderBook->registerUpdateCallback([callbackCount](const OrderBook&) {
+    callbackCount->fetch_add(1, std::memory_order_relaxed);
   });
 
   // Launch threads to add orders concurrently
@@ -222,7 +222,7 @@ TEST_F(LockFreeOrderBookTest, DISABLED_ConcurrentOperations) {
   EXPECT_EQ(orderBook->getOrderCount(), numOrders * numThreads);
 
   // Verify that callbacks were called
-  EXPECT_GT(callbackCount.load(), 0);
+  EXPECT_GT(callbackCount->load(), 0);
 
   // Check that we have both bids and asks
   EXPECT_GT(orderBook->getBestBidPrice(), 0.0);
@@ -230,16 +230,16 @@ TEST_F(LockFreeOrderBookTest, DISABLED_ConcurrentOperations) {
 }
 
 // Safe concurrent test without callbacks
-TEST_F(LockFreeOrderBookTest, DISABLED_SafeConcurrentOperations) {
-  const int numOrders = 50; // Reduced for safer testing
-  const int numThreads = 2; // Reduced thread count
+TEST_F(LockFreeOrderBookTest, SafeConcurrentOperations) {
+  const int numOrders [[maybe_unused]] = 50; // Reduced for safer testing
+  const int numThreads = 2;                  // Reduced thread count
 
   // Launch threads to add orders concurrently
   std::vector<std::thread> threads;
 
   for (int t = 0; t < numThreads; ++t) {
-    threads.emplace_back([t, this, numOrders]() {
-      for (int i = 0; i < numOrders; ++i) {
+    threads.emplace_back([t, this]() {
+      for (int i = 0; i < 50; ++i) {
         std::string orderId =
             "thread-" + std::to_string(t) + "-" + std::to_string(i);
 
@@ -287,8 +287,8 @@ TEST_F(LockFreeOrderBookTest, DISABLED_SafeConcurrentOperations) {
   }
 }
 
-// Test concurrent cancellations - DISABLED due to potential race conditions
-TEST_F(LockFreeOrderBookTest, DISABLED_ConcurrentCancellations) {
+// Test concurrent cancellations
+TEST_F(LockFreeOrderBookTest, ConcurrentCancellations) {
   const int numOrders = 100; // Reduced for faster testing
   const int numThreads = 4;
   std::vector<std::string> orderIds;
@@ -317,13 +317,14 @@ TEST_F(LockFreeOrderBookTest, DISABLED_ConcurrentCancellations) {
   EXPECT_EQ(orderBook->getOrderCount(), numOrders);
 
   // Launch threads to cancel orders concurrently
+  // Each thread gets its own subset of order IDs to avoid race conditions
   std::vector<std::thread> threads;
   std::atomic<int> cancelCount(0);
 
   for (int t = 0; t < numThreads; ++t) {
-    threads.emplace_back([t, &orderIds, &cancelCount, this, numOrders]() {
-      (void)numOrders; // Suppress unused warning
-      for (int i = t; i < numOrders; i += numThreads) {
+    threads.emplace_back([t, orderIds, &cancelCount, this]() {
+      // Copy orderIds by value to avoid race conditions
+      for (int i = t; i < 100; i += 4) {
         std::string orderId = orderIds[i];
         bool cancelled = orderBook->cancelOrder(orderId);
         if (cancelled) {

@@ -8,7 +8,9 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -46,6 +48,9 @@ private:
 
   // Number of orders at this level
   std::atomic<size_t> m_orderCount;
+
+  // Mutex to protect getOrders() from use-after-free
+  mutable std::shared_mutex m_nodeAccessMutex;
 
   // Helper methods
   void updateTotalQuantity();
@@ -180,42 +185,11 @@ public:
  */
 template <typename Comparator> class LockFreePriceMap {
 private:
-  // The map structure
-  struct PriceMap {
-    std::map<double, std::shared_ptr<LockFreePriceLevel>, Comparator> levels;
-    std::atomic<size_t> readers{0};
-  };
+  // Map of price levels
+  std::map<double, std::shared_ptr<LockFreePriceLevel>, Comparator> m_levels;
 
-  // Current and new map pointers
-  std::atomic<PriceMap*> m_current;
-  PriceMap* m_new;
-
-  // Lock for write operations
-  std::atomic_flag m_writeLock = ATOMIC_FLAG_INIT;
-
-  // RAII helper for read operations
-  class ReadGuard {
-  private:
-    PriceMap& m_map;
-
-  public:
-    explicit ReadGuard(PriceMap& map);
-    ~ReadGuard();
-    ReadGuard(const ReadGuard&) = delete;
-    ReadGuard& operator=(const ReadGuard&) = delete;
-  };
-
-  // RAII helper for write operations
-  class WriteGuard {
-  private:
-    std::atomic_flag& m_lock;
-
-  public:
-    explicit WriteGuard(std::atomic_flag& lock);
-    ~WriteGuard();
-    WriteGuard(const WriteGuard&) = delete;
-    WriteGuard& operator=(const WriteGuard&) = delete;
-  };
+  // Reader-writer lock for thread safety
+  mutable std::shared_mutex m_mutex;
 
 public:
   // Constructor
@@ -265,112 +239,43 @@ public:
 // Template implementation for LockFreePriceMap
 
 template <typename Comparator>
-LockFreePriceMap<Comparator>::ReadGuard::ReadGuard(PriceMap& map) : m_map(map) {
-  m_map.readers.fetch_add(1, std::memory_order_acquire);
-}
-
-template <typename Comparator>
-LockFreePriceMap<Comparator>::ReadGuard::~ReadGuard() {
-  m_map.readers.fetch_sub(1, std::memory_order_release);
-}
-
-template <typename Comparator>
-LockFreePriceMap<Comparator>::WriteGuard::WriteGuard(std::atomic_flag& lock)
-    : m_lock(lock) {
-  while (m_lock.test_and_set(std::memory_order_acquire)) {
-    // Spin until we acquire the lock
-    // Use a busy-wait instead of std::this_thread::yield() for broader
-    // compatibility
-  }
-}
-
-template <typename Comparator>
-LockFreePriceMap<Comparator>::WriteGuard::~WriteGuard() {
-  m_lock.clear(std::memory_order_release);
-}
-
-template <typename Comparator>
 LockFreePriceMap<Comparator>::LockFreePriceMap() {
-  m_current.store(new PriceMap(), std::memory_order_release);
-  m_new = nullptr;
+  // Nothing to initialize with the simple approach
 }
 
 template <typename Comparator>
 LockFreePriceMap<Comparator>::~LockFreePriceMap() {
-  delete m_current.load(std::memory_order_acquire);
-  delete m_new;
+  // Destructor will automatically clean up m_levels
 }
 
 template <typename Comparator>
 bool LockFreePriceMap<Comparator>::insertLevel(
     double price, std::shared_ptr<LockFreePriceLevel> level) {
-  WriteGuard guard(m_writeLock);
-
-  PriceMap* current = m_current.load(std::memory_order_acquire);
-
-  // Create a new map as a copy of the current one
-  m_new = new PriceMap();
-  m_new->levels = current->levels;
-
-  // Insert or update the level
-  m_new->levels[price] = level;
-
-  // Publish the new map
-  m_current.store(m_new, std::memory_order_release);
-
-  // Wait for any ongoing readers to finish
-  while (current->readers.load(std::memory_order_acquire) > 0) {
-    // Busy-wait instead of std::this_thread::yield()
-  }
-
-  // Delete the old map
-  delete current;
-  m_new = nullptr;
-
+  std::unique_lock<std::shared_mutex> lock(m_mutex);
+  m_levels[price] = level;
   return true;
 }
 
 template <typename Comparator>
 bool LockFreePriceMap<Comparator>::removeLevel(double price) {
-  WriteGuard guard(m_writeLock);
+  std::unique_lock<std::shared_mutex> lock(m_mutex);
 
-  PriceMap* current = m_current.load(std::memory_order_acquire);
-
-  // Check if the level exists
-  if (current->levels.find(price) == current->levels.end()) {
+  auto it = m_levels.find(price);
+  if (it == m_levels.end()) {
     return false;
   }
 
-  // Create a new map as a copy of the current one
-  m_new = new PriceMap();
-  m_new->levels = current->levels;
-
-  // Remove the level
-  m_new->levels.erase(price);
-
-  // Publish the new map
-  m_current.store(m_new, std::memory_order_release);
-
-  // Wait for any ongoing readers to finish
-  while (current->readers.load(std::memory_order_acquire) > 0) {
-    // Busy-wait instead of std::this_thread::yield()
-  }
-
-  // Delete the old map
-  delete current;
-  m_new = nullptr;
-
+  m_levels.erase(it);
   return true;
 }
 
 template <typename Comparator>
 std::shared_ptr<LockFreePriceLevel>
 LockFreePriceMap<Comparator>::findLevel(double price) const {
-  PriceMap* current = m_current.load(std::memory_order_acquire);
-  ReadGuard guard(*current);
+  std::shared_lock<std::shared_mutex> lock(m_mutex);
 
-  auto it = current->levels.find(price);
-  if (it != current->levels.end()) {
+  auto it = m_levels.find(price);
+  if (it != m_levels.end()) {
     return it->second;
   }
 
@@ -380,28 +285,26 @@ LockFreePriceMap<Comparator>::findLevel(double price) const {
 template <typename Comparator>
 std::optional<std::pair<double, std::shared_ptr<LockFreePriceLevel>>>
 LockFreePriceMap<Comparator>::getBestLevel() const {
-  PriceMap* current = m_current.load(std::memory_order_acquire);
-  ReadGuard guard(*current);
+  std::shared_lock<std::shared_mutex> lock(m_mutex);
 
-  if (current->levels.empty()) {
+  if (m_levels.empty()) {
     return std::nullopt;
   }
 
-  auto it = current->levels.begin();
+  auto it = m_levels.begin();
   return std::make_optional(std::make_pair(it->first, it->second));
 }
 
 template <typename Comparator>
 std::vector<std::shared_ptr<LockFreePriceLevel>>
 LockFreePriceMap<Comparator>::getLevels(size_t depth) const {
-  PriceMap* current = m_current.load(std::memory_order_acquire);
-  ReadGuard guard(*current);
+  std::shared_lock<std::shared_mutex> lock(m_mutex);
 
   std::vector<std::shared_ptr<LockFreePriceLevel>> result;
-  result.reserve(std::min(depth, current->levels.size()));
+  result.reserve(std::min(depth, m_levels.size()));
 
   size_t count = 0;
-  for (const auto& pair : current->levels) {
+  for (const auto& pair : m_levels) {
     result.push_back(pair.second);
     count++;
 
@@ -415,39 +318,19 @@ LockFreePriceMap<Comparator>::getLevels(size_t depth) const {
 
 template <typename Comparator>
 size_t LockFreePriceMap<Comparator>::size() const {
-  PriceMap* current = m_current.load(std::memory_order_acquire);
-  ReadGuard guard(*current);
-
-  return current->levels.size();
+  std::shared_lock<std::shared_mutex> lock(m_mutex);
+  return m_levels.size();
 }
 
 template <typename Comparator>
 bool LockFreePriceMap<Comparator>::empty() const {
-  PriceMap* current = m_current.load(std::memory_order_acquire);
-  ReadGuard guard(*current);
-
-  return current->levels.empty();
+  std::shared_lock<std::shared_mutex> lock(m_mutex);
+  return m_levels.empty();
 }
 
 template <typename Comparator> void LockFreePriceMap<Comparator>::clear() {
-  WriteGuard guard(m_writeLock);
-
-  PriceMap* current = m_current.load(std::memory_order_acquire);
-
-  // Create a new empty map
-  m_new = new PriceMap();
-
-  // Publish the new map
-  m_current.store(m_new, std::memory_order_release);
-
-  // Wait for any ongoing readers to finish
-  while (current->readers.load(std::memory_order_acquire) > 0) {
-    // Busy-wait instead of std::this_thread::yield()
-  }
-
-  // Delete the old map
-  delete current;
-  m_new = nullptr;
+  std::unique_lock<std::shared_mutex> lock(m_mutex);
+  m_levels.clear();
 }
 
 template <typename Comparator>
@@ -455,10 +338,9 @@ void LockFreePriceMap<Comparator>::forEachLevel(
     const std::function<void(double, std::shared_ptr<LockFreePriceLevel>)>&
         func) const {
 
-  PriceMap* current = m_current.load(std::memory_order_acquire);
-  ReadGuard guard(*current);
+  std::shared_lock<std::shared_mutex> lock(m_mutex);
 
-  for (const auto& pair : current->levels) {
+  for (const auto& pair : m_levels) {
     func(pair.first, pair.second);
   }
 }
@@ -488,7 +370,7 @@ private:
   // Callbacks for updates
   using OrderBookUpdateCallback = std::function<void(const LockFreeOrderBook&)>;
   std::vector<OrderBookUpdateCallback> m_updateCallbacks;
-  std::atomic_flag m_callbackLock = ATOMIC_FLAG_INIT;
+  mutable std::mutex m_callbackMutex;
 
 public:
   // Constructor

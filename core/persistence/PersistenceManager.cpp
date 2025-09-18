@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 namespace pinnacle {
 namespace persistence {
@@ -27,8 +28,7 @@ bool PersistenceManager::initialize(const std::string& dataDirectory) {
 
   // Create necessary directories
   if (!createDirectories()) {
-    std::cerr << "Failed to create data directories: " << dataDirectory
-              << std::endl;
+    spdlog::error("Failed to create data directories: {}", dataDirectory);
     return false;
   }
 
@@ -60,8 +60,7 @@ PersistenceManager::getJournal(const std::string& symbol) {
 
     return journal;
   } catch (const std::exception& e) {
-    std::cerr << "Failed to create journal for " << symbol << ": " << e.what()
-              << std::endl;
+    spdlog::error("Failed to create journal for {}: {}", symbol, e.what());
     return nullptr;
   }
 }
@@ -90,8 +89,8 @@ PersistenceManager::getSnapshotManager(const std::string& symbol) {
 
     return snapshotManager;
   } catch (const std::exception& e) {
-    std::cerr << "Failed to create snapshot manager for " << symbol << ": "
-              << e.what() << std::endl;
+    spdlog::error("Failed to create snapshot manager for {}: {}", symbol,
+                  e.what());
     return nullptr;
   }
 }
@@ -163,7 +162,7 @@ bool PersistenceManager::createDirectories() {
 
     return true;
   } catch (const std::exception& e) {
-    std::cerr << "Failed to create directories: " << e.what() << std::endl;
+    spdlog::error("Failed to create directories: {}", e.what());
     return false;
   }
 }

@@ -39,6 +39,7 @@ Testing/
 *.pdb
 
 # Data files
+data/
 data/*.csv
 data/*.json
 *.log

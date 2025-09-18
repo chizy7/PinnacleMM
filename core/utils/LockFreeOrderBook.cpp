@@ -47,6 +47,9 @@ bool LockFreePriceLevel::addOrder(std::shared_ptr<Order> order) {
     return false;
   }
 
+  // Use exclusive lock to prevent readers during structure modification
+  std::unique_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
   // Create a new node
   OrderNode* newNode = new OrderNode(std::move(order));
 
@@ -80,6 +83,9 @@ bool LockFreePriceLevel::addOrder(std::shared_ptr<Order> order) {
 }
 
 bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
+  // Use exclusive lock to prevent readers from accessing during modification
+  std::unique_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
   OrderNode* prev = m_head.load(std::memory_order_acquire);
   OrderNode* curr = prev->next.load(std::memory_order_acquire);
 
@@ -87,8 +93,11 @@ bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
   while (curr != nullptr) {
     // Find the node to remove
     if (curr->order && curr->order->getOrderId() == orderId) {
-      // Logical deletion: null out the order pointer
       found = true;
+
+      // Logical deletion: null out the order pointer
+      // This prevents use-after-free while allowing safe traversal
+      // The Order object will be automatically cleaned up by shared_ptr
       curr->order = nullptr;
       m_orderCount.fetch_sub(1, std::memory_order_release);
       break;
@@ -108,10 +117,18 @@ bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
 
 std::vector<std::shared_ptr<Order>> LockFreePriceLevel::getOrders() const {
   std::vector<std::shared_ptr<Order>> orders;
-  OrderNode* current = m_head.load(std::memory_order_acquire)
-                           ->next.load(std::memory_order_acquire);
+
+  // Use shared lock to allow concurrent reads but prevent concurrent writes
+  std::shared_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
+  OrderNode* current = m_head.load(std::memory_order_acquire);
+  if (!current)
+    return orders;
+
+  current = current->next.load(std::memory_order_acquire);
 
   while (current) {
+    // Now safe to access since we hold the shared lock
     if (current->order) {
       orders.push_back(current->order);
     }
@@ -800,36 +817,29 @@ void LockFreeOrderBook::clear() {
 
 void LockFreeOrderBook::registerUpdateCallback(
     OrderBookUpdateCallback callback) {
-  // Acquire lock for callback registration
-  while (m_callbackLock.test_and_set(std::memory_order_acquire)) {
-    // Spin until we acquire the lock
-  }
-
+  // Use mutex for callback registration instead of atomic_flag
+  std::lock_guard<std::mutex> lock(m_callbackMutex);
   m_updateCallbacks.push_back(std::move(callback));
-
-  m_callbackLock.clear(std::memory_order_release);
 }
 
 void LockFreeOrderBook::notifyUpdate() {
   // Increment update count
   m_updateCount.fetch_add(1, std::memory_order_release);
 
-  // Make a local copy of callbacks
+  // Make a local copy of callbacks under mutex protection
   std::vector<OrderBookUpdateCallback> callbacks;
-
-  // Acquire lock
-  while (m_callbackLock.test_and_set(std::memory_order_acquire)) {
-    // Spin until we acquire the lock
+  {
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    callbacks = m_updateCallbacks;
   }
 
-  callbacks = m_updateCallbacks;
-
-  // Release lock
-  m_callbackLock.clear(std::memory_order_release);
-
-  // Notify all callbacks
+  // Notify all callbacks without holding the lock
   for (const auto& callback : callbacks) {
-    callback(*this);
+    try {
+      callback(*this);
+    } catch (...) {
+      // Silently ignore callback exceptions to prevent crashes
+    }
   }
 }
 

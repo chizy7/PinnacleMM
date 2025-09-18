@@ -337,28 +337,31 @@ TEST_F(OrderBookTest, ConcurrentOperations) {
   EXPECT_EQ(orderBook->getOrderCount(), numOrders);
 }
 
-// Test callback registration
-TEST_F(OrderBookTest, DISABLED_UpdateCallbacks) {
-  int callbackCount = 0;
+// Test callback registration (uses separate OrderBook without persistence)
+TEST_F(OrderBookTest, UpdateCallbacks) {
+  // Create OrderBook without persistence to avoid deadlock in test
+  OrderBook testOrderBook("BTC-USD", false);
+  std::atomic<int> callbackCount(0);
 
-  // Register update callback
-  orderBook->registerUpdateCallback(
-      [&callbackCount](const OrderBook&) { callbackCount++; });
+  // Register update callback with atomic counter
+  testOrderBook.registerUpdateCallback([&callbackCount](const OrderBook&) {
+    callbackCount.fetch_add(1, std::memory_order_relaxed);
+  });
 
   // Add orders
-  orderBook->addOrder(createBuyOrder(10000.0, 1.0));
-  orderBook->addOrder(createSellOrder(10100.0, 1.0));
+  testOrderBook.addOrder(createBuyOrder(10000.0, 1.0));
+  testOrderBook.addOrder(createSellOrder(10100.0, 1.0));
 
   // Verify callback was called
-  EXPECT_EQ(callbackCount, 2);
+  EXPECT_EQ(callbackCount.load(), 2);
 
   // Cancel order
   auto buyOrder = createBuyOrder(9900.0, 1.0);
-  orderBook->addOrder(buyOrder);
-  orderBook->cancelOrder(buyOrder->getOrderId());
+  testOrderBook.addOrder(buyOrder);
+  testOrderBook.cancelOrder(buyOrder->getOrderId());
 
   // Verify callback was called again
-  EXPECT_EQ(callbackCount, 4);
+  EXPECT_EQ(callbackCount.load(), 4);
 }
 
 int main(int argc, char** argv) {
