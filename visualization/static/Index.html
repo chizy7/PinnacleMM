@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PinnacleMM - Strategy Performance Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <h1>PinnacleMM</h1>
+                    <span class="subtitle">Strategy Performance Dashboard</span>
+                </div>
+                <div class="status-section">
+                    <div class="status-indicator" id="connection-status">
+                        <div class="status-dot disconnected"></div>
+                        <span>Connecting...</span>
+                    </div>
+                    <div class="server-time" id="server-time">--:--:--</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <main class="dashboard-main">
+            <!-- Strategy Selector -->
+            <section class="strategy-selector">
+                <label for="strategy-select">Strategy:</label>
+                <select id="strategy-select">
+                    <option value="">Select Strategy...</option>
+                </select>
+                <button id="refresh-strategies" class="btn btn-secondary">Refresh</button>
+            </section>
+
+            <!-- Key Metrics Overview -->
+            <section class="metrics-overview">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3>Total P&L</h3>
+                    </div>
+                    <div class="metric-value" id="total-pnl">$0.00</div>
+                    <div class="metric-change" id="pnl-change">+0.00%</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3>Sharpe Ratio</h3>
+                    </div>
+                    <div class="metric-value" id="sharpe-ratio">0.00</div>
+                    <div class="metric-change" id="sharpe-change">+0.00</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3>Max Drawdown</h3>
+                    </div>
+                    <div class="metric-value" id="max-drawdown">0.00%</div>
+                    <div class="metric-change" id="drawdown-change">+0.00%</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3>Win Rate</h3>
+                    </div>
+                    <div class="metric-value" id="win-rate">0.00%</div>
+                    <div class="metric-change" id="winrate-change">+0.00%</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3>Total Trades</h3>
+                    </div>
+                    <div class="metric-value" id="total-trades">0</div>
+                    <div class="metric-change" id="trades-change">+0</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3>ML Accuracy</h3>
+                    </div>
+                    <div class="metric-value" id="ml-accuracy">0.00%</div>
+                    <div class="metric-change" id="ml-change">+0.00%</div>
+                </div>
+            </section>
+
+            <!-- Chart Tabs -->
+            <section class="chart-section">
+                <div class="chart-tabs">
+                    <button class="tab-button active" data-tab="performance">Performance</button>
+                    <button class="tab-button" data-tab="ml-metrics">ML Metrics</button>
+                    <button class="tab-button" data-tab="regime">Market Regime</button>
+                    <button class="tab-button" data-tab="risk">Risk Analysis</button>
+                    <button class="tab-button" data-tab="backtests">Backtests</button>
+                </div>
+
+                <!-- Performance Tab -->
+                <div id="performance-tab" class="tab-content active">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3>P&L Over Time</h3>
+                            <div class="chart-controls">
+                                <select id="pnl-timeframe">
+                                    <option value="1h">1 Hour</option>
+                                    <option value="4h">4 Hours</option>
+                                    <option value="1d" selected>1 Day</option>
+                                    <option value="1w">1 Week</option>
+                                </select>
+                            </div>
+                        </div>
+                        <canvas id="pnl-chart"></canvas>
+                    </div>
+
+                    <div class="chart-row">
+                        <div class="chart-container half">
+                            <div class="chart-header">
+                                <h3>Position Size</h3>
+                            </div>
+                            <canvas id="position-chart"></canvas>
+                        </div>
+
+                        <div class="chart-container half">
+                            <div class="chart-header">
+                                <h3>Sharpe Ratio</h3>
+                            </div>
+                            <canvas id="sharpe-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ML Metrics Tab -->
+                <div id="ml-metrics-tab" class="tab-content">
+                    <div class="chart-row">
+                        <div class="chart-container half">
+                            <div class="chart-header">
+                                <h3>ML Model Accuracy</h3>
+                            </div>
+                            <canvas id="ml-accuracy-chart"></canvas>
+                        </div>
+
+                        <div class="chart-container half">
+                            <div class="chart-header">
+                                <h3>Prediction Latency</h3>
+                            </div>
+                            <canvas id="prediction-latency-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="ml-status-grid">
+                        <div class="ml-status-card">
+                            <h4>Model Status</h4>
+                            <div class="status-indicator" id="ml-model-status">
+                                <div class="status-dot"></div>
+                                <span>Checking...</span>
+                            </div>
+                        </div>
+
+                        <div class="ml-status-card">
+                            <h4>Total Predictions</h4>
+                            <div class="status-value" id="ml-predictions">0</div>
+                        </div>
+
+                        <div class="ml-status-card">
+                            <h4>Retrain Count</h4>
+                            <div class="status-value" id="ml-retrains">0</div>
+                        </div>
+
+                        <div class="ml-status-card">
+                            <h4>Avg Prediction Time</h4>
+                            <div class="status-value" id="ml-pred-time">0.00μs</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Market Regime Tab -->
+                <div id="regime-tab" class="tab-content">
+                    <div class="regime-overview">
+                        <div class="current-regime">
+                            <h3>Current Market Regime</h3>
+                            <div class="regime-display">
+                                <div class="regime-name" id="current-regime">UNKNOWN</div>
+                                <div class="regime-confidence">
+                                    <span>Confidence: </span>
+                                    <span id="regime-confidence">0%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="regime-chart-container">
+                            <canvas id="regime-history-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="regime-details">
+                        <div class="regime-metrics">
+                            <h4>Regime Metrics</h4>
+                            <div class="metric-row">
+                                <span>Trend Strength:</span>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="trend-strength" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="metric-row">
+                                <span>Volatility:</span>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="volatility-level" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="metric-row">
+                                <span>Mean Reversion:</span>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="mean-reversion" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Analysis Tab -->
+                <div id="risk-tab" class="tab-content">
+                    <div class="chart-row">
+                        <div class="chart-container half">
+                            <div class="chart-header">
+                                <h3>Drawdown Analysis</h3>
+                            </div>
+                            <canvas id="drawdown-chart"></canvas>
+                        </div>
+
+                        <div class="chart-container half">
+                            <div class="chart-header">
+                                <h3>Value at Risk (VaR)</h3>
+                            </div>
+                            <div class="var-display">
+                                <div class="var-metric">
+                                    <span class="var-label">VaR 95%:</span>
+                                    <span class="var-value" id="var-95">$0.00</span>
+                                </div>
+                                <div class="var-metric">
+                                    <span class="var-label">VaR 99%:</span>
+                                    <span class="var-value" id="var-99">$0.00</span>
+                                </div>
+                                <div class="var-metric">
+                                    <span class="var-label">Expected Shortfall:</span>
+                                    <span class="var-value" id="expected-shortfall">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Backtests Tab -->
+                <div id="backtests-tab" class="tab-content">
+                    <div class="backtest-controls">
+                        <button id="run-backtest" class="btn btn-primary">Run New Backtest</button>
+                        <button id="refresh-backtests" class="btn btn-secondary">Refresh Results</button>
+                    </div>
+
+                    <div class="backtest-results">
+                        <table id="backtest-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Total Return</th>
+                                    <th>Sharpe Ratio</th>
+                                    <th>Max Drawdown</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Backtest results will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- WebSocket Connection Modal -->
+        <div id="connection-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Connection Settings</h3>
+                <div class="form-group">
+                    <label for="ws-host">WebSocket Host:</label>
+                    <input type="text" id="ws-host" value="localhost:8080">
+                </div>
+                <div class="form-group">
+                    <label for="api-host">API Host:</label>
+                    <input type="text" id="api-host" value="localhost:8081">
+                </div>
+                <div class="modal-actions">
+                    <button id="connect-btn" class="btn btn-primary">Connect</button>
+                    <button id="cancel-btn" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading...</div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

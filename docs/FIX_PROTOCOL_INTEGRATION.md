@@ -33,7 +33,7 @@ PinnacleMM now supports FIX (Financial Information eXchange) protocol for connec
 ## Supported Exchanges
 
 ### Currently Implemented
-- ✅ **Interactive Brokers** - Full implementation with FIX 4.2 support
+- **Interactive Brokers** - Full implementation with FIX 4.2 support
 
 ### Planned Implementation
 - 🔄 **Coinbase Pro** - FIX 4.4 support for institutional clients

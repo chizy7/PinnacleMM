@@ -121,6 +121,8 @@ PinnacleMM supports the following command line options:
 - `--logfile <file>`: Log file (default: pinnaclemm.log)
 - `--verbose`: Enable verbose output with real-time market data
 - `--lock-free`: Use lock-free data structures (default: enabled)
+- `--json-log`: Enable JSON structured data export (JSONL format)
+- `--json-log-file <file>`: JSON log file path (default: pinnaclemm_data.jsonl)
 
 ### Example Configuration
 

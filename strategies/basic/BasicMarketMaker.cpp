@@ -1,5 +1,7 @@
 #include "BasicMarketMaker.h"
 #include "../../core/utils/TimeUtils.h"
+#include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cmath>
@@ -164,6 +166,46 @@ void BasicMarketMaker::onOrderUpdate(const std::string& orderId,
   m_eventCondition.notify_one();
 }
 
+void BasicMarketMaker::onMarketUpdate(
+    const pinnacle::exchange::MarketUpdate& update) {
+  if (update.symbol != m_symbol) {
+    return; // Ignore updates for other symbols
+  }
+
+  spdlog::debug("Strategy received ticker update for {}: price={:.2f}, "
+                "volume={:.6f}, bid={:.2f}, ask={:.2f}",
+                update.symbol, update.price, update.volume, update.bidPrice,
+                update.askPrice);
+
+  // Update strategy statistics for ticker processing
+  {
+    std::lock_guard<std::mutex> lock(m_statsMutex);
+    m_stats.quoteUpdateCount++;
+  }
+
+  // Log strategy metrics to JSON if enabled
+  if (m_jsonLogger) {
+    nlohmann::json metrics = {{"strategy_name", "BasicMarketMaker"},
+                              {"quote_updates", m_stats.quoteUpdateCount},
+                              {"position", m_position.load()},
+                              {"pnl", m_pnl.load()},
+                              {"market_price", update.price},
+                              {"bid_price", update.bidPrice},
+                              {"ask_price", update.askPrice},
+                              {"volume", update.volume}};
+    m_jsonLogger->logStrategyMetrics("BasicMarketMaker", m_symbol, metrics);
+  }
+
+  // Here I could add logic to:
+  // - Update internal market state tracking
+  // - Adjust spread parameters based on market volatility
+  // - Trigger rebalancing based on price movements
+  // - Update ML features if using enhanced strategies
+
+  // For now, I'll just log the ticker data reception
+  // This confirms the callback registration is working
+}
+
 std::string BasicMarketMaker::getStatistics() const {
   // Lock for thread safety
   std::lock_guard<std::mutex> lock(m_statsMutex);
@@ -208,7 +250,7 @@ bool BasicMarketMaker::updateConfig(const StrategyConfig& config) {
   if (!config.validate(errorReason)) {
     // Log the error reason for debugging
     // In a production system, this would use a proper logging framework
-    // such as the spdlog we've integrated in main.cpp
+    // such as the spdlog I've integrated in main.cpp
     std::cerr << "Invalid configuration update: " << errorReason << std::endl;
     return false;
   }
@@ -531,6 +573,11 @@ double BasicMarketMaker::calculateInventorySkewFactor() const {
 
   // Apply inventory skew factor (0-1)
   return m_config.inventorySkewFactor * positionRatio;
+}
+
+void BasicMarketMaker::setJsonLogger(
+    std::shared_ptr<utils::JsonLogger> jsonLogger) {
+  m_jsonLogger = jsonLogger;
 }
 
 } // namespace strategy

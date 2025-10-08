@@ -613,7 +613,7 @@ void FixConnector::handleTestRequest(const hffix::message_reader& msg) {
 
 void FixConnector::handleResendRequest(const hffix::message_reader& msg) {
   // For simplicity, we'll just ignore resend requests for now
-  // In a production system, you'd need to store and resend messages
+  // In a production system, I'd need to store and resend messages
 }
 
 } // namespace fix

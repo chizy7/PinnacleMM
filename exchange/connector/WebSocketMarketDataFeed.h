@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../core/utils/JsonLogger.h"
 #include "../../core/utils/LockFreeQueue.h"
 #include "../../exchange/simulator/MarketDataFeed.h"
 #include "SecureConfig.h"
@@ -94,6 +95,13 @@ public:
    */
   std::string getStatusMessage() const;
 
+  /**
+   * @brief Set JSON logger for structured data export
+   *
+   * @param jsonLogger Shared pointer to JsonLogger instance
+   */
+  void setJsonLogger(std::shared_ptr<utils::JsonLogger> jsonLogger);
+
 private:
   // Exchange information
   Exchange m_exchange;
@@ -122,6 +130,11 @@ private:
   std::string m_statusMessage;
   mutable std::mutex m_statusMutex;
 
+  // Reconnection handling
+  int m_reconnectAttempts{0};
+  int m_maxReconnectAttempts{5};
+  int m_reconnectDelay{2000}; // milliseconds
+
   // Subscription management
   std::unordered_map<std::string,
                      std::vector<std::function<void(const MarketUpdate&)>>>
@@ -136,9 +149,13 @@ private:
   std::thread m_processingThread;
   utils::LockFreeMPMCQueue<std::string, 1024> m_messageQueue;
 
+  // JSON logging
+  std::shared_ptr<utils::JsonLogger> m_jsonLogger;
+
   // Internal methods
   void initialize();
   void connectWebSocket();
+  void connectWithRetry();
   void disconnectWebSocket();
   void processMessages();
 
@@ -157,6 +174,11 @@ private:
   bool sendSubscription(const std::string& symbol);
   bool sendSubscriptionInternal(const std::string& symbol);
   std::string createSubscriptionMessage(const std::string& symbol);
+  std::string createSubscriptionMessage(const std::string& symbol,
+                                        const std::string& channel);
+  std::string createSubscriptionMessage(const std::string& symbol,
+                                        const std::string& channel,
+                                        bool requiresAuth);
   std::string createAuthenticationMessage();
 
   // Timer creation helper method

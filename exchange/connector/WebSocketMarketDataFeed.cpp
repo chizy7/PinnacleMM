@@ -69,13 +69,24 @@ std::string generateNonce() {
   return ss.str();
 }
 
-// Create Coinbase JWT
+// HMAC-SHA256 helper for JWT signing
+std::string hmacSha256(const std::string& data, const std::string& key) {
+  unsigned char hash[EVP_MAX_MD_SIZE];
+  unsigned int hashLen;
+
+  HMAC(EVP_sha256(), key.c_str(), key.length(),
+       reinterpret_cast<const unsigned char*>(data.c_str()), data.length(),
+       hash, &hashLen);
+
+  return std::string(reinterpret_cast<char*>(hash), hashLen);
+}
+
+// Create Coinbase JWT with proper HMAC-SHA256 signing
 std::string createCoinbaseJWT(const std::string& apiKey,
                               const std::string& apiSecret) {
-  (void)apiSecret; // Suppress unused parameter warning
-  // JWT Header
-  nlohmann::json header = {
-      {"alg", "ES256"}, {"kid", apiKey}, {"nonce", generateNonce()}};
+  // JWT Header for HS256 (HMAC-SHA256) - Coinbase Advanced Trade uses HS256,
+  // not ES256
+  nlohmann::json header = {{"alg", "HS256"}, {"typ", "JWT"}};
 
   // JWT Payload
   auto now = std::chrono::duration_cast<std::chrono::seconds>(
@@ -92,10 +103,14 @@ std::string createCoinbaseJWT(const std::string& apiKey,
   std::string encodedHeader = base64UrlEncode(header.dump());
   std::string encodedPayload = base64UrlEncode(payload.dump());
 
-  // Create signature (simplified - in production use proper ES256)
-  std::string signature = base64UrlEncode("placeholder_signature");
+  // Create signature data
+  std::string signatureData = encodedHeader + "." + encodedPayload;
 
-  return encodedHeader + "." + encodedPayload + "." + signature;
+  // Sign with HMAC-SHA256
+  std::string signature = hmacSha256(signatureData, apiSecret);
+  std::string encodedSignature = base64UrlEncode(signature);
+
+  return signatureData + "." + encodedSignature;
 }
 
 WebSocketMarketDataFeed::WebSocketMarketDataFeed(
@@ -132,24 +147,18 @@ bool WebSocketMarketDataFeed::start() {
 
   spdlog::info("Starting WebSocket connection to {}", m_endpoint);
   m_shouldStop.store(false, std::memory_order_release);
+  m_reconnectAttempts = 0;
 
-  try {
-    connectWebSocket();
-    m_processingThread =
-        std::thread(&WebSocketMarketDataFeed::processMessages, this);
-    m_isRunning.store(true, std::memory_order_release);
+  // Start processing thread first
+  m_processingThread =
+      std::thread(&WebSocketMarketDataFeed::processMessages, this);
+  m_isRunning.store(true, std::memory_order_release);
 
-    std::lock_guard<std::mutex> lock(m_statusMutex);
-    m_statusMessage = "Connected to " + getExchangeName();
+  // Start connection attempts in background
+  std::thread([this]() { connectWithRetry(); }).detach();
 
-    spdlog::info("WebSocket started successfully");
-    return true;
-  } catch (const std::exception& e) {
-    spdlog::error("WebSocket start failed: {}", e.what());
-    std::lock_guard<std::mutex> lock(m_statusMutex);
-    m_statusMessage = "Failed to connect: " + std::string(e.what());
-    return false;
-  }
+  spdlog::info("WebSocket service started, attempting connection...");
+  return true;
 }
 
 bool WebSocketMarketDataFeed::stop() {
@@ -183,76 +192,131 @@ void WebSocketMarketDataFeed::initialize() {
   // Basic initialization - connection will be established in connectWebSocket()
 }
 
-void WebSocketMarketDataFeed::connectWebSocket() {
-  try {
-    spdlog::info("Attempting to connect to WebSocket endpoint: {}", m_endpoint);
+void WebSocketMarketDataFeed::connectWithRetry() {
+  while (!m_shouldStop.load(std::memory_order_acquire) &&
+         m_reconnectAttempts < m_maxReconnectAttempts) {
+    try {
+      connectWebSocket();
 
-    // Create WebSocket stream
-    tcp::resolver resolver(*m_io_context);
+      // Connection successful
+      m_reconnectAttempts = 0;
+      {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Connected to " + getExchangeName();
+      }
+      spdlog::info("WebSocket connected successfully to {}", m_endpoint);
+      return;
 
-    // Parse endpoint
-    std::string host, port = "443", path = "/";
-    if (m_endpoint.find("wss://") == 0) {
-      std::string temp = m_endpoint.substr(6); // Remove "wss://"
-      auto pathPos = temp.find('/');
-      if (pathPos != std::string::npos) {
-        host = temp.substr(0, pathPos);
-        path = temp.substr(pathPos);
-      } else {
-        host = temp;
+    } catch (const std::exception& e) {
+      m_reconnectAttempts++;
+      {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_statusMessage = "Connection failed (attempt " +
+                          std::to_string(m_reconnectAttempts) + "/" +
+                          std::to_string(m_maxReconnectAttempts) +
+                          "): " + std::string(e.what());
+      }
+
+      spdlog::error("WebSocket connection attempt {} failed: {}",
+                    m_reconnectAttempts, e.what());
+
+      if (m_reconnectAttempts < m_maxReconnectAttempts) {
+        spdlog::info("Retrying connection in {} seconds...",
+                     m_reconnectDelay / 1000);
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(m_reconnectDelay));
+        // Exponential backoff with jitter
+        m_reconnectDelay =
+            std::min(m_reconnectDelay * 2, 30000); // Max 30 seconds
       }
     }
-
-    spdlog::info("Connecting to host: {}, port: {}, path: {}", host, port,
-                 path);
-
-    // Resolve host
-    auto const results = resolver.resolve(host, port);
-    spdlog::info("DNS resolution successful");
-
-    // Create SSL stream and WebSocket
-    auto ssl_stream = std::make_unique<boost::asio::ssl::stream<tcp::socket>>(
-        *m_io_context, *m_ssl_context);
-
-    // Connect TCP
-    boost::asio::connect(ssl_stream->lowest_layer(), results);
-    spdlog::info("TCP connection established");
-
-    // Set SNI hostname
-    if (!SSL_set_tlsext_host_name(ssl_stream->native_handle(), host.c_str())) {
-      throw std::runtime_error("Failed to set SNI hostname");
-    }
-
-    // Perform SSL handshake
-    ssl_stream->handshake(boost::asio::ssl::stream_base::client);
-    spdlog::info("SSL handshake completed");
-
-    // Create WebSocket stream
-    m_websocket = std::make_unique<websocket_stream>(std::move(*ssl_stream));
-
-    // Set WebSocket options
-    m_websocket->set_option(boost::beast::websocket::stream_base::decorator(
-        [](boost::beast::websocket::request_type& req) {
-          req.set(boost::beast::http::field::user_agent, "PinnacleMM/1.0");
-        }));
-
-    // Perform WebSocket handshake
-    m_websocket->handshake(host, path);
-    spdlog::info("WebSocket handshake completed");
-
-    spdlog::info("WebSocket connected to {}", m_endpoint);
-
-    // Send pending subscriptions
-    for (const auto& symbol : m_pendingSubscriptions) {
-      sendSubscriptionInternal(symbol);
-    }
-    m_pendingSubscriptions.clear();
-
-  } catch (const std::exception& e) {
-    spdlog::error("WebSocket connection error: {}", e.what());
-    throw std::runtime_error("WebSocket connection failed: " +
-                             std::string(e.what()));
   }
+
+  if (m_reconnectAttempts >= m_maxReconnectAttempts) {
+    std::lock_guard<std::mutex> lock(m_statusMutex);
+    m_statusMessage = "Connection failed after " +
+                      std::to_string(m_maxReconnectAttempts) + " attempts";
+    spdlog::error("WebSocket connection failed after {} attempts",
+                  m_maxReconnectAttempts);
+  }
+}
+
+void WebSocketMarketDataFeed::connectWebSocket() {
+  spdlog::info("Attempting to connect to WebSocket endpoint: {}", m_endpoint);
+
+  // Create WebSocket stream
+  tcp::resolver resolver(*m_io_context);
+
+  // Parse endpoint
+  std::string host, port = "443", path = "/";
+  if (m_endpoint.find("wss://") == 0) {
+    std::string temp = m_endpoint.substr(6); // Remove "wss://"
+    auto pathPos = temp.find('/');
+    if (pathPos != std::string::npos) {
+      host = temp.substr(0, pathPos);
+      path = temp.substr(pathPos);
+    } else {
+      host = temp;
+    }
+  }
+
+  spdlog::info("Connecting to host: {}, port: {}, path: {}", host, port, path);
+
+  // Resolve host
+  boost::system::error_code resolve_ec;
+  auto const results = resolver.resolve(host, port, resolve_ec);
+  if (resolve_ec) {
+    throw std::runtime_error("DNS resolution failed: " + resolve_ec.message());
+  }
+  spdlog::info("DNS resolution successful");
+
+  // Create SSL stream and WebSocket
+  auto ssl_stream = std::make_unique<boost::asio::ssl::stream<tcp::socket>>(
+      *m_io_context, *m_ssl_context);
+
+  // Connect TCP
+  boost::system::error_code connect_ec;
+  boost::asio::connect(ssl_stream->lowest_layer(), results, connect_ec);
+  if (connect_ec) {
+    throw std::runtime_error("TCP connection failed: " + connect_ec.message());
+  }
+  spdlog::info("TCP connection established");
+
+  // Set SNI hostname
+  if (!SSL_set_tlsext_host_name(ssl_stream->native_handle(), host.c_str())) {
+    throw std::runtime_error("Failed to set SNI hostname");
+  }
+
+  // Perform SSL handshake
+  boost::system::error_code ssl_ec;
+  ssl_stream->handshake(boost::asio::ssl::stream_base::client, ssl_ec);
+  if (ssl_ec) {
+    throw std::runtime_error("SSL handshake failed: " + ssl_ec.message());
+  }
+  spdlog::info("SSL handshake completed");
+
+  // Create WebSocket stream
+  m_websocket = std::make_unique<websocket_stream>(std::move(*ssl_stream));
+
+  // Set WebSocket options
+  m_websocket->set_option(boost::beast::websocket::stream_base::decorator(
+      [](boost::beast::websocket::request_type& req) {
+        req.set(boost::beast::http::field::user_agent, "PinnacleMM/1.0");
+      }));
+
+  // Perform WebSocket handshake
+  boost::beast::error_code ws_ec;
+  m_websocket->handshake(host, path, ws_ec);
+  if (ws_ec) {
+    throw std::runtime_error("WebSocket handshake failed: " + ws_ec.message());
+  }
+  spdlog::info("WebSocket handshake completed");
+
+  // Send pending subscriptions
+  for (const auto& symbol : m_pendingSubscriptions) {
+    sendSubscriptionInternal(symbol);
+  }
+  m_pendingSubscriptions.clear();
 }
 
 void WebSocketMarketDataFeed::disconnectWebSocket() {
@@ -302,18 +366,31 @@ void WebSocketMarketDataFeed::processMessages() {
 
 void WebSocketMarketDataFeed::onConnect() {
   spdlog::info("WebSocket connected to {}", getExchangeName());
+  if (m_jsonLogger) {
+    m_jsonLogger->logConnectionEvent("connected", getExchangeName());
+  }
 }
 
 void WebSocketMarketDataFeed::onDisconnect() {
   spdlog::info("WebSocket disconnected from {}", getExchangeName());
+  if (m_jsonLogger) {
+    m_jsonLogger->logConnectionEvent("disconnected", getExchangeName());
+  }
 }
 
 void WebSocketMarketDataFeed::onError(const std::string& error) {
   spdlog::error("WebSocket error: {}", error);
+  if (m_jsonLogger) {
+    m_jsonLogger->logConnectionEvent("error", getExchangeName(), error);
+  }
 }
 
 void WebSocketMarketDataFeed::onMessage(const std::string& message) {
   try {
+    // Always log full message at info level for debugging Coinbase issue
+    spdlog::info("WebSocket received message (length: {}): {}",
+                 message.length(), message);
+
     spdlog::debug("Received message: {}",
                   message.substr(0, 200) +
                       (message.length() > 200 ? "..." : ""));
@@ -336,19 +413,37 @@ bool WebSocketMarketDataFeed::sendSubscription(const std::string& symbol) {
 bool WebSocketMarketDataFeed::sendSubscriptionInternal(
     const std::string& symbol) {
   try {
-    std::string subscriptionMessage = createSubscriptionMessage(symbol);
-    spdlog::info("Sending subscription for {}: {}", symbol,
-                 subscriptionMessage);
+    // Coinbase Advanced Trade requires separate subscription for each channel
+    // Try public channels first (no auth), then authenticated channels
+    std::vector<std::pair<std::string, bool>> channels = {
+        {"heartbeats", true}, // heartbeats requires authentication
+        {"ticker", false},    // try ticker without auth first (public data)
+        {"level2", false}     // try level2 without auth first (public data)
+    };
 
-    boost::beast::error_code ec;
-    m_websocket->write(boost::asio::buffer(subscriptionMessage), ec);
+    for (const auto& channelPair : channels) {
+      const std::string& channel = channelPair.first;
+      bool requiresAuth = channelPair.second;
 
-    if (ec) {
-      throw std::runtime_error("Failed to send subscription message: " +
-                               ec.message());
+      std::string subscriptionMessage =
+          createSubscriptionMessage(symbol, channel, requiresAuth);
+      spdlog::info("Sending {} subscription for {} (auth: {}): {}", channel,
+                   symbol, requiresAuth, subscriptionMessage);
+
+      boost::beast::error_code ec;
+      m_websocket->write(boost::asio::buffer(subscriptionMessage), ec);
+
+      if (ec) {
+        throw std::runtime_error("Failed to send " + channel +
+                                 " subscription message: " + ec.message());
+      }
+
+      spdlog::info("{} subscription sent successfully for {}", channel, symbol);
+
+      // Small delay between subscriptions to avoid rate limiting
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    spdlog::info("Subscription sent successfully for {}", symbol);
     return true;
   } catch (const std::exception& e) {
     spdlog::error("Error sending subscription for {}: {}", symbol, e.what());
@@ -358,15 +453,42 @@ bool WebSocketMarketDataFeed::sendSubscriptionInternal(
   }
 }
 
-std::string
-WebSocketMarketDataFeed::createSubscriptionMessage(const std::string& symbol) {
+std::string WebSocketMarketDataFeed::createSubscriptionMessage(
+    const std::string& symbol, const std::string& channel, bool requiresAuth) {
   nlohmann::json message;
 
   switch (m_exchange) {
   case Exchange::COINBASE: {
-    message = {{"type", "subscribe"},
-               {"product_ids", {symbol}},
-               {"channels", {"ticker"}}};
+    // Get JWT token for authentication (fresh JWT for each subscription)
+    std::string jwt;
+    if (requiresAuth && m_credentials) {
+      auto apiKey = m_credentials->getApiKey("coinbase");
+      auto apiSecret = m_credentials->getApiSecret("coinbase");
+
+      if (apiKey && apiSecret) {
+        jwt = createCoinbaseJWT(*apiKey, *apiSecret);
+        spdlog::debug("Generated fresh JWT for {} channel subscription",
+                      channel);
+      } else {
+        spdlog::warn(
+            "No Coinbase credentials found for authenticated channel: {}",
+            channel);
+      }
+    }
+
+    // Coinbase Advanced Trade requires ONE channel per subscription
+    message = {
+        {"type", "subscribe"},
+        {"product_ids", {symbol}},
+        {"channel",
+         channel} // Single channel per subscription (API requirement)
+    };
+
+    // Add JWT only if authentication is required and JWT is available
+    if (requiresAuth && !jwt.empty()) {
+      message["jwt"] = jwt;
+    }
+
     break;
   }
 
@@ -377,12 +499,27 @@ WebSocketMarketDataFeed::createSubscriptionMessage(const std::string& symbol) {
   return message.dump();
 }
 
+// Overload for backward compatibility
+std::string
+WebSocketMarketDataFeed::createSubscriptionMessage(const std::string& symbol,
+                                                   const std::string& channel) {
+  // Default to requiring authentication for backward compatibility
+  return createSubscriptionMessage(symbol, channel, true);
+}
+
+// Overload for backward compatibility
+std::string
+WebSocketMarketDataFeed::createSubscriptionMessage(const std::string& symbol) {
+  // Default to level2 for backward compatibility
+  return createSubscriptionMessage(symbol, "level2", true);
+}
+
 // Implement remaining methods with simplified logic for now
 void WebSocketMarketDataFeed::initExchangeSpecifics() {
   switch (m_exchange) {
   case Exchange::COINBASE:
     m_exchangeName = "coinbase";
-    m_endpoint = "wss://ws-feed.exchange.coinbase.com";
+    m_endpoint = "wss://advanced-trade-ws.coinbase.com";
     m_useSSL = true;
     break;
   default:
@@ -413,6 +550,11 @@ void WebSocketMarketDataFeed::setAuthParams(const std::string& exchangeName) {
   }
 }
 
+void WebSocketMarketDataFeed::setJsonLogger(
+    std::shared_ptr<utils::JsonLogger> jsonLogger) {
+  m_jsonLogger = jsonLogger;
+}
+
 bool WebSocketMarketDataFeed::subscribeToMarketUpdates(
     const std::string& symbol,
     std::function<void(const MarketUpdate&)> callback) {
@@ -440,6 +582,11 @@ bool WebSocketMarketDataFeed::unsubscribeFromOrderBookUpdates(
 }
 
 void WebSocketMarketDataFeed::publishMarketUpdate(const MarketUpdate& update) {
+  // Log to JSON if enabled
+  if (m_jsonLogger) {
+    m_jsonLogger->logMarketUpdate(update);
+  }
+
   auto it = m_marketUpdateCallbacks.find(update.symbol);
   if (it != m_marketUpdateCallbacks.end()) {
     for (const auto& callback : it->second) {
@@ -450,6 +597,11 @@ void WebSocketMarketDataFeed::publishMarketUpdate(const MarketUpdate& update) {
 
 void WebSocketMarketDataFeed::publishOrderBookUpdate(
     const OrderBookUpdate& update) {
+  // Log to JSON if enabled
+  if (m_jsonLogger) {
+    m_jsonLogger->logOrderBookUpdate(update);
+  }
+
   auto it = m_orderBookUpdateCallbacks.find(update.symbol);
   if (it != m_orderBookUpdateCallbacks.end()) {
     for (const auto& callback : it->second) {
@@ -466,34 +618,131 @@ void WebSocketMarketDataFeed::parseMessage(const std::string& message) {
   try {
     auto json = nlohmann::json::parse(message);
 
-    // Handle Coinbase messages
-    if (json.contains("type")) {
-      std::string type = json["type"];
+    // Debug: Log the message structure for analysis
+    spdlog::info("Parsing JSON message with keys: [{}]", [&json]() {
+      std::string keys;
+      for (auto it = json.begin(); it != json.end(); ++it) {
+        if (!keys.empty())
+          keys += ", ";
+        keys += "\"" + it.key() + "\"";
+      }
+      return keys;
+    }());
 
-      if (type == "l2update" && json.contains("product_id")) {
-        // Order book update
-        OrderBookUpdate update = parseOrderBookUpdate(message);
+    // Handle Coinbase Advanced Trade messages
+    if (json.contains("channel")) {
+      std::string channel = json["channel"];
+      spdlog::info("Processing channel: {}", channel);
 
-        auto it = m_orderBookUpdateCallbacks.find(update.symbol);
-        if (it != m_orderBookUpdateCallbacks.end()) {
-          for (const auto& callback : it->second) {
-            callback(update);
+      if ((channel == "level2" || channel == "l2_data") &&
+          json.contains("events")) {
+        spdlog::info("Processing level2/l2_data events, count: {}",
+                     json["events"].size());
+        // Level 2 order book updates
+        for (const auto& event : json["events"]) {
+          if (event.contains("type") && event["type"] == "update") {
+            spdlog::info("Processing level2 update event");
+            OrderBookUpdate update = parseOrderBookUpdate(event.dump());
+
+            auto it = m_orderBookUpdateCallbacks.find(update.symbol);
+            if (it != m_orderBookUpdateCallbacks.end()) {
+              spdlog::info("Calling {} order book callbacks for {}",
+                           it->second.size(), update.symbol);
+              for (const auto& callback : it->second) {
+                callback(update);
+              }
+            } else {
+              spdlog::warn("No order book callbacks registered for symbol: {}",
+                           update.symbol);
+            }
+          } else {
+            spdlog::info("Level2 event type: {}",
+                         event.value("type", "unknown"));
           }
         }
+      } else if (channel == "ticker" && json.contains("events")) {
+        spdlog::info("Processing ticker events, count: {}",
+                     json["events"].size());
+        // Ticker updates
+        for (const auto& event : json["events"]) {
+          if (event.contains("tickers")) {
+            for (const auto& ticker : event["tickers"]) {
+              MarketUpdate update = parseMarketUpdate(ticker.dump());
+
+              auto it = m_marketUpdateCallbacks.find(update.symbol);
+              if (it != m_marketUpdateCallbacks.end()) {
+                spdlog::info("Calling {} market update callbacks for {}",
+                             it->second.size(), update.symbol);
+                for (const auto& callback : it->second) {
+                  callback(update);
+                }
+              } else {
+                spdlog::warn(
+                    "No market update callbacks registered for symbol: {}",
+                    update.symbol);
+              }
+            }
+          }
+        }
+      } else if (channel == "heartbeats" && json.contains("events")) {
+        // Handle heartbeat messages - these keep the connection alive
+        spdlog::debug("Received heartbeat message - connection is alive");
+        for (const auto& event : json["events"]) {
+          if (event.contains("heartbeat_counter")) {
+            spdlog::debug("Heartbeat #{}: {}",
+                          event.value("heartbeat_counter", 0),
+                          event.value("current_time", "unknown"));
+          }
+        }
+      } else if (channel == "subscriptions") {
+        // Handle subscription confirmation messages
+        spdlog::info("Subscription confirmation received: {}",
+                     message.substr(0, 300));
+      } else {
+        spdlog::warn(
+            "Unknown channel or missing events: channel={}, has_events={}",
+            channel, json.contains("events"));
+      }
+    }
+    // Handle subscription acknowledgments, errors, and original ticker messages
+    else if (json.contains("type")) {
+      std::string type = json["type"];
+      spdlog::info("Processing message type: {}", type);
+
+      if (type == "subscriptions") {
+        spdlog::info("Subscription confirmed: {}", message.substr(0, 200));
+      } else if (type == "error") {
+        std::string errorMsg = json.value("message", "Unknown error");
+        spdlog::error("WebSocket error from server: {}", errorMsg);
       } else if (type == "ticker" && json.contains("product_id")) {
-        // Market data update
+        // Handle original Coinbase ticker format for immediate price updates
+        spdlog::info("Processing ticker message for price update");
         MarketUpdate update = parseMarketUpdate(message);
 
         auto it = m_marketUpdateCallbacks.find(update.symbol);
         if (it != m_marketUpdateCallbacks.end()) {
+          spdlog::info("Calling {} market update callbacks for ticker data: {}",
+                       it->second.size(), update.symbol);
           for (const auto& callback : it->second) {
             callback(update);
           }
+        } else {
+          spdlog::warn(
+              "No market update callbacks registered for ticker symbol: {}",
+              update.symbol);
         }
+      } else if (type == "heartbeat") {
+        // Handle heartbeat messages to keep connection alive
+        spdlog::debug("Received heartbeat message - connection is alive");
+      } else {
+        spdlog::info("Unhandled message type: {}", type);
       }
+    } else {
+      spdlog::warn("Message has no 'channel' or 'type' field - unknown format");
     }
   } catch (const std::exception& e) {
     spdlog::error("Error parsing message: {}", e.what());
+    spdlog::debug("Problematic message: {}", message.substr(0, 500));
   }
 }
 
@@ -504,6 +753,7 @@ WebSocketMarketDataFeed::parseMarketUpdate(const std::string& message) {
   try {
     auto json = nlohmann::json::parse(message);
 
+    // Coinbase Advanced Trade ticker format
     if (json.contains("product_id")) {
       update.symbol = json["product_id"];
     }
@@ -512,8 +762,20 @@ WebSocketMarketDataFeed::parseMarketUpdate(const std::string& message) {
       update.price = std::stod(json["price"].get<std::string>());
     }
 
+    // Handle volume from various possible fields
     if (json.contains("last_size")) {
       update.volume = std::stod(json["last_size"].get<std::string>());
+    } else if (json.contains("volume_24_h")) {
+      update.volume = std::stod(json["volume_24_h"].get<std::string>());
+    }
+
+    // Parse additional ticker fields from Coinbase Advanced Trade
+    if (json.contains("best_bid")) {
+      update.bidPrice = std::stod(json["best_bid"].get<std::string>());
+    }
+
+    if (json.contains("best_ask")) {
+      update.askPrice = std::stod(json["best_ask"].get<std::string>());
     }
 
     update.timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -522,6 +784,7 @@ WebSocketMarketDataFeed::parseMarketUpdate(const std::string& message) {
 
   } catch (const std::exception& e) {
     spdlog::error("Error parsing market update: {}", e.what());
+    spdlog::debug("Problematic ticker message: {}", message.substr(0, 200));
   }
 
   return update;
@@ -534,20 +797,41 @@ WebSocketMarketDataFeed::parseOrderBookUpdate(const std::string& message) {
   try {
     auto json = nlohmann::json::parse(message);
 
+    // Advanced Trade format
     if (json.contains("product_id")) {
       update.symbol = json["product_id"];
     }
 
-    if (json.contains("changes")) {
+    // Parse updates array for Advanced Trade format
+    if (json.contains("updates")) {
+      for (const auto& updateItem : json["updates"]) {
+        if (updateItem.contains("side") && updateItem.contains("price_level") &&
+            updateItem.contains("new_quantity")) {
+          std::string side = updateItem["side"];
+          double price =
+              std::stod(updateItem["price_level"].get<std::string>());
+          double size =
+              std::stod(updateItem["new_quantity"].get<std::string>());
+
+          if (side == "bid") {
+            update.bids.emplace_back(price, size);
+          } else if (side == "offer") {
+            update.asks.emplace_back(price, size);
+          }
+        }
+      }
+    }
+    // Fallback for old format (legacy support)
+    else if (json.contains("changes")) {
       for (const auto& change : json["changes"]) {
         if (change.is_array() && change.size() >= 3) {
           std::string side = change[0];
           double price = std::stod(change[1].get<std::string>());
           double size = std::stod(change[2].get<std::string>());
 
-          if (side == "buy") {
+          if (side == "buy" || side == "bid") {
             update.bids.emplace_back(price, size);
-          } else if (side == "sell") {
+          } else if (side == "sell" || side == "offer") {
             update.asks.emplace_back(price, size);
           }
         }
@@ -560,6 +844,7 @@ WebSocketMarketDataFeed::parseOrderBookUpdate(const std::string& message) {
 
   } catch (const std::exception& e) {
     spdlog::error("Error parsing order book update: {}", e.what());
+    spdlog::debug("Problematic message: {}", message.substr(0, 500));
   }
 
   return update;

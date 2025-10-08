@@ -22,6 +22,8 @@ struct MarketUpdate {
   double volume;
   uint64_t timestamp;
   bool isBuy;
+  double bidPrice = 0.0;
+  double askPrice = 0.0;
 };
 
 /**

@@ -14,12 +14,26 @@ if(POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
 endif()
 
+# Address Sanitizer option for development/testing
+option(ENABLE_SANITIZERS "Enable Address Sanitizer for development and testing"
+       OFF)
+
 # Set compiler flags
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   set(CMAKE_CXX_FLAGS
       "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -march=native")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -DDEBUG")
+
+  # Add sanitizers for development builds
+  if(ENABLE_SANITIZERS)
+    message(STATUS "Address Sanitizer enabled for development/testing")
+    set(SANITIZER_FLAGS
+        "-fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${SANITIZER_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG
+        "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${SANITIZER_FLAGS}")
+  endif()
 endif()
 
 # Find required packages
@@ -132,6 +146,7 @@ endif()
 # Options
 option(BUILD_TESTS "Build test programs" ON)
 option(BUILD_BENCHMARKS "Build benchmarks" ON)
+option(BUILD_VISUALIZATION "Build visualization server" ON)
 option(USE_TBB "Use Intel TBB for parallel algorithms" OFF)
 option(USE_DPDK "Use DPDK for kernel bypass networking" OFF)
 option(USE_LOCK_FREE "Use lock-free data structures" ON)
@@ -168,6 +183,7 @@ set(CORE_SOURCES
     core/utils/InputValidator.cpp
     core/utils/CertificatePinner.cpp
     core/utils/AuditLogger.cpp
+    core/utils/JsonLogger.cpp
     core/utils/RateLimiter.cpp
     core/utils/LockFreeOrderBook.cpp
     core/orderbook/LockFreeOrderBook.cpp
@@ -178,8 +194,16 @@ set(CORE_SOURCES
     core/routing/OrderRouter.cpp)
 
 # Strategy library files
-set(STRATEGY_SOURCES strategies/basic/BasicMarketMaker.cpp
-                     strategies/config/StrategyConfig.cpp)
+set(STRATEGY_SOURCES
+    strategies/basic/BasicMarketMaker.cpp
+    strategies/basic/MLEnhancedMarketMaker.cpp
+    strategies/ml/MLSpreadOptimizer.cpp
+    strategies/analytics/OrderBookAnalyzer.cpp
+    strategies/analytics/MarketImpactPredictor.cpp
+    strategies/analytics/MarketRegimeDetector.cpp
+    strategies/rl/RLParameterAdapter.cpp
+    strategies/backtesting/BacktestEngine.cpp
+    strategies/config/StrategyConfig.cpp)
 
 # Exchange library files
 set(EXCHANGE_SOURCES
@@ -239,19 +263,51 @@ if(USE_DPDK)
   target_link_libraries(core PUBLIC ${DPDK_LIBRARIES})
 endif()
 
+# Create visualization library
+if(BUILD_VISUALIZATION)
+  set(VISUALIZATION_SOURCES visualization/WebServer.cpp)
+
+  add_library(visualization STATIC ${VISUALIZATION_SOURCES})
+  target_link_libraries(
+    visualization
+    PUBLIC core
+           strategy
+           Threads::Threads
+           Boost::system
+           Boost::filesystem
+           nlohmann_json::nlohmann_json
+           spdlog::spdlog
+           fmt::fmt)
+
+  target_include_directories(visualization PRIVATE ${WEBSOCKETPP_INCLUDE_DIRS})
+  target_compile_definitions(visualization PRIVATE ASIO_STANDALONE
+                                                   BUILD_VISUALIZATION)
+endif()
+
 # Main executable
 add_executable(pinnaclemm main.cpp)
-target_link_libraries(
-  pinnaclemm
-  core
-  strategy
-  exchange
-  Threads::Threads
-  Boost::system
-  Boost::filesystem
-  Boost::program_options
-  spdlog::spdlog
-  fmt::fmt)
+
+# Add BUILD_VISUALIZATION definition to main executable if visualization is
+# enabled
+if(BUILD_VISUALIZATION)
+  target_compile_definitions(pinnaclemm PRIVATE BUILD_VISUALIZATION)
+endif()
+set(PINNACLEMM_LIBS
+    core
+    strategy
+    exchange
+    Threads::Threads
+    Boost::system
+    Boost::filesystem
+    Boost::program_options
+    spdlog::spdlog
+    fmt::fmt)
+
+if(BUILD_VISUALIZATION)
+  list(APPEND PINNACLEMM_LIBS visualization)
+endif()
+
+target_link_libraries(pinnaclemm ${PINNACLEMM_LIBS})
 
 # Tests
 if(BUILD_TESTS)
@@ -303,6 +359,55 @@ if(BUILD_TESTS)
   target_link_libraries(strategy_tests core strategy GTest::gtest_main
                         GTest::gtest Threads::Threads)
   add_test(NAME StrategyTests COMMAND strategy_tests)
+
+  # ML Spread Optimizer tests
+  add_executable(ml_spread_optimizer_tests
+                 tests/unit/MLSpreadOptimizerTests.cpp)
+  target_link_libraries(ml_spread_optimizer_tests core strategy
+                        GTest::gtest_main GTest::gtest Threads::Threads)
+  add_test(NAME MLSpreadOptimizerTests COMMAND ml_spread_optimizer_tests)
+
+  # ML Enhanced Market Maker tests
+  add_executable(ml_enhanced_market_maker_tests
+                 tests/unit/MLEnhancedMarketMakerTests.cpp)
+  target_link_libraries(ml_enhanced_market_maker_tests core strategy
+                        GTest::gtest_main GTest::gtest Threads::Threads)
+  add_test(NAME MLEnhancedMarketMakerTests
+           COMMAND ml_enhanced_market_maker_tests)
+
+  # Order Book Analyzer tests
+  add_executable(orderbook_analyzer_tests tests/unit/OrderBookAnalyzerTests.cpp)
+  target_link_libraries(orderbook_analyzer_tests core strategy
+                        GTest::gtest_main GTest::gtest Threads::Threads)
+  add_test(NAME OrderBookAnalyzerTests COMMAND orderbook_analyzer_tests)
+
+  # Market Impact Predictor tests
+  add_executable(market_impact_predictor_tests
+                 tests/unit/MarketImpactPredictorTests.cpp)
+  target_link_libraries(market_impact_predictor_tests core strategy
+                        GTest::gtest_main GTest::gtest Threads::Threads)
+  add_test(NAME MarketImpactPredictorTests
+           COMMAND market_impact_predictor_tests)
+
+  # RL Parameter Adapter tests
+  add_executable(rl_parameter_adapter_tests
+                 tests/unit/RLParameterAdapterTests.cpp)
+  target_link_libraries(rl_parameter_adapter_tests core strategy
+                        GTest::gtest_main GTest::gtest Threads::Threads)
+  add_test(NAME RLParameterAdapterTests COMMAND rl_parameter_adapter_tests)
+
+  # Market Regime Detector tests
+  add_executable(market_regime_detector_tests
+                 tests/unit/MarketRegimeDetectorTests.cpp)
+  target_link_libraries(market_regime_detector_tests core strategy
+                        GTest::gtest_main GTest::gtest Threads::Threads)
+  add_test(NAME MarketRegimeDetectorTests COMMAND market_regime_detector_tests)
+
+  # Backtest Engine tests
+  add_executable(backtest_engine_tests tests/unit/BacktestEngineTests.cpp)
+  target_link_libraries(backtest_engine_tests core strategy GTest::gtest_main
+                        GTest::gtest Threads::Threads)
+  add_test(NAME BacktestEngineTests COMMAND backtest_engine_tests)
 
   # FIX Protocol tests - Tests factory patterns, configuration, and core FIX
   # integration
@@ -361,6 +466,24 @@ if(BUILD_BENCHMARKS)
     benchmark::benchmark
     Threads::Threads
     fmt::fmt)
+
+  # ML Spread Optimization benchmarks
+  add_executable(ml_spread_optimization_benchmark
+                 tests/performance/MLSpreadOptimizationBenchmark.cpp)
+  target_link_libraries(ml_spread_optimization_benchmark core strategy
+                        benchmark::benchmark Threads::Threads)
+
+  # Market Impact Prediction benchmarks
+  add_executable(market_impact_prediction_benchmark
+                 tests/performance/MarketImpactPredictionBenchmark.cpp)
+  target_link_libraries(market_impact_prediction_benchmark core strategy
+                        benchmark::benchmark Threads::Threads)
+
+  # Backtesting benchmarks
+  add_executable(backtesting_benchmark
+                 tests/performance/BacktestingBenchmark.cpp)
+  target_link_libraries(backtesting_benchmark core strategy
+                        benchmark::benchmark Threads::Threads)
 endif()
 
 # Install targets

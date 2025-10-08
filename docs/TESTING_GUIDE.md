@@ -1,6 +1,148 @@
-# PinnacleMM FIX Protocol Testing Guide
+# PinnacleMM Testing Guide
 
-## Available Tests
+This comprehensive guide covers all testing methodologies available for PinnacleMM, including unit tests, integration tests, memory safety validation, and protocol-specific testing.
+
+## Memory Safety Testing with Address Sanitizer
+
+Address Sanitizer (ASan) is crucial for detecting memory-related bugs in C++ applications. PinnacleMM includes comprehensive ASan support for development and testing.
+
+### What Address Sanitizer Detects
+
+- **Memory leaks**
+- **Use-after-free errors**
+- **Heap buffer overflows**
+- **Stack buffer overflows**
+- **Double-free errors**
+- **Memory corruption**
+- **Undefined behavior**
+
+### Building with Address Sanitizer
+
+```bash
+# Clean build directory
+rm -rf build/*
+cd build
+
+# Configure with ASan enabled
+cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON ..
+
+# Build with ASan instrumentation
+make -j8
+```
+
+### Running Tests with Address Sanitizer
+
+#### Core Unit Tests
+```bash
+# Order book tests
+./orderbook_tests
+
+# Lock-free order book tests
+./lockfree_orderbook_tests
+
+# Strategy tests
+./strategy_tests
+
+# Execution tests
+./execution_tests
+```
+
+#### ML/Advanced Component Tests
+```bash
+# ML-enhanced market maker
+./ml_enhanced_market_maker_tests
+
+# ML spread optimizer
+./ml_spread_optimizer_tests
+
+# Market regime detector
+./market_regime_detector_tests
+
+# Market impact predictor
+./market_impact_predictor_tests
+
+# Order book analyzer
+./orderbook_analyzer_tests
+
+# RL parameter adapter
+./rl_parameter_adapter_tests
+
+# Backtest engine
+./backtest_engine_tests
+```
+
+#### Application Testing with ASan
+```bash
+# Test JSON logging with memory validation
+./pinnaclemm --mode simulation --symbol BTC-USD --json-log --json-log-file asan_test.jsonl --verbose
+
+# Test ML features with memory validation
+./pinnaclemm --mode simulation --enable-ml --symbol BTC-USD --verbose
+
+# Test visualization with memory validation
+./pinnaclemm --mode simulation --enable-ml --enable-visualization --viz-ws-port 8080 --viz-api-port 8081
+```
+
+### Interpreting Address Sanitizer Output
+
+#### Clean Run (No Issues)
+```bash
+[==========] Running 10 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 10 tests from OrderBookTest
+[ RUN      ] OrderBookTest.AddOrder
+[       OK ] OrderBookTest.AddOrder (8 ms)
+...
+[==========] 10 tests from 1 test suite ran. (186 ms total)
+[  PASSED  ] 10 tests.
+```
+
+#### Memory Error Example
+```bash
+=================================================================
+==12345==ERROR: AddressSanitizer: heap-use-after-free on address 0x602000000010
+==12345==WRITE of size 4 at 0x602000000010 thread T0
+    #0 0x45a2c5 in BadFunction /path/to/file.cpp:123
+    #1 0x45a123 in main /path/to/main.cpp:45
+==12345==ABORTING
+```
+
+### Production vs Development Builds
+
+#### Development (ASan Enabled)
+```bash
+# Memory validation - slower but catches bugs
+cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON ..
+```
+
+#### Production (ASan Disabled)
+```bash
+# Optimized performance - no sanitizer overhead
+cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZERS=OFF ..
+```
+
+### ASan Best Practices
+
+1. **Always test new features** with ASan before merging
+2. **Run full test suite** with ASan during CI/CD
+3. **Test critical paths** like order execution and market data processing
+4. **Validate concurrency** with multi-threaded components
+5. **Test cleanup** by running applications for extended periods
+
+### Memory Profiling Commands
+
+```bash
+# Set ASan options for detailed reporting
+export ASAN_OPTIONS=verbosity=3:halt_on_error=1:check_initialization_order=1
+
+# Run with leak detection
+export ASAN_OPTIONS=detect_leaks=1
+
+# Generate detailed reports
+export ASAN_OPTIONS=log_path=./asan_report:abort_on_error=1
+```
+
+## Available Unit Tests
 
 ### 1. Basic Integration Test (Working)
 Tests the core FIX integration components without actual network connectivity.

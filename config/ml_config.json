@@ -1,0 +1,424 @@
+{
+  "ml_enhanced_market_maker": {
+    "enableMLSpreadOptimization": true,
+    "enableOnlineLearning": true,
+    "fallbackToHeuristics": true,
+    "mlConfidenceThreshold": 0.5,
+    "minConfidenceForExecution": 0.3,
+    "maxSpreadDeviationRatio": 2.0,
+    "enablePerformanceTracking": true,
+    "performanceReportIntervalMs": 300000,
+
+    "flowAnalysis": {
+      "enableFlowAnalysis": true,
+      "flowAnalysisWindowMs": 1000,
+      "maxFlowEvents": 10000,
+      "flowSpreadAdjustmentWeight": 0.3
+    },
+
+    "impactPrediction": {
+      "enableImpactPrediction": true,
+      "maxImpactHistorySize": 10000,
+      "impactModelUpdateInterval": 60000,
+      "maxOrderSizeImpactRatio": 0.001,
+      "impactSpreadAdjustmentWeight": 0.2,
+      "impactConfidenceThreshold": 0.3,
+      "maxImpactDeviationRatio": 3.0
+    },
+
+    "rlParameterAdaptation": {
+      "enableRLParameterAdaptation": true,
+      "adaptationIntervalMs": 5000,
+      "episodeIntervalMs": 60000,
+      "minActionsPerEpisode": 10,
+      "pnlRewardWeight": 0.4,
+      "fillRateRewardWeight": 0.3,
+      "riskRewardWeight": 0.2,
+      "stabilityRewardWeight": 0.1,
+      "enablePerformanceTracking": true,
+      "performanceReportIntervalMs": 300000,
+      "maxHistorySize": 10000,
+      "maxParameterChangePerEpisode": 0.1,
+      "enableSafetyConstraints": true,
+      "minRewardForUpdate": -0.5
+    },
+
+    "optimizerConfig": {
+      "maxTrainingDataPoints": 10000,
+      "minTrainingDataPoints": 1000,
+      "learningRate": 0.001,
+      "batchSize": 32,
+      "epochs": 100,
+      "lookbackPeriod": 100,
+      "volatilityWindow": 50,
+      "volumeWindow": 20,
+      "retrainIntervalMs": 300000,
+      "performanceThreshold": 0.8,
+      "enableOnlineLearning": true,
+      "maxSpreadMultiplier": 5.0,
+      "minSpreadMultiplier": 0.1,
+      "confidenceThreshold": 0.5,
+      "useGPU": false,
+      "numThreads": 4,
+      "enableCache": true
+    }
+  },
+
+  "feature_engineering": {
+    "priceFeatures": {
+      "enableVolatilityCalculation": true,
+      "enableTrendAnalysis": true,
+      "enableMomentumIndicators": true,
+      "volatilityLookback": 50,
+      "trendLookback": 100
+    },
+
+    "orderBookFeatures": {
+      "enableImbalanceCalculation": true,
+      "enableDepthAnalysis": true,
+      "enableWeightedPricing": true,
+      "depthLevels": 10,
+      "imbalanceThreshold": 0.3
+    },
+
+    "volumeFeatures": {
+      "enableVolumeProfile": true,
+      "enableTradeIntensity": true,
+      "enableLargeOrderDetection": true,
+      "volumeWindow": 20,
+      "largeOrderThreshold": 10.0
+    },
+
+    "timeFeatures": {
+      "enableTimeOfDay": true,
+      "enableDayOfWeek": true,
+      "enableMarketRegime": true,
+      "marketOpenHour": 9,
+      "marketCloseHour": 16
+    }
+  },
+
+  "model_parameters": {
+    "neuralNetwork": {
+      "inputSize": 20,
+      "hiddenSize": 32,
+      "outputSize": 1,
+      "activationFunction": "relu",
+      "outputActivation": "linear",
+      "dropoutRate": 0.1,
+      "batchNormalization": false
+    },
+
+    "training": {
+      "optimizer": "adam",
+      "learningRateSchedule": "constant",
+      "earlyStoppingPatience": 10,
+      "validationSplit": 0.2,
+      "shuffleTrainingData": true,
+      "normalizeFeatures": true
+    },
+
+    "regularization": {
+      "l1Lambda": 0.0001,
+      "l2Lambda": 0.001,
+      "enableDropout": true,
+      "enableBatchNorm": false
+    }
+  },
+
+  "risk_management": {
+    "spreadConstraints": {
+      "minSpreadBps": 1.0,
+      "maxSpreadBps": 100.0,
+      "maxDeviationFromBase": 5.0,
+      "maxDeviationFromMarket": 10.0
+    },
+
+    "predictionConstraints": {
+      "minConfidence": 0.1,
+      "maxConfidence": 1.0,
+      "confidenceDecayRate": 0.95,
+      "maxPredictionAge": 5000000000
+    },
+
+    "performanceConstraints": {
+      "minAccuracy": 0.4,
+      "maxDrawdown": 0.1,
+      "minFillRate": 0.3,
+      "maxAdverseSelection": 0.2
+    }
+  },
+
+  "performance_monitoring": {
+    "metrics": {
+      "trackPredictionAccuracy": true,
+      "trackLatency": true,
+      "trackPnLAttribution": true,
+      "trackFeatureImportance": true
+    },
+
+    "reporting": {
+      "enableRealTimeMetrics": true,
+      "metricsUpdateIntervalMs": 60000,
+      "enablePerformanceComparison": true,
+      "enableFeatureAnalysis": true,
+      "logLevel": "info"
+    },
+
+    "alerts": {
+      "enablePerformanceAlerts": true,
+      "accuracyThreshold": 0.3,
+      "latencyThreshold": 1000.0,
+      "errorRateThreshold": 0.1
+    }
+  },
+
+  "flow_analysis": {
+    "orderFlowTracking": {
+      "enableOrderFlowEvents": true,
+      "enableLiquidityAnalysis": true,
+      "enableFlowPrediction": true,
+      "windowSizeMs": 1000,
+      "maxEventHistory": 10000
+    },
+
+    "imbalanceAnalysis": {
+      "enableVolumeImbalance": true,
+      "enableOrderCountImbalance": true,
+      "enableWeightedImbalance": true,
+      "depthLevels": 5,
+      "imbalanceThreshold": 0.2
+    },
+
+    "liquidityPrediction": {
+      "enableLiquidityForecasting": true,
+      "predictionHorizonMs": 100,
+      "confidenceThreshold": 0.5,
+      "enableRegimeDetection": true
+    },
+
+    "flowMetrics": {
+      "trackOrderRates": true,
+      "trackVolumeRates": true,
+      "trackFlowVelocity": true,
+      "trackPersistence": true,
+      "trackMarketImpact": true
+    },
+
+    "spreadAdjustment": {
+      "enableFlowBasedAdjustment": true,
+      "adjustmentWeight": 0.3,
+      "maxAdjustmentFactor": 3.0,
+      "minAdjustmentFactor": 0.5,
+      "velocityInfluence": 0.001,
+      "imbalanceInfluence": 0.5,
+      "liquidityInfluence": 0.3
+    },
+
+    "riskManagement": {
+      "maxFlowDeviation": 5.0,
+      "adverseSelectionThreshold": 0.8,
+      "informationContentThreshold": 0.1,
+      "regimeChangeThreshold": 0.3
+    }
+  },
+
+  "impact_prediction": {
+    "models": {
+      "enableLinearModel": true,
+      "enableSqrtModel": true,
+      "enableLiquidityModel": true,
+      "enableTemporaryImpactModel": true,
+      "modelWeightLinear": 0.4,
+      "modelWeightSqrt": 0.4,
+      "modelWeightLiquidity": 0.2
+    },
+
+    "calibration": {
+      "minObservations": 100,
+      "calibrationWindowHours": 24,
+      "recalibrationIntervalMinutes": 60,
+      "outlierThreshold": 3.0,
+      "maxImpactBps": 50.0
+    },
+
+    "prediction": {
+      "predictionHorizonMs": 1000,
+      "confidenceIntervals": [0.1, 0.25, 0.5, 0.75, 0.9],
+      "enableUncertaintyQuantification": true,
+      "maxPredictionAge": 5000
+    },
+
+    "orderSizing": {
+      "enableOptimalSizing": true,
+      "maxSlices": 10,
+      "minSliceSize": 0.1,
+      "maxTimeHorizonMs": 300000,
+      "urgencyFactors": {
+        "patient": 0.1,
+        "normal": 0.5,
+        "urgent": 0.9
+      }
+    },
+
+    "riskManagement": {
+      "maxImpactTolerance": 0.002,
+      "impactVolatilityThreshold": 2.0,
+      "enableDynamicLimits": true,
+      "regimeAwareAdjustment": true
+    },
+
+    "monitoring": {
+      "trackPredictionAccuracy": true,
+      "trackModelPerformance": true,
+      "trackExecutionCosts": true,
+      "enableRealTimeMetrics": true,
+      "reportingIntervalMinutes": 15
+    }
+  },
+
+  "data_management": {
+    "storage": {
+      "maxHistoryDays": 30,
+      "compressionEnabled": true,
+      "backupEnabled": true,
+      "cleanupIntervalHours": 24
+    },
+
+    "preprocessing": {
+      "enableOutlierDetection": true,
+      "enableDataValidation": true,
+      "outlierThreshold": 3.0,
+      "missingValueStrategy": "interpolation"
+    }
+  },
+
+  "development": {
+    "debug": {
+      "enableVerboseLogging": false,
+      "logPredictions": false,
+      "logFeatures": false,
+      "logTraining": false
+    },
+
+    "testing": {
+      "enableBacktesting": true,
+      "backtestDataPath": "data/backtest/",
+      "crossValidationFolds": 5,
+      "testDataRatio": 0.2
+    }
+  },
+
+  "rl_parameter_adaptation": {
+    "qLearning": {
+      "learningRate": 0.1,
+      "discountFactor": 0.95,
+      "maxQTableSize": 100000,
+      "stateDiscretization": 10,
+      "enableDoubleQLearning": true,
+      "enablePrioritizedReplay": false,
+      "epsilon": {
+        "initialEpsilon": 0.3,
+        "minEpsilon": 0.05,
+        "epsilonDecay": 0.995,
+        "decaySteps": 1000
+      }
+    },
+
+    "multiArmedBandit": {
+      "ucbConstant": 1.4,
+      "decayFactor": 0.99,
+      "warmupPeriod": 100,
+      "enableContextual": true
+    },
+
+    "parameterConstraints": {
+      "baseSpreadBps": {
+        "minValue": 1.0,
+        "maxValue": 50.0,
+        "stepSize": 1.0,
+        "isDiscrete": true
+      },
+      "orderQuantity": {
+        "minValue": 0.01,
+        "maxValue": 10.0,
+        "stepSize": 0.01,
+        "isDiscrete": false
+      },
+      "maxPosition": {
+        "minValue": 1.0,
+        "maxValue": 100.0,
+        "stepSize": 1.0,
+        "isDiscrete": false
+      },
+      "inventorySkewFactor": {
+        "minValue": 0.1,
+        "maxValue": 2.0,
+        "stepSize": 0.1,
+        "isDiscrete": false
+      },
+      "mlConfidenceThreshold": {
+        "minValue": 0.1,
+        "maxValue": 0.9,
+        "stepSize": 0.05,
+        "isDiscrete": false
+      },
+      "flowAdjustmentWeight": {
+        "minValue": 0.0,
+        "maxValue": 1.0,
+        "stepSize": 0.1,
+        "isDiscrete": false
+      },
+      "impactAdjustmentWeight": {
+        "minValue": 0.0,
+        "maxValue": 1.0,
+        "stepSize": 0.1,
+        "isDiscrete": false
+      }
+    },
+
+    "rewardCalculation": {
+      "pnlRewardWeight": 0.4,
+      "fillRateRewardWeight": 0.3,
+      "riskRewardWeight": 0.2,
+      "stabilityRewardWeight": 0.1,
+      "pnlNormalizationFactor": 1000.0,
+      "enableRewardClipping": true,
+      "maxReward": 1.0,
+      "minReward": -1.0
+    },
+
+    "safetyConstraints": {
+      "enableSafetyConstraints": true,
+      "maxParameterChangePerEpisode": 0.1,
+      "minRewardForUpdate": -0.5,
+      "enableParameterValidation": true,
+      "enableRiskLimits": true
+    },
+
+    "episodeManagement": {
+      "episodeIntervalMs": 60000,
+      "minActionsPerEpisode": 10,
+      "maxEpisodeLength": 1000,
+      "enableTimeBasedEpisodes": true,
+      "enableActionBasedEpisodes": true
+    },
+
+    "monitoring": {
+      "enablePerformanceTracking": true,
+      "performanceReportIntervalMs": 300000,
+      "maxHistorySize": 10000,
+      "enableActionLogging": false,
+      "enableRewardLogging": true,
+      "enableStateLogging": false
+    },
+
+    "persistence": {
+      "enableModelSaving": true,
+      "saveIntervalEpisodes": 100,
+      "modelSavePath": "models/rl/",
+      "enableAutoBackup": true,
+      "maxBackupFiles": 5
+    }
+  }
+}
