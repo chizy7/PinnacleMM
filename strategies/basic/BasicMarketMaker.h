@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../../core/orderbook/OrderBook.h"
+#include "../../core/utils/JsonLogger.h"
 #include "../../core/utils/LockFreeQueue.h"
+#include "../../exchange/simulator/MarketDataFeed.h"
 #include "../config/StrategyConfig.h"
 
 #include <atomic>
@@ -34,7 +36,7 @@ public:
   /**
    * @brief Destructor
    */
-  ~BasicMarketMaker();
+  virtual ~BasicMarketMaker();
 
   /**
    * @brief Initialize the strategy
@@ -96,6 +98,13 @@ public:
                      double filledQuantity, uint64_t timestamp);
 
   /**
+   * @brief Handle market update notifications (ticker data)
+   *
+   * @param update Market update containing price, volume, bid/ask data
+   */
+  void onMarketUpdate(const pinnacle::exchange::MarketUpdate& update);
+
+  /**
    * @brief Get the current strategy statistics
    *
    * @return String representation of the strategy statistics
@@ -124,7 +133,14 @@ public:
    */
   bool updateConfig(const StrategyConfig& config);
 
-private:
+  /**
+   * @brief Set JSON logger for structured data export
+   *
+   * @param jsonLogger Shared pointer to JsonLogger instance
+   */
+  void setJsonLogger(std::shared_ptr<utils::JsonLogger> jsonLogger);
+
+protected:
   // Strategy identification
   std::string m_symbol;
   StrategyConfig m_config;
@@ -132,6 +148,10 @@ private:
   // Order book reference
   std::shared_ptr<OrderBook> m_orderBook;
 
+  // Virtual methods that can be overridden
+  virtual double calculateTargetSpread() const;
+
+private:
   // Strategy state
   std::atomic<bool> m_isRunning{false};
   std::atomic<bool> m_shouldStop{false};
@@ -187,6 +207,9 @@ private:
   Statistics m_stats;
   mutable std::mutex m_statsMutex;
 
+  // JSON logging
+  std::shared_ptr<utils::JsonLogger> m_jsonLogger;
+
   // Internal event queue
   enum class EventType {
     ORDER_BOOK_UPDATE,
@@ -212,7 +235,6 @@ private:
   void cancelAllOrders();
   void placeOrder(OrderSide side, double price, double quantity);
   void updateStatistics();
-  double calculateTargetSpread() const;
   double calculateOrderQuantity(OrderSide side) const;
   double calculateInventorySkewFactor() const;
 };

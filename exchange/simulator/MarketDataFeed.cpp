@@ -161,7 +161,7 @@ void SimulatedMarketDataFeed::generateSimulatedData() {
   // In a more sophisticated implementation, we would generate realistic market
   // data based on statistical models or historical data
 
-  // For now, we'll just generate random market updates for all subscribed
+  // For now, I'll just generate random market updates for all subscribed
   // symbols
 
   // Get current timestamp

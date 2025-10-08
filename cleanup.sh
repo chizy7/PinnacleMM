@@ -2,7 +2,7 @@
 
 # PinnacleMM Cleanup Script
 
-echo "🧹 PinnacleMM Cleanup Options:"
+echo " PinnacleMM Cleanup Options:"
 echo "1. Clean build files (keep source & config)"
 echo "2. Clean logs only"
 echo "3. Clean data/state only"

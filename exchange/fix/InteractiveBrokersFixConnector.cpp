@@ -277,7 +277,7 @@ std::string InteractiveBrokersFixConnector::convertIBSymbolToInternal(
 std::string InteractiveBrokersFixConnector::convertInternalSymbolToIB(
     const std::string& internalSymbol) {
   // Convert our internal format to IB format
-  // This is a simplified conversion - in practice you'd need more sophisticated
+  // This is a simplified conversion - in practice I'd need more sophisticated
   // mapping
   if (internalSymbol.length() == 6 &&
       internalSymbol.find("USD") != std::string::npos) {

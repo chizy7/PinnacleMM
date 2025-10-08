@@ -1,13 +1,18 @@
 #include "core/orderbook/LockFreeOrderBook.h"
 #include "core/orderbook/OrderBook.h"
 #include "core/persistence/PersistenceManager.h"
+#include "core/utils/JsonLogger.h"
 #include "core/utils/SecureInput.h"
 #include "core/utils/TimeUtils.h"
 #include "exchange/connector/ExchangeConnectorFactory.h"
 #include "exchange/connector/SecureConfig.h"
 #include "exchange/simulator/ExchangeSimulator.h"
 #include "strategies/basic/BasicMarketMaker.h"
+#include "strategies/basic/MLEnhancedMarketMaker.h"
 #include "strategies/config/StrategyConfig.h"
+#ifdef BUILD_VISUALIZATION
+#include "visualization/WebServer.h"
+#endif
 
 #include <atomic>
 #include <boost/filesystem.hpp>
@@ -157,7 +162,26 @@ int main(int argc, char* argv[]) {
                                       "Use lock-free data structures")(
         "exchange", po::value<std::string>()->default_value("coinbase"),
         "Exchange name (coinbase/kraken/gemini/binance/bitstamp)")(
-        "setup-credentials", "Setup API credentials for exchanges");
+        "setup-credentials", "Setup API credentials for exchanges")(
+        "enable-ml", po::bool_switch()->default_value(false),
+        "Enable ML-enhanced market making")(
+        "ml-config",
+        po::value<std::string>()->default_value("config/ml_config.json"),
+        "ML configuration file")
+#ifdef BUILD_VISUALIZATION
+        ("enable-visualization", po::bool_switch()->default_value(false),
+         "Enable performance visualization dashboard")(
+            "viz-ws-port", po::value<int>()->default_value(8080),
+            "WebSocket port for real-time updates")(
+            "viz-api-port", po::value<int>()->default_value(8081),
+            "REST API port for data access")
+#endif
+            ("json-log", po::bool_switch()->default_value(false),
+             "Enable JSON structured logging to file")(
+                "json-log-file",
+                po::value<std::string>()->default_value(
+                    "pinnaclemm_data.jsonl"),
+                "JSON log file path");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -228,12 +252,45 @@ int main(int argc, char* argv[]) {
     pinnacle::strategy::StrategyConfig config;
     config.symbol = symbol;
 
-    // Initialize strategy
-    auto strategy =
-        std::make_shared<pinnacle::strategy::BasicMarketMaker>(symbol, config);
+    // Initialize strategy (basic or ML-enhanced)
+    bool enableML = vm["enable-ml"].as<bool>();
+    std::shared_ptr<pinnacle::strategy::BasicMarketMaker> strategy;
+
+    // Initialize JSON logger if enabled
+    std::shared_ptr<pinnacle::utils::JsonLogger> jsonLogger;
+    if (vm["json-log"].as<bool>()) {
+      std::string jsonLogFile = vm["json-log-file"].as<std::string>();
+      jsonLogger =
+          std::make_shared<pinnacle::utils::JsonLogger>(jsonLogFile, true);
+      spdlog::info("JSON logging enabled, output file: {}", jsonLogFile);
+    }
+
+    if (enableML) {
+      spdlog::info("Initializing ML-enhanced market maker");
+
+      // Load ML configuration
+      pinnacle::strategy::MLEnhancedMarketMaker::MLConfig mlConfig{};
+      mlConfig.enableMLSpreadOptimization = true;
+      mlConfig.enableOnlineLearning = true;
+      mlConfig.fallbackToHeuristics = true;
+      mlConfig.mlConfidenceThreshold = 0.5;
+
+      strategy = std::make_shared<pinnacle::strategy::MLEnhancedMarketMaker>(
+          symbol, config, mlConfig);
+    } else {
+      spdlog::info("Initializing basic market maker");
+      strategy = std::make_shared<pinnacle::strategy::BasicMarketMaker>(symbol,
+                                                                        config);
+    }
+
     if (!strategy->initialize(orderBook)) {
       spdlog::error("Failed to initialize strategy");
       return 1;
+    }
+
+    // Set JSON logger for strategy if enabled
+    if (jsonLogger) {
+      strategy->setJsonLogger(jsonLogger);
     }
 
     // Start strategy
@@ -243,6 +300,49 @@ int main(int argc, char* argv[]) {
     }
 
     spdlog::info("Strategy started successfully");
+
+#ifdef BUILD_VISUALIZATION
+    // Initialize visualization server if enabled
+    std::unique_ptr<pinnacle::visualization::VisualizationServer> vizServer;
+    if (vm["enable-visualization"].as<bool>()) {
+      spdlog::info("Initializing performance visualization dashboard");
+
+      pinnacle::visualization::VisualizationServer::Config vizConfig;
+      vizConfig.webSocketPort = vm["viz-ws-port"].as<int>();
+      vizConfig.restApiPort = vm["viz-api-port"].as<int>();
+      vizConfig.enableRealTimeUpdates = true;
+      vizConfig.dataCollectionIntervalMs = 1000;
+
+      vizServer =
+          std::make_unique<pinnacle::visualization::VisualizationServer>(
+              vizConfig);
+
+      if (!vizServer->initialize()) {
+        spdlog::error("Failed to initialize visualization server");
+        return 1;
+      }
+
+      if (!vizServer->start()) {
+        spdlog::error("Failed to start visualization server");
+        return 1;
+      }
+
+      // Register strategy for visualization
+      if (enableML) {
+        auto mlStrategy = std::dynamic_pointer_cast<
+            pinnacle::strategy::MLEnhancedMarketMaker>(strategy);
+        if (mlStrategy) {
+          vizServer->registerStrategy("primary_strategy", mlStrategy);
+          spdlog::info("Registered ML strategy for visualization");
+        }
+      }
+
+      spdlog::info("Visualization dashboard available at:");
+      spdlog::info("  WebSocket: ws://localhost:{}", vizConfig.webSocketPort);
+      spdlog::info("  REST API: http://localhost:{}", vizConfig.restApiPort);
+      spdlog::info("  Dashboard: file://visualization/static/index.html");
+    }
+#endif
 
     // In simulation mode, start the exchange simulator - also in live mode
     std::shared_ptr<pinnacle::exchange::ExchangeSimulator> simulator;
@@ -274,6 +374,16 @@ int main(int argc, char* argv[]) {
         return 1;
       }
 
+      // Set JSON logger for market data feed if enabled
+      if (jsonLogger) {
+        // Cast to WebSocketMarketDataFeed and set JSON logger
+        auto webSocketFeed = std::dynamic_pointer_cast<
+            pinnacle::exchange::WebSocketMarketDataFeed>(marketDataFeed);
+        if (webSocketFeed) {
+          webSocketFeed->setJsonLogger(jsonLogger);
+        }
+      }
+
       // Subscribe to market data and connect to order book
       marketDataFeed->subscribeToOrderBookUpdates(
           symbol, [orderBook,
@@ -299,6 +409,13 @@ int main(int argc, char* argv[]) {
                 orderBook->addOrder(order);
               }
             }
+          });
+
+      // Subscribe strategy to market updates (ticker data)
+      marketDataFeed->subscribeToMarketUpdates(
+          symbol, [strategy](const pinnacle::exchange::MarketUpdate& update) {
+            // Forward ticker data to strategy
+            strategy->onMarketUpdate(update);
           });
 
       // Start market data feed
@@ -343,6 +460,23 @@ int main(int argc, char* argv[]) {
         spdlog::info("  Order count: {}", orderBook->getOrderCount());
         spdlog::info("Strategy status:");
         spdlog::info("{}", strategy->getStatistics());
+
+        // Additional ML-specific statistics if using ML-enhanced strategy
+        if (enableML) {
+          auto mlStrategy = std::dynamic_pointer_cast<
+              pinnacle::strategy::MLEnhancedMarketMaker>(strategy);
+          if (mlStrategy) {
+            auto mlMetrics = mlStrategy->getMLMetrics();
+            spdlog::info("ML Model Status:");
+            spdlog::info("  Model Ready: {}", mlStrategy->isMLModelReady());
+            spdlog::info("  Total Predictions: {}", mlMetrics.totalPredictions);
+            spdlog::info("  Avg Prediction Time: {:.2f} μs",
+                         mlMetrics.avgPredictionTime);
+            spdlog::info("  Model Accuracy: {:.2f}%", mlMetrics.accuracy * 100);
+            spdlog::info("  Retrain Count: {}", mlMetrics.retrainCount);
+          }
+        }
+
         spdlog::info("======================");
 
         lastStatsTime = currentTime;

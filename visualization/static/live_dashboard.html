@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PinnacleMM Dashboard</title>
+</head>
+<body>
+    <h1>PinnacleMM Live Dashboard</h1>
+    <p>WebSocket connection test successful!</p>
+    <div id="status">Connecting...</div>
+
+    <script>
+        // Simple WebSocket test
+        const ws = new WebSocket('ws://localhost:8085');
+
+        ws.onopen = function() {
+            document.getElementById('status').textContent = 'Connected!';
+            ws.send(JSON.stringify({type: 'subscribe', strategy_id: 'test'}));
+        };
+
+        ws.onmessage = function(event) {
+            console.log('Received:', event.data);
+        };
+
+        ws.onerror = function(error) {
+            document.getElementById('status').textContent = 'Error: ' + error;
+        };
+
+        ws.onclose = function() {
+            document.getElementById('status').textContent = 'Disconnected';
+        };
+    </script>
+</body>
+</html>

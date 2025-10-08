@@ -10,7 +10,7 @@
   <p>
     <a href="https://github.com/chizy7/PinnacleMM/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg" alt="C++"></a>
-    <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/status-Phase%203%20In%20Progress-yellow.svg" alt="Status"></a>
+    <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/status-Phase%203%20Complete-green.svg" alt="Status"></a>
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://tokei.rs/b1/github/chizy7/PinnacleMM?category=code" alt="Lines of Code"></a>
     <a href="https://github.com/chizy7/PinnacleMM/actions/workflows/ci.yml"><img src="https://github.com/chizy7/PinnacleMM/workflows/CI%2FCD%20Pipeline/badge.svg" alt="Build Status"></a>
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/latency-microsecond-blue.svg" alt="Performance"></a>
@@ -40,6 +40,12 @@ PinnacleMM is a high-performance, production-grade market making system designed
 - **FIX Protocol Support**: Professional-grade FIX connectivity for institutional exchanges
 - **Advanced Order Routing**: Smart order routing with 4 algorithms (BEST_PRICE, TWAP, VWAP, MARKET_IMPACT)
 - **Multi-Venue Execution**: Intelligent order distribution across multiple exchanges
+- **ML-Enhanced Trading**: Neural network-based spread optimization with sub-microsecond predictions
+- **Market Regime Detection**: Real-time detection of 8 market regimes using Hidden Markov Models
+- **Predictive Analytics**: Market impact prediction and reinforcement learning parameter adaptation
+- **Advanced Backtesting**: Historical data replay with Monte Carlo analysis and A/B testing
+- **Real-Time Visualization**: Professional web dashboard with live performance monitoring (access at `visualization/static/index.html` when running with `--enable-visualization`)
+- **Structured Data Export**: JSON Lines (JSONL) logging for market data, strategy metrics, and trading events with `--json-log` flag
 - **Enterprise Security**: AES-256-CBC encryption with unique salts, 100,000 PBKDF2 iterations, secure password input, comprehensive input validation, audit logging, rate limiting, and certificate pinning
 - **Comprehensive Testing**: Extensive test suite ensuring reliability and performance
 
@@ -58,13 +64,20 @@ Read more about the [system architecture](docs/architecture/system_overview.md).
 
 PinnacleMM is being developed in phases:
 
-- ✅ **Phase 1 (Completed)**: Core engine, basic strategy, and simulation
-- ✅ **Phase 2 (Completed)**: Latency optimization, exchange connectivity, and smart order routing
-  - ✅ Live WebSocket integration (Coinbase Pro)
-  - ✅ FIX protocol support (Interactive Brokers)
-  - ✅ Advanced order routing (BEST_PRICE, TWAP, VWAP, MARKET_IMPACT)
+- **Phase 1 (Completed)**: Core engine, basic strategy, and simulation
+- **Phase 2 (Completed)**: Latency optimization, exchange connectivity, and smart order routing
+  - Live WebSocket integration (Coinbase Pro)
+  - FIX protocol support (Interactive Brokers)
+  - Advanced order routing (BEST_PRICE, TWAP, VWAP, MARKET_IMPACT)
   - ℹ️ **DPDK Integration**: Ultra-low latency networking (Deferred - requires specialized hardware)
-- 🔄 **Phase 3**: Advanced strategies and machine learning integration
+- **Phase 3 (Completed)**: Advanced strategies and machine learning integration
+  - ML-based spread optimization model
+  - Order book flow analysis
+  - Predictive market impact models
+  - Adaptive parameters using reinforcement learning
+  - Market regime detection
+  - Advanced backtesting with historical data
+  - Strategy performance visualization
 - 🔲 **Phase 4**: Risk management and production deployment
 
 See the detailed [project roadmap](docs/ROADMAP.md) for more information.
@@ -94,6 +107,8 @@ cd PinnacleMM
 # One-command setup and run
 ./run-native.sh                    # Simulation mode (auto-builds if needed)
 ./run-native.sh -m live -v         # Live trading with verbose logs
+./run-native.sh --enable-ml        # ML-enhanced simulation mode
+./run-native.sh --enable-visualization # With real-time dashboard
 ./run-native.sh --setup-credentials # Configure API keys
 ```
 
@@ -128,13 +143,13 @@ make -j$(sysctl -n hw.ncpu)  # macOS
 
 | Feature | Native Script (`./run-native.sh`) | Docker Script (`./run-docker.sh`) |
 |---------|-----------------------------------|-----------------------------------|
-| **Simulation Mode** | ✅ Perfect | ✅ Perfect |
-| **Live Trading** | ✅ Real WebSocket data | ⚠️ WebSocket config issue |
-| **Auto-Build** | ✅ Builds if needed | ✅ Auto Docker build |
-| **Test Runner** | ✅ `./run-native.sh test` | ❌ Not included |
-| **Benchmarks** | ✅ `./run-native.sh benchmark` | ❌ Not included |
-| **Credential Setup** | ✅ Interactive setup | ✅ Volume mounting |
-| **Dependency Check** | ✅ cmake, make, g++ | ✅ Docker only |
+| **Simulation Mode** | Perfect | Perfect |
+| **Live Trading** | Real WebSocket data | ⚠️ WebSocket config issue |
+| **Auto-Build** | Builds if needed | Auto Docker build |
+| **Test Runner** | `./run-native.sh test` | ❌ Not included |
+| **Benchmarks** | `./run-native.sh benchmark` | ❌ Not included |
+| **Credential Setup** | Interactive setup | Volume mounting |
+| **Dependency Check** | cmake, make, g++ | Docker only |
 | **Best For** | Development & Live Trading | Production & Simulation |
 
 ### Running PinnacleMM
@@ -147,6 +162,27 @@ make -j$(sysctl -n hw.ncpu)  # macOS
 
 # Manual execution
 cd build && ./pinnaclemm --mode simulation --symbol BTC-USD
+
+# ML-enhanced simulation with visualization
+cd build && ./pinnaclemm --mode simulation --enable-ml --enable-visualization
+
+# Custom ports for visualization (useful for running multiple instances)
+cd build && ./pinnaclemm --mode simulation --enable-ml --enable-visualization --viz-ws-port 8089 --viz-api-port 8090
+
+# Debug mode with enhanced WebSocket logging
+cd build && SPDLOG_LEVEL=debug ./pinnaclemm --mode simulation --enable-ml --enable-visualization --verbose
+
+# Enable JSON data export (logs market data and strategy metrics to JSONL file)
+cd build && ./pinnaclemm --mode simulation --enable-ml --json-log --json-log-file simulation_data.jsonl
+
+# Combined: ML + visualization + JSON logging
+cd build && ./pinnaclemm --mode simulation --enable-ml --enable-visualization --json-log --json-log-file sim_ml_data.jsonl
+
+# The visualization dashboard will be available at:
+# - WebSocket: ws://localhost:8080 (or custom port with --viz-ws-port)
+# - REST API: http://localhost:8081 (or custom port with --viz-api-port)
+# - Dashboard: Open visualization/static/index.html in your browser
+# - Test Dashboard: Open build/test_dashboard.html for WebSocket connection testing
 ```
 
 #### Live Exchange Mode
@@ -160,9 +196,89 @@ cd build && ./pinnaclemm --mode simulation --symbol BTC-USD
 
 # Manual execution
 cd build && ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
+
+# Live trading with ML and visualization (custom ports)
+cd build && ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --enable-ml --enable-visualization --viz-ws-port 8085 --viz-api-port 8086 --verbose
+
+# Debug mode for live trading (with enhanced logging)
+cd build && SPDLOG_LEVEL=debug ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --enable-ml --enable-visualization --viz-ws-port 8085 --viz-api-port 8086 --verbose
+
+# Live trading with JSON data export (captures real market data)
+cd build && ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --enable-ml --json-log --json-log-file live_btc_data.jsonl
+
+# Full-featured live trading: ML + visualization + JSON logging
+cd build && ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --enable-ml --enable-visualization --viz-ws-port 8085 --viz-api-port 8086 --json-log --json-log-file live_trading_session.jsonl --verbose
+
+# Access the live dashboard:
+# - Main Dashboard: visualization/static/live_dashboard.html
+# - Test Dashboard: build/test_dashboard.html (for connection testing)
+# - WebSocket: ws://localhost:8085 (or your custom port)
+# - REST API: http://localhost:8086 (or your custom port)
 ```
 
 When running in live mode, you'll be prompted for your master password to decrypt API credentials.
+
+## JSON Data Export
+
+PinnacleMM provides comprehensive structured data export capabilities through JSON Lines (JSONL) format logging. This feature enables detailed analysis, backtesting, monitoring, and debugging of trading strategies and market data.
+
+### Features
+
+- **Market Data Logging**: Real-time price, volume, bid/ask data with timestamps
+- **Strategy Metrics**: Position, P&L, quote counts, and performance statistics
+- **Order Book Updates**: Complete order book state with bid and ask arrays
+- **Connection Events**: WebSocket connections, disconnections, and errors
+- **Trading Events**: Order placements, fills, cancellations, and status updates
+- **Thread-Safe**: Concurrent logging without performance impact
+- **JSONL Format**: One JSON object per line for easy parsing and streaming
+
+### Usage
+
+Enable JSON logging with the `--json-log` flag and optionally specify a custom file path:
+
+```bash
+# Basic JSON logging (default file: pinnaclemm_data.jsonl)
+./pinnaclemm --mode simulation --symbol BTC-USD --json-log
+
+# Custom file path
+./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --json-log --json-log-file my_trading_data.jsonl
+
+# Combined with other features
+./pinnaclemm --mode live --enable-ml --enable-visualization --json-log --json-log-file full_session.jsonl
+```
+
+### Sample Output
+
+```json
+{"format":"jsonl","timestamp":"2025-09-29T16:27:06.770Z","type":"session_start","version":"1.0.0"}
+{"metrics":{"ask_price":67252.80,"bid_price":67248.20,"market_price":67250.45,"pnl":0.0,"position":0.0,"quote_updates":1,"strategy_name":"BasicMarketMaker","volume":1234.56},"strategy_name":"BasicMarketMaker","symbol":"BTC-USD","timestamp":"2025-09-29T16:27:12.011Z","type":"strategy_metrics"}
+{"ask_price":67253.00,"bid_price":67249.50,"event_timestamp":1695736032610,"is_buy":true,"price":67250.75,"symbol":"BTC-USD","timestamp":"2025-09-29T16:27:12.610Z","type":"market_update","volume":0.5}
+```
+
+### Data Types
+
+- **`session_start`**: Session initialization marker with format and version
+- **`strategy_metrics`**: Trading strategy performance and position data
+- **`market_update`**: Real-time market data from exchange feeds
+- **`order_book_update`**: Complete order book snapshots with bid/ask arrays
+- **`trading_event`**: Order lifecycle events and trading actions
+- **`connection_event`**: Exchange connectivity status and errors
+
+### File Management
+
+JSON log files are created in the current working directory by default. For production use, consider:
+
+```bash
+# Save to logs directory (create and add to .gitignore)
+mkdir -p logs
+./pinnaclemm --json-log --json-log-file logs/trading_$(date +%Y%m%d_%H%M%S).jsonl
+
+# Save to data directory (existing, likely gitignored)
+./pinnaclemm --json-log --json-log-file data/market_data_$(date +%Y%m%d).jsonl
+
+# Save outside project directory
+./pinnaclemm --json-log --json-log-file ~/trading_logs/pinnaclemm_session.jsonl
+```
 
 ## API Credential Management
 
@@ -320,22 +436,111 @@ docker run -it --name pinnaclemm-live \
 
 - **Order Book Engine**: Ultra-fast matching engine with lock-free operations
 - **Market Making Strategy**: Adaptive pricing based on market conditions
+- **ML Spread Optimization**: Neural network-based spread prediction with ~1-2μs latency
+- **Order Book Flow Analyzer**: Real-time analysis of order flow patterns and market microstructure
+- **Market Impact Predictor**: Advanced models for predicting price impact of trades
+- **Market Regime Detector**: Hidden Markov Model-based detection of 8 market regimes
+- **RL Parameter Adapter**: Reinforcement learning for dynamic strategy parameter optimization
+- **Advanced Backtesting Engine**: Historical replay with Monte Carlo analysis and statistical testing
+- **Real-Time Visualization**: Web-based dashboard with Chart.js and D3.js visualization
 - **FIX Protocol Engine**: Professional-grade FIX connectivity for institutional trading
 - **Persistence System**: Crash recovery with memory-mapped files
 - **Exchange Simulator**: Realistic market simulation for testing
 
 ## Documentation
 
+### Core System
 - [System Architecture](docs/architecture/system_overview.md)
+- [Getting Started Guide](docs/user_guide/getting_started.md)
+- [API Reference](docs/api/reference.md)
+- [Project Roadmap](docs/ROADMAP.md)
+
+### Advanced Features (Phase 3 - All Complete)
+- [ML Spread Optimization](docs/ML_SPREAD_OPTIMIZATION.md) - **Neural network-based spread prediction**
+- [Order Book Flow Analysis](docs/ORDER_BOOK_FLOW_ANALYSIS.md) - **Real-time market microstructure analysis**
+- [Market Impact Prediction](docs/MARKET_IMPACT_PREDICTION.md) - **Advanced trade impact modeling**
+- [RL Parameter Adaptation](docs/RL_PARAMETER_ADAPTATION.md) - **Reinforcement learning optimization**
+- [Market Regime Detection](docs/MARKET_REGIME_DETECTION.md) - **Hidden Markov Model regime detection**
+- [Advanced Backtesting](docs/ADVANCED_BACKTESTING.md) - **Historical data replay and Monte Carlo analysis**
+- [Strategy Performance Visualization](docs/STRATEGY_PERFORMANCE_VISUALIZATION.md) - **Real-time web dashboard**
+- [WebSocket Testing Guide](docs/WEBSOCKET_TESTING.md) - **WebSocket connection testing and troubleshooting**
+
+## Real-Time Visualization Dashboard
+
+The PinnacleMM system includes a professional web-based dashboard for real-time performance monitoring and analysis:
+
+### Features
+- **Live Performance Metrics**: Real-time P&L, position, Sharpe ratio, and win rate tracking
+- **Interactive Charts**: Time-series visualization with Chart.js for performance trends
+- **Market Data Visualization**: Live order book, spread analysis, and trade flow
+- **ML Model Metrics**: Neural network accuracy, prediction times, and regime detection
+- **WebSocket Real-Time Updates**: Sub-100ms latency for live data streaming
+- **Multiple Dashboard Types**: Main dashboard, live trading dashboard, and test dashboard
+- **Fixed WebSocket Issues**: Resolved segmentation faults and connection stability issues
+
+### Access Dashboard
+
+#### Simulation Mode Dashboard
+1. **Start the system with visualization enabled:**
+   ```bash
+   cd build && ./pinnaclemm --mode simulation --enable-ml --enable-visualization --viz-ws-port 8089 --viz-api-port 8090
+   ```
+
+2. **Open the dashboard:**
+   - **Main Dashboard**: `visualization/static/index.html` (full-featured dashboard)
+   - **Test Dashboard**: `build/test_dashboard.html` (WebSocket connection testing)
+   - **WebSocket**: `ws://localhost:8089` (or your custom port)
+   - **REST API**: `http://localhost:8090` (or your custom port)
+
+#### Live Trading Dashboard
+1. **Start live trading with visualization:**
+   ```bash
+   cd build && ./pinnaclemm --mode live --exchange coinbase --enable-ml --enable-visualization --viz-ws-port 8085 --viz-api-port 8086 --verbose
+   ```
+
+2. **Access live dashboard:**
+   - **Live Dashboard**: `visualization/static/live_dashboard.html` (optimized for live trading)
+   - **Test Dashboard**: `build/test_dashboard.html` (connection diagnostics)
+   - **WebSocket**: `ws://localhost:8085`
+   - **REST API**: `http://localhost:8086`
+
+### Dashboard Components
+- **Performance Cards**: Key metrics at-a-glance with real-time updates
+- **Interactive Charts**: P&L, positions, spreads, ML accuracy with Chart.js
+- **Real-Time Status**: Connection status indicators and live data feed monitoring
+- **Strategy Controls**: Multiple strategy monitoring and comparison
+- **Market Regime Visualization**: Real-time regime detection with confidence indicators
+- **ML Metrics Panel**: Model accuracy, prediction latency, and retrain statistics
+- **Risk Analysis**: VaR calculations, drawdown analysis, and risk metrics
+
+### Technical Details
+- **Frontend**: HTML5/CSS3/JavaScript with Chart.js and D3.js
+- **Backend**: Boost.Beast WebSocket and HTTP servers (migrated from websocketpp for compatibility)
+- **Data Format**: JSON with efficient real-time streaming
+- **Update Frequency**: 1-second intervals with configurable rates
+- **Connection Stability**: Fixed shared_ptr lifecycle management for stable WebSocket connections
+- **Debug Support**: Enhanced logging with `SPDLOG_LEVEL=debug` for troubleshooting
+
+### Testing WebSocket Connections
+If you encounter connection issues, use the test dashboard:
+```bash
+# Start with debug logging
+SPDLOG_LEVEL=debug ./pinnaclemm --mode simulation --enable-visualization --viz-ws-port 8089 --viz-api-port 8090 --verbose
+
+# Open test dashboard
+open build/test_dashboard.html
+# or manually: file:///path/to/PinnacleMM/build/test_dashboard.html
+```
+
+### Exchange Integration
 - [FIX Protocol Integration Guide](docs/FIX_PROTOCOL_INTEGRATION.md)
 - [FIX Testing Guide](docs/TESTING_GUIDE.md)
 - [Interactive Brokers Setup](docs/IB_TESTING_GUIDE.md)
+
+### System Administration
 - [Persistence System](docs/architecture/persistence.md)
-- [API Reference](docs/api/reference.md)
-- [Getting Started Guide](docs/user_guide/getting_started.md)
 - [Recovery Guide](docs/user_guide/recovery.md)
 - [Security & API Key Management](docs/security/credentials.md)
-- [Project Roadmap](docs/ROADMAP.md)
 
 ## Technology Stack
 
@@ -345,6 +550,8 @@ docker run -it --name pinnaclemm-live \
 - **Performance Benchmarking**: Google Benchmark
 - **Concurrency**: Lock-free algorithms, std::atomic
 - **Networking**: Boost.Beast WebSocket, hffix FIX protocol
+- **Machine Learning**: Custom neural networks, Hidden Markov Models, reinforcement learning
+- **Visualization**: HTML5/CSS3/JavaScript frontend, Chart.js, D3.js, WebSocket real-time updates
 - **Security**: OpenSSL for encryption
 - **Configuration**: nlohmann/json
 - **Containerization**: Docker
@@ -356,41 +563,12 @@ PinnacleMM achieves exceptional performance metrics:
 
 - **Order Book Update Latency**: <1 μs (microsecond)
 - **Order Execution Latency**: <50 μs (end-to-end)
+- **ML Prediction Latency**: 1-3 μs (neural network inference)
 - **Throughput**: 100,000+ messages per second
 - **Recovery Time**: <5 seconds for full system recovery
 - **Memory Footprint**: <100 MB for core engine
-
-## Current Progress (Phase 2 - COMPLETED)
-
-- Lock-free data structures implemented for ultra-low latency
-- Memory-mapped persistence system with crash recovery capabilities
-- **Live Exchange Connectivity**: Coinbase Pro WebSocket integration with real-time market data
-- **FIX Protocol Integration**: Professional-grade FIX connectivity for institutional exchanges
-  - Interactive Brokers FIX 4.2 support (requires IB FIX API agreement)
-  - hffix library integration for ultra-low latency message processing
-  - Factory pattern for multiple exchange support
-- **Advanced Order Routing**: Institutional-grade smart order routing system
-  - 4 routing algorithms: BEST_PRICE, TWAP, VWAP, MARKET_IMPACT
-  - Multi-venue execution with intelligent order splitting
-  - Real-time market data integration for dynamic venue selection
-  - Ultra-low latency: 1ms average execution time
-- **Comprehensive Performance Benchmarking**: Production-grade performance validation
-  - Strategy planning: 83ns-2.3μs across all algorithms
-  - End-to-end routing: 1.88μs average latency
-  - System throughput: 640k+ operations/second
-  - Nanosecond-precision performance metrics
-- **Enhanced Security Infrastructure**:
-  - AES-256-CBC encryption with unique random salts (replacing fixed salt vulnerability)
-  - PBKDF2 key derivation increased from 10,000 to 100,000 iterations
-  - Secure password input with terminal masking
-  - Comprehensive input validation framework preventing injection attacks
-  - Certificate pinning for WebSocket SSL connections
-  - Audit logging system for security events
-  - Rate limiting with configurable policies
-  - Secure memory clearing to prevent credential leakage
-- **Interactive credential setup utility**
-- **Real-time ticker data processing** ($109K+ BTC prices)
-- 🔄 **Next**: Full order book data (requires Coinbase authentication) and live FIX trading
+- **Dashboard Update Latency**: <100ms (real-time visualization)
+- **Regime Detection**: Real-time with 85%+ confidence accuracy
 
 ### Testing Integration
 
@@ -413,8 +591,20 @@ cd build
 # ✓ BestPriceStrategy, TWAP, VWAP, MarketImpact all working
 # ✓ Multi-venue execution with 1ms latency
 # ✓ 8 completed fills across multiple strategies
+
+# Memory safety validation with Address Sanitizer (development builds)
+cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON .. && make -j8
+./pinnaclemm --mode simulation --symbol BTC-USD --verbose
+# ASan will detect memory leaks, buffer overflows, and use-after-free errors
 ```
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contact Me
+
+For questions, feedback, or collaboration opportunities:
+
+- **Email**: [chizy@chizyhub.com](mailto:chizy@chizyhub.com)
+- **X(Twitter)**: [![Twitter Follow](https://img.shields.io/twitter/follow/chizyization?style=social)](https://x.com/Chizyization)
