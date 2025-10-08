@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/chizy7/PinnacleMM/compare/v1.0.2...v1.1.0) (2025-10-08)
+
+
+### Features
+
+* add ML enhancements, real-time visualization, and advanced testing ([d613915](https://github.com/chizy7/PinnacleMM/commit/d6139154ddae5e30b22eac63e856ec81bcc39054))
+
 ## [1.0.2](https://github.com/chizy7/PinnacleMM/compare/v1.0.1...v1.0.2) (2025-09-18)
 
 
