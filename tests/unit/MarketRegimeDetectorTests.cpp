@@ -2,6 +2,7 @@
 #include "../../strategies/analytics/MarketRegimeDetector.h"
 
 #include <chrono>
+#include <cmath>
 #include <gtest/gtest.h>
 #include <memory>
 #include <thread>
