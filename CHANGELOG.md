@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/chizy7/PinnacleMM/compare/v1.1.0...v1.2.0) (2025-10-12)
+
+
+### Features
+
+* implement JSON serialization for StrategyConfig ([9d5509a](https://github.com/chizy7/PinnacleMM/commit/9d5509a6155304aa1c1601eddff74593d886e467))
+
 # [1.1.0](https://github.com/chizy7/PinnacleMM/compare/v1.0.2...v1.1.0) (2025-10-08)
 
 
