@@ -309,6 +309,9 @@ bool StrategyConfig::saveToFile(const std::string& filename) const {
     }
 
     file << std::setw(2) << j << std::endl;
+    if (!file) {
+      return false;
+    }
     return true;
   } catch (const std::exception&) {
     return false;
