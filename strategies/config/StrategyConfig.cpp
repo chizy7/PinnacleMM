@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iomanip>
+#include <nlohmann/json.hpp>
 #include <sstream>
 
 namespace pinnacle {
@@ -146,27 +147,175 @@ bool StrategyConfig::validate(std::string& errorReason) const {
 }
 
 bool StrategyConfig::loadFromFile(const std::string& filename) {
-  // Suppress unused parameter warning
-  (void)filename;
-  // Note: For Phase 1, we're providing a stub implementation
-  // In a real implementation, this would parse a JSON file using a library like
-  // nlohmann/json
+  try {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+      return false;
+    }
 
-  // For now, just simulate loading by returning success
-  // This will be properly implemented in Phase 2
-  return true;
+    nlohmann::json j;
+    file >> j;
+
+    // Load general strategy parameters
+    if (j.contains("strategyName"))
+      strategyName = j["strategyName"];
+    if (j.contains("symbol"))
+      symbol = j["symbol"];
+
+    // Load quote parameters
+    if (j.contains("baseSpreadBps"))
+      baseSpreadBps = j["baseSpreadBps"];
+    if (j.contains("minSpreadBps"))
+      minSpreadBps = j["minSpreadBps"];
+    if (j.contains("maxSpreadBps"))
+      maxSpreadBps = j["maxSpreadBps"];
+    if (j.contains("orderQuantity"))
+      orderQuantity = j["orderQuantity"];
+    if (j.contains("minOrderQuantity"))
+      minOrderQuantity = j["minOrderQuantity"];
+    if (j.contains("maxOrderQuantity"))
+      maxOrderQuantity = j["maxOrderQuantity"];
+
+    // Load market making parameters
+    if (j.contains("targetPosition"))
+      targetPosition = j["targetPosition"];
+    if (j.contains("maxPosition"))
+      maxPosition = j["maxPosition"];
+    if (j.contains("inventorySkewFactor"))
+      inventorySkewFactor =
+          pinnacle::utils::Factor(j["inventorySkewFactor"].get<double>());
+    if (j.contains("priceLevelSpacing"))
+      priceLevelSpacing = j["priceLevelSpacing"];
+    if (j.contains("maxLevels"))
+      maxLevels = j["maxLevels"];
+
+    // Load order book parameters
+    if (j.contains("volumeDepthFactor"))
+      volumeDepthFactor =
+          pinnacle::utils::Factor(j["volumeDepthFactor"].get<double>());
+    if (j.contains("imbalanceThreshold"))
+      imbalanceThreshold =
+          pinnacle::utils::Factor(j["imbalanceThreshold"].get<double>());
+    if (j.contains("volumeWeightFactor"))
+      volumeWeightFactor =
+          pinnacle::utils::Factor(j["volumeWeightFactor"].get<double>());
+
+    // Load risk parameters
+    if (j.contains("maxDrawdownPct"))
+      maxDrawdownPct = j["maxDrawdownPct"];
+    if (j.contains("stopLossPct"))
+      stopLossPct = j["stopLossPct"];
+    if (j.contains("takeProfitPct"))
+      takeProfitPct = j["takeProfitPct"];
+    if (j.contains("maxTradingVolume"))
+      maxTradingVolume = j["maxTradingVolume"];
+
+    // Load timing parameters
+    if (j.contains("quoteUpdateIntervalMs"))
+      quoteUpdateIntervalMs = j["quoteUpdateIntervalMs"];
+    if (j.contains("orderTimeoutMs"))
+      orderTimeoutMs = j["orderTimeoutMs"];
+    if (j.contains("cancelRetryIntervalMs"))
+      cancelRetryIntervalMs = j["cancelRetryIntervalMs"];
+    if (j.contains("tradeMonitoringIntervalMs"))
+      tradeMonitoringIntervalMs = j["tradeMonitoringIntervalMs"];
+
+    // Load position management parameters
+    if (j.contains("autoHedgeEnabled"))
+      autoHedgeEnabled = j["autoHedgeEnabled"];
+    if (j.contains("hedgeThresholdPct"))
+      hedgeThresholdPct = j["hedgeThresholdPct"];
+    if (j.contains("hedgeIntervalMs"))
+      hedgeIntervalMs = j["hedgeIntervalMs"];
+
+    // Load market stress detection parameters
+    if (j.contains("volatilityThreshold"))
+      volatilityThreshold = j["volatilityThreshold"];
+    if (j.contains("spreadWidenFactor"))
+      spreadWidenFactor = j["spreadWidenFactor"];
+    if (j.contains("marketStressCheckMs"))
+      marketStressCheckMs = j["marketStressCheckMs"];
+
+    // Load performance optimization parameters
+    if (j.contains("useLowLatencyMode"))
+      useLowLatencyMode = j["useLowLatencyMode"];
+    if (j.contains("publishStatsIntervalMs"))
+      publishStatsIntervalMs = j["publishStatsIntervalMs"];
+
+    return true;
+  } catch (const std::exception&) {
+    return false;
+  }
 }
 
 bool StrategyConfig::saveToFile(const std::string& filename) const {
-  // Suppress unused parameter warning
-  (void)filename;
-  // Note: For Phase 1, we're providing a stub implementation
-  // In a real implementation, this would serialize to JSON using a library like
-  // nlohmann/json
+  try {
+    nlohmann::json j;
 
-  // For now, just simulate saving by returning success
-  // This will be properly implemented in Phase 2
-  return true;
+    // Save general strategy parameters
+    j["strategyName"] = strategyName;
+    j["symbol"] = symbol;
+
+    // Save quote parameters
+    j["baseSpreadBps"] = baseSpreadBps;
+    j["minSpreadBps"] = minSpreadBps;
+    j["maxSpreadBps"] = maxSpreadBps;
+    j["orderQuantity"] = orderQuantity;
+    j["minOrderQuantity"] = minOrderQuantity;
+    j["maxOrderQuantity"] = maxOrderQuantity;
+
+    // Save market making parameters
+    j["targetPosition"] = targetPosition;
+    j["maxPosition"] = maxPosition;
+    j["inventorySkewFactor"] = inventorySkewFactor.getValue();
+    j["priceLevelSpacing"] = priceLevelSpacing;
+    j["maxLevels"] = maxLevels;
+
+    // Save order book parameters
+    j["volumeDepthFactor"] = volumeDepthFactor.getValue();
+    j["imbalanceThreshold"] = imbalanceThreshold.getValue();
+    j["volumeWeightFactor"] = volumeWeightFactor.getValue();
+
+    // Save risk parameters
+    j["maxDrawdownPct"] = maxDrawdownPct;
+    j["stopLossPct"] = stopLossPct;
+    j["takeProfitPct"] = takeProfitPct;
+    j["maxTradingVolume"] = maxTradingVolume;
+
+    // Save timing parameters
+    j["quoteUpdateIntervalMs"] = quoteUpdateIntervalMs;
+    j["orderTimeoutMs"] = orderTimeoutMs;
+    j["cancelRetryIntervalMs"] = cancelRetryIntervalMs;
+    j["tradeMonitoringIntervalMs"] = tradeMonitoringIntervalMs;
+
+    // Save position management parameters
+    j["autoHedgeEnabled"] = autoHedgeEnabled;
+    j["hedgeThresholdPct"] = hedgeThresholdPct;
+    j["hedgeIntervalMs"] = hedgeIntervalMs;
+
+    // Save market stress detection parameters
+    j["volatilityThreshold"] = volatilityThreshold;
+    j["spreadWidenFactor"] = spreadWidenFactor;
+    j["marketStressCheckMs"] = marketStressCheckMs;
+
+    // Save performance optimization parameters
+    j["useLowLatencyMode"] = useLowLatencyMode;
+    j["publishStatsIntervalMs"] = publishStatsIntervalMs;
+
+    // Write to file with pretty formatting
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+      return false;
+    }
+
+    file << std::setw(2) << j << std::endl;
+    if (!file) {
+      return false;
+    }
+    return true;
+  } catch (const std::exception&) {
+    return false;
+  }
 }
 
 std::string StrategyConfig::toString() const {
