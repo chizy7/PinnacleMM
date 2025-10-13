@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/chizy7/PinnacleMM/compare/v1.3.1...v1.4.0) (2025-10-13)
+
+
+### Features
+
+* **security:** implement certificate pinning and reorganize project scripts ([#40](https://github.com/chizy7/PinnacleMM/issues/40)) ([f8aad7d](https://github.com/chizy7/PinnacleMM/commit/f8aad7dc09eb85169d52d22575884a356421e0e4))
+
 ## [1.3.1](https://github.com/chizy7/PinnacleMM/compare/v1.3.0...v1.3.1) (2025-10-13)
 
 
