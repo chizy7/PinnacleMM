@@ -152,13 +152,13 @@ print_info "Stopping any existing PinnacleMM containers..."
 docker stop pinnaclemm pinnaclemm-live 2>/dev/null || true
 docker rm pinnaclemm pinnaclemm-live 2>/dev/null || true
 
-# Prepare container name and arguments
+# Prepare container name and arguments as array
 CONTAINER_NAME="pinnaclemm"
-DOCKER_ARGS="--mode $MODE --symbol $SYMBOL"
+DOCKER_ARGS=("--mode" "$MODE" "--symbol" "$SYMBOL")
 
 if [[ "$MODE" == "live" ]]; then
     CONTAINER_NAME="pinnaclemm-live"
-    DOCKER_ARGS="$DOCKER_ARGS --exchange $EXCHANGE"
+    DOCKER_ARGS+=("--exchange" "$EXCHANGE")
 
     # Check if config directory exists for live mode
     if [[ ! -d "config" ]]; then
@@ -169,14 +169,14 @@ if [[ "$MODE" == "live" ]]; then
     # Check if credentials are configured
     if [[ ! -f "config/secure_config.json" ]]; then
         print_warning "No API credentials found. You'll need to set them up first."
-        print_info "Run: ./run-native.sh --setup-credentials"
+        print_info "Run: scripts/run-native.sh --setup-credentials"
         print_info "Or run the native binary to configure credentials first."
     fi
 fi
 
 # Add verbose flag if specified
 if [[ -n "$VERBOSE" ]]; then
-    DOCKER_ARGS="$DOCKER_ARGS $VERBOSE"
+    DOCKER_ARGS+=("$VERBOSE")
 fi
 
 print_info "Starting PinnacleMM in Docker..."
@@ -192,12 +192,12 @@ if [[ "$MODE" == "live" ]]; then
     print_info "Running in live mode (interactive for password input)..."
     docker run -it --name "$CONTAINER_NAME" \
         -v "$(pwd)/config:/app/config" \
-        pinnaclemm "$DOCKER_ARGS"
+        pinnaclemm "${DOCKER_ARGS[@]}"
 else
     # Simulation mode - detached
     print_info "Running in simulation mode (detached)..."
     docker run -d --name "$CONTAINER_NAME" \
-        pinnaclemm "$DOCKER_ARGS"
+        pinnaclemm "${DOCKER_ARGS[@]}"
 
     print_success "Container started successfully!"
     print_info "Container ID: $(docker ps -q -f name=$CONTAINER_NAME)"

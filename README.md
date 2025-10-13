@@ -104,20 +104,20 @@ git clone https://github.com/chizy7/PinnacleMM.git
 cd PinnacleMM
 
 # One-command setup and run
-./run-native.sh                    # Simulation mode (auto-builds if needed)
-./run-native.sh -m live -v         # Live trading with verbose logs
-./run-native.sh --enable-ml        # ML-enhanced simulation mode
-./run-native.sh --enable-visualization # With real-time dashboard
-./run-native.sh --setup-credentials # Configure API keys
+scripts/run-native.sh                    # Simulation mode (auto-builds if needed)
+scripts/run-native.sh -m live -v         # Live trading with verbose logs
+scripts/run-native.sh --enable-ml        # ML-enhanced simulation mode
+scripts/run-native.sh --enable-visualization # With real-time dashboard
+scripts/run-native.sh --setup-credentials # Configure API keys
 ```
 
 #### **Docker Execution** (Recommended for Production)
 ```bash
 # Build and run in one command
-./run-docker.sh                    # Simulation mode
-./run-docker.sh -m live -v         # Live trading mode
-./run-docker.sh build              # Build Docker image
-./run-docker.sh logs               # View container logs
+scripts/run-docker.sh                    # Simulation mode
+scripts/run-docker.sh -m live -v         # Live trading mode
+scripts/run-docker.sh build              # Build Docker image
+scripts/run-docker.sh logs               # View container logs
 ```
 
 ### Manual Building from Source
@@ -128,7 +128,7 @@ git clone https://github.com/chizy7/PinnacleMM.git
 cd PinnacleMM
 
 # Build with native script (recommended)
-./run-native.sh build
+scripts/run-native.sh build
 
 # Or build manually
 mkdir build && cd build
@@ -140,13 +140,13 @@ make -j$(sysctl -n hw.ncpu)  # macOS
 ### Script Features Comparison
 > **Note**: I will update later on after completing phase 4 and 5, cleaning up the code and getting PinnacleMM ready for optimization and production deployment.
 
-| Feature | Native Script (`./run-native.sh`) | Docker Script (`./run-docker.sh`) |
+| Feature | Native Script (`scripts/run-native.sh`) | Docker Script (`scripts/run-docker.sh`) |
 |---------|-----------------------------------|-----------------------------------|
 | **Simulation Mode** | Perfect | Perfect |
 | **Live Trading** | Real WebSocket data | ⚠️ WebSocket config issue |
 | **Auto-Build** | Builds if needed | Auto Docker build |
-| **Test Runner** | `./run-native.sh test` | ❌ Not included |
-| **Benchmarks** | `./run-native.sh benchmark` | ❌ Not included |
+| **Test Runner** | `scripts/run-native.sh test` | ❌ Not included |
+| **Benchmarks** | `scripts/run-native.sh benchmark` | ❌ Not included |
 | **Credential Setup** | Interactive setup | Volume mounting |
 | **Dependency Check** | cmake, make, g++ | Docker only |
 | **Best For** | Development & Live Trading | Production & Simulation |
@@ -156,8 +156,8 @@ make -j$(sysctl -n hw.ncpu)  # macOS
 #### Simulation Mode
 ```bash
 # Using scripts (recommended)
-./run-native.sh                    # Native execution
-./run-docker.sh                    # Docker execution
+scripts/run-native.sh                    # Native execution
+scripts/run-docker.sh                    # Docker execution
 
 # Manual execution
 cd build && ./pinnaclemm --mode simulation --symbol BTC-USD
@@ -187,11 +187,11 @@ cd build && ./pinnaclemm --mode simulation --enable-ml --enable-visualization --
 #### Live Exchange Mode
 ```bash
 # Setup credentials first
-./run-native.sh --setup-credentials
+scripts/run-native.sh --setup-credentials
 
 # Live trading with scripts
-./run-native.sh -m live -v         # Native (recommended for live)
-./run-docker.sh -m live -v         # Docker
+scripts/run-native.sh -m live -v         # Native (recommended for live)
+scripts/run-docker.sh -m live -v         # Docker
 
 # Manual execution
 cd build && ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
@@ -292,7 +292,7 @@ PinnacleMM securely stores and manages exchange API credentials:
 
 1. **Run credential setup**:
 ```bash
-./run-native.sh --setup-credentials
+scripts/run-native.sh --setup-credentials
 # or manually:
 ./pinnaclemm --setup-credentials
 ```
@@ -306,7 +306,7 @@ PinnacleMM securely stores and manages exchange API credentials:
 
 4. **Verify setup**:
 ```bash
-./run-native.sh -m live -v
+scripts/run-native.sh -m live -v
 # or manually:
 ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
 ```
@@ -329,31 +329,31 @@ For more detailed instructions, see the [Getting Started Guide](docs/user_guide/
 
 ## Script Documentation
 
-### Native Script (`./run-native.sh`)
+### Native Script (`scripts/run-native.sh`)
 
 **Available Commands:**
 ```bash
 # Execution modes
-./run-native.sh                     # Simulation mode (default)
-./run-native.sh -m live -v          # Live mode with verbose logging
-./run-native.sh -s ETH-USD          # Custom trading symbol
-./run-native.sh -e coinbase         # Specify exchange
+scripts/run-native.sh                     # Simulation mode (default)
+scripts/run-native.sh -m live -v          # Live mode with verbose logging
+scripts/run-native.sh -s ETH-USD          # Custom trading symbol
+scripts/run-native.sh -e coinbase         # Specify exchange
 
 # Build commands
-./run-native.sh build               # Build project
-./run-native.sh clean               # Clean build directory
-./run-native.sh rebuild             # Clean and rebuild
+scripts/run-native.sh build               # Build project
+scripts/run-native.sh clean               # Clean build directory
+scripts/run-native.sh rebuild             # Clean and rebuild
 
 # Testing and benchmarks
-./run-native.sh test                # Run all tests
-./run-native.sh benchmark           # Run performance benchmarks
+scripts/run-native.sh test                # Run all tests
+scripts/run-native.sh benchmark           # Run performance benchmarks
 
 # Setup
-./run-native.sh --setup-credentials # Configure API credentials (secure input)
-./run-native.sh --help              # Show help
+scripts/run-native.sh --setup-credentials # Configure API credentials (secure input)
+scripts/run-native.sh --help              # Show help
 
 # Cleanup
-./cleanup.sh                        # Interactive cleanup utility
+scripts/cleanup.sh                        # Interactive cleanup utility
 ```
 
 **Features:**
@@ -363,21 +363,21 @@ For more detailed instructions, see the [Getting Started Guide](docs/user_guide/
 - **Test runner**: Comprehensive test suite execution
 - **Live trading**: Real WebSocket connections to exchanges
 
-### Docker Script (`./run-docker.sh`)
+### Docker Script (`scripts/run-docker.sh`)
 
 **Available Commands:**
 ```bash
 # Execution modes
-./run-docker.sh                     # Simulation mode (detached)
-./run-docker.sh -m live -v          # Live mode (interactive)
-./run-docker.sh -s ETH-USD          # Custom trading symbol
+scripts/run-docker.sh                     # Simulation mode (detached)
+scripts/run-docker.sh -m live -v          # Live mode (interactive)
+scripts/run-docker.sh -s ETH-USD          # Custom trading symbol
 
 # Container management
-./run-docker.sh build               # Build Docker image
-./run-docker.sh logs                # View container logs
-./run-docker.sh stop                # Stop and remove containers
-./run-docker.sh clean               # Remove containers and image
-./run-docker.sh --help              # Show help
+scripts/run-docker.sh build               # Build Docker image
+scripts/run-docker.sh logs                # View container logs
+scripts/run-docker.sh stop                # Stop and remove containers
+scripts/run-docker.sh clean               # Remove containers and image
+scripts/run-docker.sh --help              # Show help
 ```
 
 **Features:**
@@ -392,12 +392,12 @@ For more detailed instructions, see the [Getting Started Guide](docs/user_guide/
 ### Using Docker Script (Recommended)
 ```bash
 # Quick start
-./run-docker.sh                     # Simulation mode
-./run-docker.sh -m live -v          # Live trading
+scripts/run-docker.sh                     # Simulation mode
+scripts/run-docker.sh -m live -v          # Live trading
 
 # Container management
-./run-docker.sh logs                # Monitor logs
-./run-docker.sh stop                # Stop trading
+scripts/run-docker.sh logs                # Monitor logs
+scripts/run-docker.sh stop                # Stop trading
 ```
 
 ### Using Pre-built Images (GitHub Container Registry)
@@ -540,6 +540,7 @@ open build/test_dashboard.html
 - [Persistence System](docs/architecture/persistence.md)
 - [Recovery Guide](docs/user_guide/recovery.md)
 - [Security & API Key Management](docs/security/credentials.md)
+- [Certificate Pinning Guide](docs/security/CERTIFICATE_PINNING.md)
 
 ## Technology Stack
 

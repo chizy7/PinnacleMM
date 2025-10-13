@@ -409,6 +409,18 @@ if(BUILD_TESTS)
                         GTest::gtest Threads::Threads)
   add_test(NAME BacktestEngineTests COMMAND backtest_engine_tests)
 
+  # Certificate Pinner tests - Tests certificate pinning and validation
+  add_executable(certificate_pinner_tests tests/unit/CertificatePinnerTest.cpp)
+  target_link_libraries(
+    certificate_pinner_tests
+    core
+    GTest::gtest_main
+    GTest::gtest
+    Threads::Threads
+    OpenSSL::SSL
+    OpenSSL::Crypto)
+  add_test(NAME CertificatePinnerTests COMMAND certificate_pinner_tests)
+
   # FIX Protocol tests - Tests factory patterns, configuration, and core FIX
   # integration
   add_executable(fix_basic_test tests/fix_basic_test.cpp)
