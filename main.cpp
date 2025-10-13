@@ -235,17 +235,44 @@ int main(int argc, char* argv[]) {
     spdlog::info("Persistence initialized with data directory: {}",
                  dataDirectory);
 
-    // Create order book
+    // Attempt to recover state from persistence
+    auto recoveryStatus = persistenceManager.recoverState();
+    switch (recoveryStatus) {
+    case pinnacle::persistence::RecoveryStatus::Success:
+      spdlog::info("Successfully recovered persistence state");
+      break;
+    case pinnacle::persistence::RecoveryStatus::CleanStart:
+      spdlog::info("No previous state to recover (clean start)");
+      break;
+    case pinnacle::persistence::RecoveryStatus::Failed:
+      spdlog::error(
+          "Recovery failed - encountered errors while recovering persistence "
+          "state. System may be in an inconsistent state.");
+      spdlog::error("Please check logs for details or remove data directory to "
+                    "start fresh.");
+      return 1;
+    }
+
+    // Create or retrieve order book
     std::shared_ptr<pinnacle::OrderBook> orderBook;
 
-    if (useLockFree) {
-      // Use lock-free order book
-      spdlog::info("Using lock-free order book implementation");
-      orderBook = std::make_shared<pinnacle::LockFreeOrderBook>(symbol);
+    // First, try to get recovered order book for this symbol
+    orderBook = persistenceManager.getRecoveredOrderBook(symbol);
+
+    if (orderBook) {
+      spdlog::info("Using recovered order book for {} with {} existing orders",
+                   symbol, orderBook->getOrderCount());
     } else {
-      // Use default order book
-      spdlog::info("Using mutex-based order book implementation");
-      orderBook = std::make_shared<pinnacle::OrderBook>(symbol);
+      // No recovered order book, create a new one
+      if (useLockFree) {
+        // Use lock-free order book
+        spdlog::info("Using lock-free order book implementation");
+        orderBook = std::make_shared<pinnacle::LockFreeOrderBook>(symbol);
+      } else {
+        // Use default order book
+        spdlog::info("Using mutex-based order book implementation");
+        orderBook = std::make_shared<pinnacle::OrderBook>(symbol);
+      }
     }
 
     // Load strategy configuration

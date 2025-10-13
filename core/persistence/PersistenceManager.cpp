@@ -95,46 +95,131 @@ PersistenceManager::getSnapshotManager(const std::string& symbol) {
   }
 }
 
-bool PersistenceManager::recoverState() {
+RecoveryStatus PersistenceManager::recoverState() {
   // First, recover from snapshots (faster)
-  bool snapshotRecovery = recoverFromSnapshots();
+  RecoveryStatus snapshotStatus = recoverFromSnapshots();
 
   // Then, apply any journal entries since last snapshot
-  bool journalRecovery = recoverFromJournals();
+  RecoveryStatus journalStatus = recoverFromJournals();
 
-  // Return success if either recovery method worked
-  return snapshotRecovery || journalRecovery;
+  // Determine overall recovery status
+  // If either recovery failed with errors, report failure
+  if (snapshotStatus == RecoveryStatus::Failed ||
+      journalStatus == RecoveryStatus::Failed) {
+    spdlog::error(
+        "Recovery failed - encountered errors during recovery process");
+    return RecoveryStatus::Failed;
+  }
+
+  // If either recovery succeeded, overall recovery is successful
+  if (snapshotStatus == RecoveryStatus::Success ||
+      journalStatus == RecoveryStatus::Success) {
+    return RecoveryStatus::Success;
+  }
+
+  // Both returned CleanStart - this is a clean start
+  return RecoveryStatus::CleanStart;
 }
 
 void PersistenceManager::performMaintenance() {
-  // Get config values for maintenance
-  int keepSnapshots = 5; // Default value, should be loaded from config
-  uint64_t compactionThreshold =
-      1000000;               // Default value, should be loaded from config
-  (void)compactionThreshold; // TODO: Implement journal compaction logic
+  spdlog::info("Starting persistence maintenance...");
 
-  // Perform journal compaction
-  for (const auto& pair : m_journals) {
-    const std::string& symbol = pair.first;
-    auto journal = pair.second;
+  // Configuration values for maintenance
+  // TODO: Load these from a PersistenceConfig file when available
+  const int keepSnapshots = 5; // Keep the 5 most recent snapshots
+  const uint64_t compactionThreshold =
+      1000000; // Compact if journal > 1M entries
 
-    // Get snapshot manager
-    auto snapshotManager = getSnapshotManager(symbol);
-    if (!snapshotManager) {
-      continue;
+  int journalsCompacted = 0;
+  int snapshotsCleaned = 0;
+
+  try {
+    // Lock to prevent concurrent modifications
+    std::lock_guard<std::mutex> journalLock(m_journalsMutex);
+    std::lock_guard<std::mutex> snapshotLock(m_snapshotManagersMutex);
+
+    // Perform maintenance on each symbol
+    for (const auto& pair : m_journals) {
+      const std::string& symbol = pair.first;
+      auto journal = pair.second;
+
+      if (!journal) {
+        continue;
+      }
+
+      // Get snapshot manager for this symbol (already holding
+      // m_snapshotManagersMutex)
+      auto snapshotIt = m_snapshotManagers.find(symbol);
+      if (snapshotIt == m_snapshotManagers.end() || !snapshotIt->second) {
+        spdlog::warn("No snapshot manager found for symbol: {}", symbol);
+        continue;
+      }
+      auto snapshotManager = snapshotIt->second;
+
+      // Get the latest snapshot ID (used as checkpoint for compaction)
+      uint64_t latestSnapshotId = snapshotManager->getLatestSnapshotId();
+
+      // Perform journal compaction if we have a valid checkpoint
+      if (latestSnapshotId > 0) {
+        uint64_t currentSequence = journal->getLatestSequenceNumber();
+
+        // Only compact if the journal has grown beyond the threshold
+        // Guard against unsigned underflow by checking currentSequence >
+        // latestSnapshotId first
+        if (currentSequence > latestSnapshotId &&
+            (currentSequence - latestSnapshotId) > compactionThreshold) {
+          spdlog::info("Compacting journal for symbol: {} (sequence: {} -> {})",
+                       symbol, latestSnapshotId, currentSequence);
+
+          if (journal->compact(latestSnapshotId)) {
+            journalsCompacted++;
+            spdlog::info("Successfully compacted journal for symbol: {}",
+                         symbol);
+          } else {
+            spdlog::error("Failed to compact journal for symbol: {}", symbol);
+          }
+        } else {
+          spdlog::debug("Journal for {} does not need compaction (entries: {})",
+                        symbol,
+                        currentSequence > latestSnapshotId
+                            ? currentSequence - latestSnapshotId
+                            : 0);
+        }
+      } else {
+        spdlog::debug("No checkpoint found for symbol: {}, skipping compaction",
+                      symbol);
+      }
+
+      // Cleanup old snapshots (keep only the N most recent)
+      if (snapshotManager->cleanupOldSnapshots(keepSnapshots)) {
+        snapshotsCleaned++;
+        spdlog::info("Cleaned up old snapshots for symbol: {}", symbol);
+      }
     }
 
-    // Get latest snapshot ID
-    uint64_t latestSnapshotId = snapshotManager->getLatestSnapshotId();
-    if (latestSnapshotId == 0) {
-      continue;
+    // Also check for snapshot managers without journals
+    for (const auto& pair : m_snapshotManagers) {
+      const std::string& symbol = pair.first;
+      auto snapshotManager = pair.second;
+
+      // Skip if we already processed this symbol
+      if (m_journals.find(symbol) != m_journals.end()) {
+        continue;
+      }
+
+      // Cleanup old snapshots
+      if (snapshotManager->cleanupOldSnapshots(keepSnapshots)) {
+        snapshotsCleaned++;
+        spdlog::info("Cleaned up old snapshots for symbol: {}", symbol);
+      }
     }
 
-    // Compact journal (remove entries before the latest snapshot)
-    journal->compact(latestSnapshotId);
+    spdlog::info(
+        "Maintenance completed: {} journals compacted, {} snapshots cleaned",
+        journalsCompacted, snapshotsCleaned);
 
-    // Cleanup old snapshots
-    snapshotManager->cleanupOldSnapshots(keepSnapshots);
+  } catch (const std::exception& e) {
+    spdlog::error("Maintenance failed: {}", e.what());
   }
 }
 
@@ -167,32 +252,239 @@ bool PersistenceManager::createDirectories() {
   }
 }
 
-bool PersistenceManager::recoverFromJournals() {
-  // This method would recover order books from journal entries
-  // For each symbol, get the journal and replay entries
-  // For now, I'll implement a placeholder that returns success
+RecoveryStatus PersistenceManager::recoverFromJournals() {
+  spdlog::info("Starting journal recovery...");
 
-  // In a real implementation, this would:
-  // 1. Get a list of all journals
-  // 2. For each journal, get the associated order book
-  // 3. Get the latest checkpoint sequence
-  // 4. Read journal entries after the checkpoint
-  // 5. Apply those entries to the order book
+  try {
+    // Get the journals directory path
+    std::string journalsDir = m_dataDirectory + "/journals";
 
-  return true;
+    // Check if journals directory exists
+    if (!std::filesystem::exists(journalsDir)) {
+      spdlog::info("Journals directory does not exist: {} (clean start)",
+                   journalsDir);
+      return RecoveryStatus::CleanStart;
+    }
+
+    // Enumerate all journal files
+    int recoveredCount = 0;
+    bool hadErrors = false;
+    for (const auto& entry : std::filesystem::directory_iterator(journalsDir)) {
+      if (!entry.is_regular_file()) {
+        continue;
+      }
+
+      std::string filename = entry.path().filename().string();
+
+      // Check if this is a journal file (ends with .journal)
+      if (filename.find(".journal") != filename.length() - 8) {
+        continue;
+      }
+
+      // Extract symbol from filename (e.g., "BTC-USD.journal" -> "BTC-USD")
+      std::string symbol = filename.substr(0, filename.length() - 8);
+
+      // Get or create journal for this symbol
+      auto journal = getJournal(symbol);
+      if (!journal) {
+        spdlog::error("Failed to get journal for symbol: {}", symbol);
+        hadErrors = true;
+        continue;
+      }
+
+      // Get the snapshot manager to find the latest checkpoint
+      auto snapshotManager = getSnapshotManager(symbol);
+      uint64_t checkpointSequence = 0;
+
+      if (snapshotManager) {
+        // Get the latest snapshot ID to use as checkpoint
+        checkpointSequence = snapshotManager->getLatestSnapshotId();
+      }
+
+      // Check if we already have a recovered order book from snapshot recovery
+      std::shared_ptr<OrderBook> orderBook;
+      {
+        std::lock_guard<std::mutex> lock(m_recoveredOrderBooksMutex);
+        auto it = m_recoveredOrderBooks.find(symbol);
+        if (it != m_recoveredOrderBooks.end()) {
+          orderBook = it->second;
+          spdlog::info("Using existing recovered order book for {}", symbol);
+        }
+      }
+
+      // If no existing order book, try to load from snapshot or create new one
+      if (!orderBook) {
+        if (snapshotManager && checkpointSequence > 0) {
+          auto snapshotOrderBook = snapshotManager->loadLatestSnapshot();
+          if (snapshotOrderBook) {
+            orderBook = snapshotOrderBook;
+            spdlog::info("Loaded snapshot for {}, replaying journal entries "
+                         "after checkpoint {}",
+                         symbol, checkpointSequence);
+          }
+        }
+
+        // If still no order book, create a new one
+        if (!orderBook) {
+          orderBook = std::make_shared<OrderBook>(
+              symbol, false); // Disable persistence for recovery
+          spdlog::info("Created new order book for {} journal recovery",
+                       symbol);
+        }
+      }
+
+      // Read journal entries after the checkpoint
+      auto entries = journal->readEntriesAfter(checkpointSequence);
+
+      if (entries.empty()) {
+        spdlog::info("No journal entries to replay for symbol: {}", symbol);
+        // Still store the order book if we loaded it from snapshot
+        if (orderBook) {
+          std::lock_guard<std::mutex> lock(m_recoveredOrderBooksMutex);
+          m_recoveredOrderBooks[symbol] = orderBook;
+        }
+        continue;
+      }
+
+      // Replay the journal entries
+      if (orderBook->recoverFromJournal(journal)) {
+        spdlog::info("Successfully recovered journal for symbol: {} ({} "
+                     "entries replayed)",
+                     symbol, entries.size());
+
+        // Store the recovered order book
+        {
+          std::lock_guard<std::mutex> lock(m_recoveredOrderBooksMutex);
+          m_recoveredOrderBooks[symbol] = orderBook;
+        }
+
+        recoveredCount++;
+      } else {
+        spdlog::error("Failed to recover journal for symbol: {}", symbol);
+        hadErrors = true;
+      }
+    }
+
+    // Determine return status
+    if (hadErrors) {
+      spdlog::error("Journal recovery completed with errors");
+      return RecoveryStatus::Failed;
+    }
+
+    if (recoveredCount > 0) {
+      spdlog::info("Journal recovery completed: {} symbols recovered",
+                   recoveredCount);
+      return RecoveryStatus::Success;
+    } else {
+      spdlog::info("No journals found to recover (clean start)");
+      return RecoveryStatus::CleanStart;
+    }
+  } catch (const std::exception& e) {
+    spdlog::error("Journal recovery failed with exception: {}", e.what());
+    return RecoveryStatus::Failed;
+  }
 }
 
-bool PersistenceManager::recoverFromSnapshots() {
-  // This method would recover order books from the latest snapshots
-  // For each symbol, load the latest snapshot
-  // For now, I'll implement a placeholder that returns success
+RecoveryStatus PersistenceManager::recoverFromSnapshots() {
+  spdlog::info("Starting snapshot recovery...");
 
-  // In a real implementation, this would:
-  // 1. Get a list of all snapshot managers
-  // 2. For each manager, get the latest snapshot
-  // 3. Load the snapshot into the order book
+  try {
+    // Get the snapshots directory path
+    std::string snapshotsDir = m_dataDirectory + "/snapshots";
 
-  return true;
+    // Check if snapshots directory exists
+    if (!std::filesystem::exists(snapshotsDir)) {
+      spdlog::info("Snapshots directory does not exist: {} (clean start)",
+                   snapshotsDir);
+      return RecoveryStatus::CleanStart;
+    }
+
+    // Enumerate all subdirectories (one per symbol)
+    int recoveredCount = 0;
+    bool hadErrors = false;
+    for (const auto& entry :
+         std::filesystem::directory_iterator(snapshotsDir)) {
+      if (!entry.is_directory()) {
+        continue;
+      }
+
+      // Extract symbol from directory name
+      std::string symbol = entry.path().filename().string();
+
+      // Get or create snapshot manager for this symbol
+      auto snapshotManager = getSnapshotManager(symbol);
+      if (!snapshotManager) {
+        spdlog::error("Failed to create snapshot manager for symbol: {}",
+                      symbol);
+        hadErrors = true;
+        continue;
+      }
+
+      // Load the latest snapshot
+      auto orderBook = snapshotManager->loadLatestSnapshot();
+      if (!orderBook) {
+        spdlog::warn("No valid snapshot found for symbol: {}", symbol);
+        // This is a warning, not an error - could be corrupt or empty snapshot
+        continue;
+      }
+
+      // Store the recovered order book
+      {
+        std::lock_guard<std::mutex> lock(m_recoveredOrderBooksMutex);
+        m_recoveredOrderBooks[symbol] = orderBook;
+      }
+
+      spdlog::info(
+          "Successfully recovered snapshot for symbol: {} with {} orders",
+          symbol, orderBook->getOrderCount());
+      recoveredCount++;
+    }
+
+    // Determine return status
+    if (hadErrors) {
+      spdlog::error("Snapshot recovery completed with errors");
+      return RecoveryStatus::Failed;
+    }
+
+    if (recoveredCount > 0) {
+      spdlog::info("Snapshot recovery completed: {} symbols recovered",
+                   recoveredCount);
+      return RecoveryStatus::Success;
+    } else {
+      spdlog::info("No snapshots found to recover (clean start)");
+      return RecoveryStatus::CleanStart;
+    }
+  } catch (const std::exception& e) {
+    spdlog::error("Snapshot recovery failed with exception: {}", e.what());
+    return RecoveryStatus::Failed;
+  }
+}
+
+std::shared_ptr<OrderBook>
+PersistenceManager::getRecoveredOrderBook(const std::string& symbol) {
+  std::lock_guard<std::mutex> lock(m_recoveredOrderBooksMutex);
+  auto it = m_recoveredOrderBooks.find(symbol);
+  if (it != m_recoveredOrderBooks.end()) {
+    return it->second;
+  }
+  return nullptr;
+}
+
+std::unordered_map<std::string, std::shared_ptr<OrderBook>>
+PersistenceManager::getAllRecoveredOrderBooks() {
+  std::lock_guard<std::mutex> lock(m_recoveredOrderBooksMutex);
+  return m_recoveredOrderBooks;
+}
+
+bool PersistenceManager::hasRecoveredOrderBooks() const {
+  std::lock_guard<std::mutex> lock(m_recoveredOrderBooksMutex);
+  return !m_recoveredOrderBooks.empty();
+}
+
+void PersistenceManager::clearRecoveredOrderBooks() {
+  std::lock_guard<std::mutex> lock(m_recoveredOrderBooksMutex);
+  m_recoveredOrderBooks.clear();
+  spdlog::info("Cleared all recovered order books");
 }
 
 } // namespace persistence

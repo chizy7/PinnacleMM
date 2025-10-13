@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../orderbook/OrderBook.h"
 #include "journal/Journal.h"
 #include "snapshot/SnapshotManager.h"
 #include <cstdint>
@@ -7,9 +8,17 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace pinnacle {
 namespace persistence {
+
+// Recovery status enumeration
+enum class RecoveryStatus {
+  Success,    // Successfully recovered data
+  CleanStart, // No data to recover (first run or clean state)
+  Failed      // Recovery failed due to errors
+};
 
 class PersistenceManager {
 public:
@@ -27,7 +36,22 @@ public:
   getSnapshotManager(const std::string& symbol);
 
   // Recover state after restart
-  bool recoverState();
+  // Returns RecoveryStatus to differentiate between success, clean start, and
+  // failure
+  RecoveryStatus recoverState();
+
+  // Get a recovered order book for a specific symbol
+  std::shared_ptr<OrderBook> getRecoveredOrderBook(const std::string& symbol);
+
+  // Get all recovered order books
+  std::unordered_map<std::string, std::shared_ptr<OrderBook>>
+  getAllRecoveredOrderBooks();
+
+  // Check if order books have been recovered
+  bool hasRecoveredOrderBooks() const;
+
+  // Clear recovered order books (e.g., after they've been used)
+  void clearRecoveredOrderBooks();
 
   // Periodic housekeeping (e.g., compaction)
   void performMaintenance();
@@ -48,15 +72,18 @@ private:
   std::unordered_map<std::string, std::shared_ptr<journal::Journal>> m_journals;
   std::unordered_map<std::string, std::shared_ptr<snapshot::SnapshotManager>>
       m_snapshotManagers;
+  std::unordered_map<std::string, std::shared_ptr<OrderBook>>
+      m_recoveredOrderBooks;
   std::mutex m_journalsMutex;
   std::mutex m_snapshotManagersMutex;
+  mutable std::mutex m_recoveredOrderBooksMutex;
 
   // Create necessary directories
   bool createDirectories();
 
   // Internal recovery logic
-  bool recoverFromJournals();
-  bool recoverFromSnapshots();
+  RecoveryStatus recoverFromJournals();
+  RecoveryStatus recoverFromSnapshots();
 };
 
 } // namespace persistence
