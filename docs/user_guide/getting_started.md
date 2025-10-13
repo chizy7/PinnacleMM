@@ -83,7 +83,7 @@ The simplest way to start is with the simulation mode (no API keys needed):
 
 ```bash
 # Using the native script (recommended)
-./run-native.sh --setup-credentials
+scripts/run-native.sh --setup-credentials
 
 # Or directly
 ./pinnaclemm --setup-credentials
@@ -207,7 +207,7 @@ docker run -d --name pinnaclemm pinnaclemm --symbol ETH-USD --verbose
 
 ### Runtime Issues
 
-- **"Failed to load secure config"**: Run `./run-native.sh --setup-credentials` first
+- **"Failed to load secure config"**: Run `scripts/run-native.sh --setup-credentials` first
 - **"Authentication failure"**: Check your API credentials and master password
 - **"Key derivation failed"**: Your config file may be corrupted; delete and recreate credentials
 - **WebSocket connection issues**: Verify internet connection and exchange endpoints

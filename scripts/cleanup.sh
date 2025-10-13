@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # PinnacleMM Cleanup Script
 
@@ -15,7 +16,7 @@ read -r -p "Choose option (1-6): " choice
 case $choice in
     1)
         echo "Cleaning build files..."
-        cd build && make clean
+        (cd build && make clean)
         echo "Build files cleaned"
         ;;
     2)
@@ -29,12 +30,20 @@ case $choice in
         echo "Data/state cleaned"
         ;;
     4)
+        echo "WARNING: This will delete the entire build directory!"
+        read -r -p "Are you sure? (yes/NO): " confirm
+        if [[ "$confirm" != "yes" ]]; then
+            echo "Nuclear cleanup cancelled"
+            exit 0
+        fi
         echo "Nuclear cleanup - removing everything..."
         rm -rf build/*
         echo "Rebuilding..."
-        mkdir -p build && cd build || exit
-        cmake ..
-        make -j4
+        mkdir -p build
+        if ! (cd build && cmake .. && make -j4); then
+            echo "ERROR: Rebuild failed. Check cmake and make output above."
+            exit 1
+        fi
         echo "Complete rebuild finished"
         ;;
     5)

@@ -3,13 +3,13 @@ name: Docker Script Testing
 on:
   pull_request:
     paths:
-      - 'run-docker.sh'
+      - 'scripts/run-docker.sh'
       - 'Dockerfile'
       - '.github/workflows/docker-test.yml'
   push:
     branches: [ main ]
     paths:
-      - 'run-docker.sh'
+      - 'scripts/run-docker.sh'
       - 'Dockerfile'
   workflow_dispatch:
 
@@ -30,12 +30,12 @@ jobs:
 
     - name: Make scripts executable
       run: |
-        chmod +x run-docker.sh
-        chmod +x cleanup.sh
+        chmod +x scripts/run-docker.sh
+        chmod +x scripts/cleanup.sh
 
     - name: Test Docker script - Build
       run: |
-        ./run-docker.sh build
+        ./scripts/run-docker.sh build
 
     - name: Verify Docker image exists
       run: |
@@ -47,27 +47,27 @@ jobs:
 
     - name: Test Docker script - Help
       run: |
-        ./run-docker.sh --help
+        ./scripts/run-docker.sh --help
 
     - name: Test Docker script - Simulation mode
       run: |
-        ./run-docker.sh -m simulation -s BTC-USD &
+        ./scripts/run-docker.sh -m simulation -s BTC-USD &
         sleep 10
 
     - name: Test Docker script - Logs
       run: |
-        timeout 10s ./run-docker.sh logs || true
+        timeout 10s ./scripts/run-docker.sh logs || true
 
     - name: Test Docker script - Stop
       run: |
-        ./run-docker.sh stop || true
+        ./scripts/run-docker.sh stop || true
 
     - name: Test Docker script - Custom parameters
       run: |
-        ./run-docker.sh -s ETH-USD -v &
+        ./scripts/run-docker.sh -s ETH-USD -v &
         sleep 5
-        ./run-docker.sh stop || true
+        ./scripts/run-docker.sh stop || true
 
     - name: Clean up Docker resources
       run: |
-        ./run-docker.sh clean || true
+        ./scripts/run-docker.sh clean || true

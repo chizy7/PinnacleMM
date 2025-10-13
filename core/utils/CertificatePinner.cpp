@@ -164,23 +164,26 @@ std::string CertificatePinner::getCertificateFingerprint(X509* cert) {
 }
 
 void CertificatePinner::initializeDefaultPins() {
-  // Coinbase Pro pins (note to self:just an example - these should be updated
-  // with real pins)
+  // Coinbase certificate pins (extracted on 2025-10-13)
+  // Certificate valid until: Dec 22 02:31:45 2025 GMT
+  // Issuer: Google Trust Services (WE1)
+
+  // Primary WebSocket endpoint for Coinbase Pro/Advanced Trade
   addPin("ws-feed.exchange.coinbase.com",
-         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", false);
+         "mpzb4t3w5gAFZJGODlP0+FJa+wjD/bOQszdCDs6BTmU=", true);
 
-  // Kraken pins
-  addPin("ws.kraken.com", "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=", false);
+  // Coinbase Prime WebSocket endpoint
+  addPin("ws-feed.prime.coinbase.com",
+         "ERzVGmVjfqDVEe2YEp5l1B7zaXEJoSYinwL9InU8Pis=", true);
 
-  // Binance pins
-  addPin("stream.binance.com",
-         "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=", false);
+  // Advanced Trade WebSocket endpoint
+  addPin("advanced-trade-ws.coinbase.com",
+         "Is81uMxmmDbwnPDQSpN+FgZ5nfv2XenZ8Ql8zE4Vbzs=", true);
 
-  // TODO and note to remind myself to update these pins
-  // Self Note: In production, these should be real certificate pins
-  // obtained by connecting to the services and extracting public key hashes
-  spdlog::info("Initialized default certificate pins (example pins - update "
-               "for production)");
+  // Note: Certificate pinning is now enabled with real pins
+  // Pins should be updated before certificate expiry (Dec 2025)
+  // To extract new pins, run: scripts/extract_cert_pin.sh
+  spdlog::info("Initialized certificate pins for Coinbase (pinning enabled)");
 }
 
 bool CertificatePinner::extractPublicKeyHash(

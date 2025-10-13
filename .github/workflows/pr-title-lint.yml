@@ -36,5 +36,5 @@ jobs:
             didn't match the configured pattern. Please ensure that the subject
             doesn't start with an uppercase character.
           # Validate that the PR title length is not too long
-          headerPattern: '^(\w+)(?:\([\w\-\.]+\))?: .{1,100}$'
+          headerPattern: '^(\w+)(?:\(([\w\-\.]+)\))?: (.{1,100})$'
           headerPatternCorrespondence: type, scope, subject

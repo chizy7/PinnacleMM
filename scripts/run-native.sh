@@ -293,11 +293,11 @@ if [[ ! -f "$BUILD_DIR/pinnaclemm" ]]; then
     build_project
 fi
 
-# Prepare arguments
-ARGS="--mode $MODE --symbol $SYMBOL"
+# Prepare arguments as array
+ARGS=("--mode" "$MODE" "--symbol" "$SYMBOL")
 
 if [[ "$MODE" == "live" ]]; then
-    ARGS="$ARGS --exchange $EXCHANGE"
+    ARGS+=("--exchange" "$EXCHANGE")
 
     # Check if credentials are configured
     if [[ ! -f "config/secure_config.json" ]]; then
@@ -318,7 +318,7 @@ fi
 
 # Add verbose flag if specified
 if [[ -n "$VERBOSE" ]]; then
-    ARGS="$ARGS $VERBOSE"
+    ARGS+=("$VERBOSE")
 fi
 
 print_info "Starting PinnacleMM..."
@@ -330,4 +330,4 @@ fi
 
 # Run the application
 cd "$BUILD_DIR"
-./pinnaclemm "$ARGS"
+./pinnaclemm "${ARGS[@]}"
