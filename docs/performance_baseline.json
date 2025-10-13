@@ -1,10 +1,10 @@
 {
   "context": {
-    "date": "2025-10-13T05:37:47+00:00",
+    "date": "2025-10-13T14:23:06+00:00",
     "host_name": "runnervmwhb2z",
     "executable": "./latency_benchmark",
     "num_cpus": 4,
-    "mhz_per_cpu": 3236,
+    "mhz_per_cpu": 3336,
     "cpu_scaling_enabled": false,
     "caches": [
       {
@@ -32,7 +32,7 @@
         "num_sharing": 4
       }
     ],
-    "load_avg": [2.13867,1.28857,0.535156],
+    "load_avg": [2.0625,1.20166,0.49707],
     "library_build_type": "debug"
   },
   "benchmarks": [
@@ -45,9 +45,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 31348,
-      "real_time": 6.2386461592437219e+04,
-      "cpu_time": 6.2543544500446660e+04,
+      "iterations": 31836,
+      "real_time": 6.4062371749034792e+04,
+      "cpu_time": 6.4227834935293460e+04,
       "time_unit": "ns"
     },
     {
@@ -59,9 +59,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 40427681,
-      "real_time": 1.7345039578204421e+01,
-      "cpu_time": 1.7343364240951644e+01,
+      "iterations": 40477001,
+      "real_time": 1.7295570785987923e+01,
+      "cpu_time": 1.7293619702704749e+01,
       "time_unit": "ns"
     }
   ]
