@@ -55,7 +55,7 @@ jobs:
       run: |
         gh pr review --approve "${{ github.event.pull_request.number }}"
       env:
-        GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
 
     - name: Auto-merge minor/patch updates
       if: steps.check-author.outputs.is_dependabot == 'true' && steps.update-type.outputs.update_type == 'minor_patch'
