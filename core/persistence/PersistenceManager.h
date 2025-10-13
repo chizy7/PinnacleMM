@@ -13,6 +13,13 @@
 namespace pinnacle {
 namespace persistence {
 
+// Recovery status enumeration
+enum class RecoveryStatus {
+  Success,    // Successfully recovered data
+  CleanStart, // No data to recover (first run or clean state)
+  Failed      // Recovery failed due to errors
+};
+
 class PersistenceManager {
 public:
   // Singleton instance
@@ -29,7 +36,9 @@ public:
   getSnapshotManager(const std::string& symbol);
 
   // Recover state after restart
-  bool recoverState();
+  // Returns RecoveryStatus to differentiate between success, clean start, and
+  // failure
+  RecoveryStatus recoverState();
 
   // Get a recovered order book for a specific symbol
   std::shared_ptr<OrderBook> getRecoveredOrderBook(const std::string& symbol);
@@ -73,8 +82,8 @@ private:
   bool createDirectories();
 
   // Internal recovery logic
-  bool recoverFromJournals();
-  bool recoverFromSnapshots();
+  RecoveryStatus recoverFromJournals();
+  RecoveryStatus recoverFromSnapshots();
 };
 
 } // namespace persistence

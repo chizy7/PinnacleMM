@@ -95,15 +95,30 @@ PersistenceManager::getSnapshotManager(const std::string& symbol) {
   }
 }
 
-bool PersistenceManager::recoverState() {
+RecoveryStatus PersistenceManager::recoverState() {
   // First, recover from snapshots (faster)
-  bool snapshotRecovery = recoverFromSnapshots();
+  RecoveryStatus snapshotStatus = recoverFromSnapshots();
 
   // Then, apply any journal entries since last snapshot
-  bool journalRecovery = recoverFromJournals();
+  RecoveryStatus journalStatus = recoverFromJournals();
 
-  // Return success if either recovery method worked
-  return snapshotRecovery || journalRecovery;
+  // Determine overall recovery status
+  // If either recovery failed with errors, report failure
+  if (snapshotStatus == RecoveryStatus::Failed ||
+      journalStatus == RecoveryStatus::Failed) {
+    spdlog::error(
+        "Recovery failed - encountered errors during recovery process");
+    return RecoveryStatus::Failed;
+  }
+
+  // If either recovery succeeded, overall recovery is successful
+  if (snapshotStatus == RecoveryStatus::Success ||
+      journalStatus == RecoveryStatus::Success) {
+    return RecoveryStatus::Success;
+  }
+
+  // Both returned CleanStart - this is a clean start
+  return RecoveryStatus::CleanStart;
 }
 
 void PersistenceManager::performMaintenance() {
@@ -132,12 +147,14 @@ void PersistenceManager::performMaintenance() {
         continue;
       }
 
-      // Get snapshot manager for this symbol
-      auto snapshotManager = getSnapshotManager(symbol);
-      if (!snapshotManager) {
+      // Get snapshot manager for this symbol (already holding
+      // m_snapshotManagersMutex)
+      auto snapshotIt = m_snapshotManagers.find(symbol);
+      if (snapshotIt == m_snapshotManagers.end() || !snapshotIt->second) {
         spdlog::warn("No snapshot manager found for symbol: {}", symbol);
         continue;
       }
+      auto snapshotManager = snapshotIt->second;
 
       // Get the latest snapshot ID (used as checkpoint for compaction)
       uint64_t latestSnapshotId = snapshotManager->getLatestSnapshotId();
@@ -147,7 +164,10 @@ void PersistenceManager::performMaintenance() {
         uint64_t currentSequence = journal->getLatestSequenceNumber();
 
         // Only compact if the journal has grown beyond the threshold
-        if (currentSequence - latestSnapshotId > compactionThreshold) {
+        // Guard against unsigned underflow by checking currentSequence >
+        // latestSnapshotId first
+        if (currentSequence > latestSnapshotId &&
+            (currentSequence - latestSnapshotId) > compactionThreshold) {
           spdlog::info("Compacting journal for symbol: {} (sequence: {} -> {})",
                        symbol, latestSnapshotId, currentSequence);
 
@@ -160,7 +180,10 @@ void PersistenceManager::performMaintenance() {
           }
         } else {
           spdlog::debug("Journal for {} does not need compaction (entries: {})",
-                        symbol, currentSequence - latestSnapshotId);
+                        symbol,
+                        currentSequence > latestSnapshotId
+                            ? currentSequence - latestSnapshotId
+                            : 0);
         }
       } else {
         spdlog::debug("No checkpoint found for symbol: {}, skipping compaction",
@@ -229,7 +252,7 @@ bool PersistenceManager::createDirectories() {
   }
 }
 
-bool PersistenceManager::recoverFromJournals() {
+RecoveryStatus PersistenceManager::recoverFromJournals() {
   spdlog::info("Starting journal recovery...");
 
   try {
@@ -238,12 +261,14 @@ bool PersistenceManager::recoverFromJournals() {
 
     // Check if journals directory exists
     if (!std::filesystem::exists(journalsDir)) {
-      spdlog::warn("Journals directory does not exist: {}", journalsDir);
-      return false;
+      spdlog::info("Journals directory does not exist: {} (clean start)",
+                   journalsDir);
+      return RecoveryStatus::CleanStart;
     }
 
     // Enumerate all journal files
     int recoveredCount = 0;
+    bool hadErrors = false;
     for (const auto& entry : std::filesystem::directory_iterator(journalsDir)) {
       if (!entry.is_regular_file()) {
         continue;
@@ -263,6 +288,7 @@ bool PersistenceManager::recoverFromJournals() {
       auto journal = getJournal(symbol);
       if (!journal) {
         spdlog::error("Failed to get journal for symbol: {}", symbol);
+        hadErrors = true;
         continue;
       }
 
@@ -335,24 +361,31 @@ bool PersistenceManager::recoverFromJournals() {
         recoveredCount++;
       } else {
         spdlog::error("Failed to recover journal for symbol: {}", symbol);
+        hadErrors = true;
       }
+    }
+
+    // Determine return status
+    if (hadErrors) {
+      spdlog::error("Journal recovery completed with errors");
+      return RecoveryStatus::Failed;
     }
 
     if (recoveredCount > 0) {
       spdlog::info("Journal recovery completed: {} symbols recovered",
                    recoveredCount);
-      return true;
+      return RecoveryStatus::Success;
     } else {
-      spdlog::warn("No journals recovered");
-      return false;
+      spdlog::info("No journals found to recover (clean start)");
+      return RecoveryStatus::CleanStart;
     }
   } catch (const std::exception& e) {
-    spdlog::error("Journal recovery failed: {}", e.what());
-    return false;
+    spdlog::error("Journal recovery failed with exception: {}", e.what());
+    return RecoveryStatus::Failed;
   }
 }
 
-bool PersistenceManager::recoverFromSnapshots() {
+RecoveryStatus PersistenceManager::recoverFromSnapshots() {
   spdlog::info("Starting snapshot recovery...");
 
   try {
@@ -361,12 +394,14 @@ bool PersistenceManager::recoverFromSnapshots() {
 
     // Check if snapshots directory exists
     if (!std::filesystem::exists(snapshotsDir)) {
-      spdlog::warn("Snapshots directory does not exist: {}", snapshotsDir);
-      return false;
+      spdlog::info("Snapshots directory does not exist: {} (clean start)",
+                   snapshotsDir);
+      return RecoveryStatus::CleanStart;
     }
 
     // Enumerate all subdirectories (one per symbol)
     int recoveredCount = 0;
+    bool hadErrors = false;
     for (const auto& entry :
          std::filesystem::directory_iterator(snapshotsDir)) {
       if (!entry.is_directory()) {
@@ -381,6 +416,7 @@ bool PersistenceManager::recoverFromSnapshots() {
       if (!snapshotManager) {
         spdlog::error("Failed to create snapshot manager for symbol: {}",
                       symbol);
+        hadErrors = true;
         continue;
       }
 
@@ -388,6 +424,7 @@ bool PersistenceManager::recoverFromSnapshots() {
       auto orderBook = snapshotManager->loadLatestSnapshot();
       if (!orderBook) {
         spdlog::warn("No valid snapshot found for symbol: {}", symbol);
+        // This is a warning, not an error - could be corrupt or empty snapshot
         continue;
       }
 
@@ -403,17 +440,23 @@ bool PersistenceManager::recoverFromSnapshots() {
       recoveredCount++;
     }
 
+    // Determine return status
+    if (hadErrors) {
+      spdlog::error("Snapshot recovery completed with errors");
+      return RecoveryStatus::Failed;
+    }
+
     if (recoveredCount > 0) {
       spdlog::info("Snapshot recovery completed: {} symbols recovered",
                    recoveredCount);
-      return true;
+      return RecoveryStatus::Success;
     } else {
-      spdlog::warn("No snapshots recovered");
-      return false;
+      spdlog::info("No snapshots found to recover (clean start)");
+      return RecoveryStatus::CleanStart;
     }
   } catch (const std::exception& e) {
-    spdlog::error("Snapshot recovery failed: {}", e.what());
-    return false;
+    spdlog::error("Snapshot recovery failed with exception: {}", e.what());
+    return RecoveryStatus::Failed;
   }
 }
 

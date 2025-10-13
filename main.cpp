@@ -236,10 +236,21 @@ int main(int argc, char* argv[]) {
                  dataDirectory);
 
     // Attempt to recover state from persistence
-    if (persistenceManager.recoverState()) {
+    auto recoveryStatus = persistenceManager.recoverState();
+    switch (recoveryStatus) {
+    case pinnacle::persistence::RecoveryStatus::Success:
       spdlog::info("Successfully recovered persistence state");
-    } else {
+      break;
+    case pinnacle::persistence::RecoveryStatus::CleanStart:
       spdlog::info("No previous state to recover (clean start)");
+      break;
+    case pinnacle::persistence::RecoveryStatus::Failed:
+      spdlog::error(
+          "Recovery failed - encountered errors while recovering persistence "
+          "state. System may be in an inconsistent state.");
+      spdlog::error("Please check logs for details or remove data directory to "
+                    "start fresh.");
+      return 1;
     }
 
     // Create or retrieve order book
