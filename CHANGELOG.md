@@ -1,3 +1,11 @@
+## [1.3.1](https://github.com/chizy7/PinnacleMM/compare/v1.3.0...v1.3.1) (2025-10-13)
+
+
+### Bug Fixes
+
+* **ci:** handle concurrent performance baseline updates ([be671d3](https://github.com/chizy7/PinnacleMM/commit/be671d351a48f3eca6a639b79ee27f59739d2c78))
+* correct GH_TOKEN environment variable in dependabot workflow ([65a6b5f](https://github.com/chizy7/PinnacleMM/commit/65a6b5f3556c1d493fcb2f21732bda86ca8a71b3))
+
 # [1.3.0](https://github.com/chizy7/PinnacleMM/compare/v1.2.0...v1.3.0) (2025-10-13)
 
 
