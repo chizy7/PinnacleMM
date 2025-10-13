@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/chizy7/PinnacleMM/compare/v1.2.0...v1.3.0) (2025-10-13)
+
+
+### Features
+
+* implement persistence recovery and maintenance in PersistenceManager ([224d3fb](https://github.com/chizy7/PinnacleMM/commit/224d3fb34737db725dd2799c8bf93bc13a1af7b5))
+
 # [1.2.0](https://github.com/chizy7/PinnacleMM/compare/v1.1.0...v1.2.0) (2025-10-12)
 
 
