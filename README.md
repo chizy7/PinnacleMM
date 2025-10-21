@@ -59,28 +59,6 @@ PinnacleMM follows a modular, layered architecture:
 
 Read more about the [system architecture](docs/architecture/system_overview.md).
 
-## Development Roadmap
-
-PinnacleMM is being developed in phases:
-
-- **Phase 1 (Completed)**: Core engine, basic strategy, and simulation
-- **Phase 2 (Completed)**: Latency optimization, exchange connectivity, and smart order routing
-  - Live WebSocket integration (Coinbase Pro)
-  - FIX protocol support (Interactive Brokers)
-  - Advanced order routing (BEST_PRICE, TWAP, VWAP, MARKET_IMPACT)
-  - ℹ️ **DPDK Integration**: Ultra-low latency networking (Deferred - requires specialized hardware)
-- **Phase 3 (Completed)**: Advanced strategies and machine learning integration
-  - ML-based spread optimization model
-  - Order book flow analysis
-  - Predictive market impact models
-  - Adaptive parameters using reinforcement learning
-  - Market regime detection
-  - Advanced backtesting with historical data
-  - Strategy performance visualization
-- 🔲 **Phase 4**: Risk management and production deployment
-
-See the detailed [project roadmap](docs/ROADMAP.md) for more information.
-
 ## Getting Started
 
 ### Prerequisites
@@ -143,10 +121,10 @@ make -j$(sysctl -n hw.ncpu)  # macOS
 | Feature | Native Script (`scripts/run-native.sh`) | Docker Script (`scripts/run-docker.sh`) |
 |---------|-----------------------------------|-----------------------------------|
 | **Simulation Mode** | Perfect | Perfect |
-| **Live Trading** | Real WebSocket data | ⚠️ WebSocket config issue |
+| **Live Trading** | Real WebSocket data | WebSocket config issue |
 | **Auto-Build** | Builds if needed | Auto Docker build |
-| **Test Runner** | `scripts/run-native.sh test` | ❌ Not included |
-| **Benchmarks** | `scripts/run-native.sh benchmark` | ❌ Not included |
+| **Test Runner** | `scripts/run-native.sh test` | Not included |
+| **Benchmarks** | `scripts/run-native.sh benchmark` | Not included |
 | **Credential Setup** | Interactive setup | Volume mounting |
 | **Dependency Check** | cmake, make, g++ | Docker only |
 | **Best For** | Development & Live Trading | Production & Simulation |
@@ -314,16 +292,16 @@ scripts/run-native.sh -m live -v
 ### Supported Exchanges
 
 #### WebSocket Connectivity
-- ✅ **Coinbase Pro**: Live market data via WebSocket
+- **Coinbase Pro**: Live market data via WebSocket
 
 #### FIX Protocol Connectivity
-- ✅ **Interactive Brokers**: FIX 4.2 support (requires IB FIX API agreement)
-- 🔄 **Coinbase Pro**: FIX 4.4 institutional connectivity (framework ready)
-- 🔄 **Kraken**: FIX 4.4 institutional connectivity (framework ready)
-- 🔄 **Binance**: FIX 4.4 institutional connectivity (framework ready)
+- **Interactive Brokers**: FIX 4.2 support (requires IB FIX API agreement)
+- **Coinbase Pro**: FIX 4.4 institutional connectivity (framework ready)
+- **Kraken**: FIX 4.4 institutional connectivity (framework ready)
+- **Binance**: FIX 4.4 institutional connectivity (framework ready)
 
 #### In Development
-- 🔄 **Kraken, Gemini, Binance, Bitstamp**: WebSocket connectors in development
+- **Kraken, Gemini, Binance, Bitstamp**: WebSocket connectors in development
 
 For more detailed instructions, see the [Getting Started Guide](docs/user_guide/getting_started.md).
 

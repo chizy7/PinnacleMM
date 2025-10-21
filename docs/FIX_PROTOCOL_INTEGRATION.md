@@ -36,9 +36,13 @@ PinnacleMM now supports FIX (Financial Information eXchange) protocol for connec
 - **Interactive Brokers** - Full implementation with FIX 4.2 support
 
 ### Planned Implementation
-- 🔄 **Coinbase Pro** - FIX 4.4 support for institutional clients
-- 🔄 **Kraken** - FIX 4.4 support for institutional clients
-- 🔄 **Binance** - FIX 4.4 support for institutional clients
+- **Coinbase Pro** - FIX 4.4 support for institutional clients
+- **Kraken** - FIX 4.4 support for institutional clients
+- **Binance** - FIX 4.4 support for institutional clients
+
+### Future Implementation
+- **Gemini** - FIX 4.4 support for institutional clients
+- **Binance** - FIX 4.4 support for institutional clients
 
 ## Usage Examples
 

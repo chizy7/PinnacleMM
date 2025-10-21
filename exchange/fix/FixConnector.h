@@ -1,18 +1,10 @@
 #pragma once
 
 #include "../../core/orderbook/Order.h"
-#include "../simulator/MarketDataFeed.h"
-#include "hffix.hpp"
-
-namespace pinnacle {
-namespace core {
-using ::pinnacle::Order;
-using ::pinnacle::OrderSide;
-using ::pinnacle::OrderType;
-} // namespace core
-} // namespace pinnacle
 #include "../../core/utils/LockFreeQueue.h"
 #include "../connector/SecureConfig.h"
+#include "../simulator/MarketDataFeed.h"
+#include "hffix.hpp"
 
 #include <atomic>
 #include <chrono>

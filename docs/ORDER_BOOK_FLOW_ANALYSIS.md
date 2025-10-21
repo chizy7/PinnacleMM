@@ -313,7 +313,7 @@ Regime Detection: STABLE
 | Event Recording | <1μs | ~100ns |
 | Metrics Calculation | <1ms | ~200μs |
 | Memory Usage | <50MB | ~25MB |
-| Thread Safety | Lock-free | ✅ |
+| Thread Safety | Lock-free | Ok |
 | Test Coverage | >95% | 100% |
 
 ## Advanced Usage
