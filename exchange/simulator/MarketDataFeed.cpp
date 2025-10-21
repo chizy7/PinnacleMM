@@ -157,7 +157,7 @@ void SimulatedMarketDataFeed::simulationLoop() {
 }
 
 void SimulatedMarketDataFeed::generateSimulatedData() {
-  // This is a simplified implementation for Phase 1
+  // This is a simplified implementation
   // In a more sophisticated implementation, we would generate realistic market
   // data based on statistical models or historical data
 

@@ -107,11 +107,6 @@ void ExchangeSimulator::setMarketDataFeed(
   }
 }
 
-// These methods are now implemented inline in the header file
-// void ExchangeSimulator::setVolatility(double volatility) - implemented inline
-// void ExchangeSimulator::setDrift(double drift) - implemented inline
-// void ExchangeSimulator::setTickSize(double tickSize) - implemented inline
-
 void ExchangeSimulator::addMarketParticipant(const std::string& type,
                                              double frequency,
                                              double volumeRatio) {
