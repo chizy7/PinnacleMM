@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+permissions:
+  pull-requests: write
+  contents: write
+
 jobs:
   dependabot:
     runs-on: ubuntu-latest

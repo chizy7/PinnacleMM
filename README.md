@@ -11,7 +11,7 @@
     <a href="https://github.com/chizy7/PinnacleMM/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg" alt="C++"></a>
     <a href="https://github.com/chizy7/PinnacleMM/releases"><img src="https://img.shields.io/github/v/release/chizy7/PinnacleMM?include_prereleases" alt="Release"></a>
-    <a href="https://github.com/chizy7/PinnacleMM/actions/workflows/ci.yml"><img src="https://github.com/chizy7/PinnacleMM/workflows/CI%2FCD%20Pipeline/badge.svg" alt="Build Status"></a>
+    <a href="https://github.com/chizy7/PinnacleMM/actions/workflows/ci.yml"><img src="https://github.com/chizy7/PinnacleMM/workflows/Build/badge.svg" alt="Build Status"></a>
     <a href="https://github.com/chizy7/PinnacleMM"><img src="https://img.shields.io/badge/latency-microsecond-blue.svg" alt="Performance"></a>
   </p>
 
