@@ -70,7 +70,7 @@ jobs:
 
     - name: Upload build artifacts
       if: matrix.build_type == 'Release'
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: pinnaclemm-${{ runner.os }}-release
         path: |
@@ -150,7 +150,7 @@ jobs:
 
     - name: Upload Docker image artifact
       if: github.ref == 'refs/heads/main'
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: docker-image
         path: pinnaclemm-docker-image.tar.gz
