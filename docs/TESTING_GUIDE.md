@@ -71,6 +71,36 @@ make -j8
 ./backtest_engine_tests
 ```
 
+#### Risk Management Tests
+```bash
+# Risk manager - pre-trade checks, position tracking, halt/resume (11 tests)
+./risk_manager_tests
+
+# Circuit breaker - state machine, triggers, callbacks (10 tests)
+./circuit_breaker_tests
+
+# VaR engine - historical, parametric, Monte Carlo VaR (8 tests)
+./var_engine_tests
+
+# Alert manager - alerting, throttling, callbacks (8 tests)
+./alert_manager_tests
+
+# Disaster recovery - state persistence, backup/restore (8 tests)
+./disaster_recovery_tests
+```
+
+#### Risk Performance Benchmarks
+```bash
+# Risk check latency benchmarks
+./risk_check_benchmark
+
+# Expected results:
+# BM_RiskCheckOrder:       ~750ns   (pre-trade check, lock-free)
+# BM_CircuitBreakerCheck:  ~5ns     (single atomic load)
+# BM_OnFill:               ~2.3us   (post-trade update)
+# BM_OnPnLUpdate:          ~25ns    (PnL/drawdown tracking)
+```
+
 #### Application Testing with ASan
 ```bash
 # Test JSON logging with memory validation

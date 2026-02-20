@@ -48,6 +48,15 @@ struct PerformanceData {
   int mlPredictions{0};
   int currentRegime{0};
   double regimeConfidence{0.0};
+  // Risk management fields
+  double var95{0.0};
+  double var99{0.0};
+  double currentExposure{0.0};
+  double positionUtilization{0.0};
+  double dailyPnL{0.0};
+  double dailyLossLimitUtilization{0.0};
+  int circuitBreakerState{0};
+  std::string riskStatus{"normal"};
 };
 
 struct MarketData {
@@ -222,6 +231,15 @@ private:
                      const std::string& query);
   http::response<http::string_body> handleGetBacktestResults();
   http::response<http::string_body> handleStaticFile(const std::string& path);
+
+  // Risk management endpoints
+  http::response<http::string_body> handleGetRiskState();
+  http::response<http::string_body> handleGetRiskVaR();
+  http::response<http::string_body> handleGetRiskLimits();
+  http::response<http::string_body> handleGetCircuitBreaker();
+  http::response<http::string_body> handleGetAlerts();
+  http::response<http::string_body> handleGetHealth();
+  http::response<http::string_body> handleGetReady();
 
   // Utility methods
   json createErrorResponse(const std::string& error, int code = 400);

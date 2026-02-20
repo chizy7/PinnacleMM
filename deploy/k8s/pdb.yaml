@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pinnaclemm-pdb
+  namespace: pinnaclemm
+  labels:
+    app: pinnaclemm
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: pinnaclemm

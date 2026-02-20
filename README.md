@@ -45,6 +45,12 @@ PinnacleMM is a high-performance, production-grade market making system designed
 - **Advanced Backtesting**: Historical data replay with Monte Carlo analysis and A/B testing
 - **Real-Time Visualization**: Professional web dashboard with live performance monitoring (access at `visualization/static/index.html` when running with `--enable-visualization`)
 - **Structured Data Export**: JSON Lines (JSONL) logging for market data, strategy metrics, and trading events with `--json-log` flag
+- **Risk Management**: Pre-trade risk checks (~750ns), position/exposure limits, drawdown tracking, daily loss limits, and auto-hedging
+- **Circuit Breaker**: Automatic market halt on rapid price moves, spread widening, volume spikes, latency degradation, or crisis regime detection
+- **Real-Time VaR**: Value at Risk using historical, parametric, and Monte Carlo (10K simulations) methods with lock-free double-buffered reads
+- **Alerting System**: 16 alert types with throttling, severity levels, and WebSocket delivery to the dashboard
+- **Disaster Recovery**: Atomic risk state persistence, position reconciliation, and labeled backup management
+- **Kubernetes Deployment**: Production-ready StatefulSet with health probes, PVC, network policies, and pod disruption budget
 - **Enterprise Security**: AES-256-CBC encryption with unique salts, 100,000 PBKDF2 iterations, secure password input, comprehensive input validation, audit logging, rate limiting, and certificate pinning
 - **Comprehensive Testing**: Extensive test suite ensuring reliability and performance
 
@@ -53,6 +59,7 @@ PinnacleMM is a high-performance, production-grade market making system designed
 PinnacleMM follows a modular, layered architecture:
 
 - **Core Engine Layer**: Ultra-low latency components handling order book and execution
+- **Risk Layer**: Pre-trade checks, circuit breaker, VaR engine, alerting, and disaster recovery
 - **Strategy Layer**: Pluggable strategies for different market making approaches
 - **Exchange Layer**: Multi-protocol connectivity (WebSocket, FIX) with simulation capabilities
 - **Persistence Layer**: Memory-mapped file system for crash recovery
@@ -116,7 +123,6 @@ make -j$(sysctl -n hw.ncpu)  # macOS
 ```
 
 ### Script Features Comparison
-> **Note**: I will update later on after completing phase 4 and 5, cleaning up the code and getting PinnacleMM ready for optimization and production deployment.
 
 | Feature | Native Script (`scripts/run-native.sh`) | Docker Script (`scripts/run-docker.sh`) |
 |---------|-----------------------------------|-----------------------------------|
@@ -413,6 +419,11 @@ docker run -it --name pinnaclemm-live \
 
 - **Order Book Engine**: Ultra-fast matching engine with lock-free operations
 - **Market Making Strategy**: Adaptive pricing based on market conditions
+- **Risk Manager**: Lock-free pre-trade risk checks with position, exposure, and loss limits
+- **Circuit Breaker**: Market circuit breaker with 8 triggers and automatic recovery
+- **VaR Engine**: Real-time Value at Risk with Monte Carlo simulations on a background thread
+- **Alert Manager**: Alerting system with throttling and real-time WebSocket delivery
+- **Disaster Recovery**: Atomic state persistence, position reconciliation, and backup management
 - **ML Spread Optimization**: Neural network-based spread prediction with ~1-2μs latency
 - **Order Book Flow Analyzer**: Real-time analysis of order flow patterns and market microstructure
 - **Market Impact Predictor**: Advanced models for predicting price impact of trades
@@ -432,7 +443,12 @@ docker run -it --name pinnaclemm-live \
 - [API Reference](docs/api/reference.md)
 - [Project Roadmap](docs/ROADMAP.md)
 
-### Advanced Features (Phase 3 - All Complete)
+### Risk Management & Production
+- [Risk Management](docs/RISK_MANAGEMENT.md) - **Pre-trade checks, VaR, circuit breaker, alerting**
+- [Disaster Recovery](docs/DISASTER_RECOVERY.md) - **Operational runbook for crash recovery and backups**
+- [Kubernetes Deployment](docs/KUBERNETES_DEPLOYMENT.md) - **Production K8s deployment guide**
+
+### Advanced Features (ML)
 - [ML Spread Optimization](docs/ML_SPREAD_OPTIMIZATION.md) - **Neural network-based spread prediction**
 - [Order Book Flow Analysis](docs/ORDER_BOOK_FLOW_ANALYSIS.md) - **Real-time market microstructure analysis**
 - [Market Impact Prediction](docs/MARKET_IMPACT_PREDICTION.md) - **Advanced trade impact modeling**
@@ -488,7 +504,7 @@ The PinnacleMM system includes a professional web-based dashboard for real-time 
 - **Strategy Controls**: Multiple strategy monitoring and comparison
 - **Market Regime Visualization**: Real-time regime detection with confidence indicators
 - **ML Metrics Panel**: Model accuracy, prediction latency, and retrain statistics
-- **Risk Analysis**: VaR calculations, drawdown analysis, and risk metrics
+- **Risk Analysis**: Real-time VaR (historical, parametric, Monte Carlo), circuit breaker status, position/exposure limits, drawdown tracking, and alerting
 
 ### Technical Details
 - **Frontend**: HTML5/CSS3/JavaScript with Chart.js and D3.js
@@ -515,6 +531,8 @@ open build/test_dashboard.html
 - [Interactive Brokers Setup](docs/IB_TESTING_GUIDE.md)
 
 ### System Administration
+- [Kubernetes Deployment](docs/KUBERNETES_DEPLOYMENT.md)
+- [Disaster Recovery Runbook](docs/DISASTER_RECOVERY.md)
 - [Persistence System](docs/architecture/persistence.md)
 - [Recovery Guide](docs/user_guide/recovery.md)
 - [Security & API Key Management](docs/security/credentials.md)
@@ -541,6 +559,8 @@ PinnacleMM achieves exceptional performance metrics:
 
 - **Order Book Update Latency**: <1 μs (microsecond)
 - **Order Execution Latency**: <50 μs (end-to-end)
+- **Pre-Trade Risk Check**: ~750ns (lock-free, 8 sequential checks)
+- **Circuit Breaker Check**: ~5ns (single atomic load)
 - **ML Prediction Latency**: 1-3 μs (neural network inference)
 - **Throughput**: 100,000+ messages per second
 - **Recovery Time**: <5 seconds for full system recovery
@@ -569,6 +589,14 @@ cd build
 # ✓ BestPriceStrategy, TWAP, VWAP, MarketImpact all working
 # ✓ Multi-venue execution with 1ms latency
 # ✓ 8 completed fills across multiple strategies
+
+# Test risk management components (Phase 4)
+./risk_manager_tests          # 11 tests - pre-trade checks, position limits
+./circuit_breaker_tests       # 10 tests - state machine, triggers
+./var_engine_tests            # 8 tests - VaR calculations
+./alert_manager_tests         # 8 tests - alerting, throttling
+./disaster_recovery_tests     # 8 tests - state persistence, backups
+./risk_check_benchmark        # Risk check latency benchmarks
 
 # Memory safety validation with Address Sanitizer (development builds)
 cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON .. && make -j8

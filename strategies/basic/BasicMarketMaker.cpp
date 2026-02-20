@@ -1,4 +1,7 @@
 #include "BasicMarketMaker.h"
+#include "../../core/risk/CircuitBreaker.h"
+#include "../../core/risk/RiskManager.h"
+#include "../../core/utils/AuditLogger.h"
 #include "../../core/utils/TimeUtils.h"
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
@@ -12,6 +15,8 @@
 
 namespace pinnacle {
 namespace strategy {
+
+using pinnacle::utils::AuditLogger;
 
 BasicMarketMaker::BasicMarketMaker(const std::string& symbol,
                                    const StrategyConfig& config)
@@ -59,6 +64,8 @@ bool BasicMarketMaker::start() {
   // Mark as running
   m_isRunning.store(true, std::memory_order_release);
 
+  AUDIT_SYSTEM_EVENT("Strategy started: " + m_symbol, true);
+
   return true;
 }
 
@@ -84,6 +91,8 @@ bool BasicMarketMaker::stop() {
 
   // Mark as stopped
   m_isRunning.store(false, std::memory_order_release);
+
+  AUDIT_SYSTEM_EVENT("Strategy stopped: " + m_symbol, true);
 
   return true;
 }
@@ -283,6 +292,17 @@ void BasicMarketMaker::strategyMainLoop() {
     // Current time
     uint64_t currentTime = utils::TimeUtils::getCurrentNanos();
 
+    // Check circuit breaker before updating quotes
+    auto& circuitBreaker = risk::CircuitBreaker::getInstance();
+    if (!circuitBreaker.isTradingAllowed()) {
+      // Trading halted - cancel all orders and wait
+      cancelAllOrders();
+      spdlog::warn("Circuit breaker OPEN - trading halted, waiting...");
+      std::this_thread::sleep_for(
+          std::chrono::milliseconds(m_config.quoteUpdateIntervalMs));
+      continue;
+    }
+
     // Check if it's time to update quotes
     if (currentTime - lastQuoteUpdateTime >
         m_config.quoteUpdateIntervalMs * 1000000) {
@@ -355,6 +375,14 @@ void BasicMarketMaker::processEvents() {
           double currentPosition = m_position.load(std::memory_order_relaxed);
           double newPosition = currentPosition + positionDelta;
           m_position.store(newPosition, std::memory_order_relaxed);
+
+          // Notify risk manager of fill
+          risk::RiskManager::getInstance().onFill(
+              orderInfo.side, orderInfo.price, fillDelta, m_symbol);
+
+          // Audit log the fill
+          AUDIT_ORDER_ACTIVITY("strategy", orderInfo.orderId, "fill", m_symbol,
+                               true);
 
           // Update statistics
           {
@@ -464,13 +492,26 @@ void BasicMarketMaker::cancelAllOrders() {
   for (const auto& orderId : orderIds) {
     // In a real system, we would call the exchange API here
     m_orderBook->cancelOrder(orderId);
+    AUDIT_ORDER_ACTIVITY("strategy", orderId, "cancel", m_symbol, true);
   }
 }
 
 void BasicMarketMaker::placeOrder(OrderSide side, double price,
                                   double quantity) {
-  // In a real system, we would call the exchange API here
-  // For now, just create an order and add it to our order book
+  // Pre-trade risk check
+  auto& riskMgr = risk::RiskManager::getInstance();
+  auto riskResult = riskMgr.checkOrder(side, price, quantity, m_symbol);
+  if (riskResult != risk::RiskCheckResult::APPROVED) {
+    spdlog::warn("Order rejected by risk manager: {} (side={}, price={:.2f}, "
+                 "qty={:.6f}, symbol={})",
+                 risk::RiskManager::resultToString(riskResult),
+                 side == OrderSide::BUY ? "BUY" : "SELL", price, quantity,
+                 m_symbol);
+    AUDIT_ORDER_ACTIVITY("strategy", "rejected",
+                         risk::RiskManager::resultToString(riskResult),
+                         m_symbol, false);
+    return;
+  }
 
   // Generate a unique order ID
   std::string orderId = m_symbol + "-" +
@@ -503,6 +544,9 @@ void BasicMarketMaker::placeOrder(OrderSide side, double price,
       std::lock_guard<std::mutex> statsLock(m_statsMutex);
       m_stats.orderPlacedCount++;
     }
+
+    // Audit log the order placement
+    AUDIT_ORDER_ACTIVITY("strategy", orderId, "submit", m_symbol, true);
   }
 }
 

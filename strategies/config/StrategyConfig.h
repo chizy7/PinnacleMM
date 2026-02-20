@@ -53,6 +53,8 @@ struct StrategyConfig {
   double stopLossPct = 3.0;    // Stop loss percentage for individual position
   double takeProfitPct = 5.0;  // Take profit percentage for individual position
   double maxTradingVolume = 100.0; // Maximum daily trading volume
+  // Note: dailyLossLimit, maxOrderValue, maxNetExposure, maxGrossExposure
+  // are configured via RiskConfig::RiskLimits (core/risk/RiskConfig.h)
 
   // Timing parameters
   uint64_t quoteUpdateIntervalMs = 100; // Quote update interval in milliseconds
