@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/chizy7/PinnacleMM/compare/v1.5.0...v1.6.0) (2026-02-20)
+
+
+### Features
+
+* wire BacktestEngine to --mode backtest CLI ([#54](https://github.com/chizy7/PinnacleMM/issues/54)) ([bc4caa0](https://github.com/chizy7/PinnacleMM/commit/bc4caa04e8ae0954ae71f81fc967307b169913b6))
+
 # [1.5.0](https://github.com/chizy7/PinnacleMM/compare/v1.4.0...v1.5.0) (2026-02-20)
 
 
