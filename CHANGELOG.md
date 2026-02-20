@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/chizy7/PinnacleMM/compare/v1.4.0...v1.5.0) (2026-02-20)
+
+
+### Features
+
+* implement risk management and (wip: production readiness)  ([#53](https://github.com/chizy7/PinnacleMM/issues/53)) ([5019642](https://github.com/chizy7/PinnacleMM/commit/5019642c5a581737f58fcba0d90d7db772cb880b))
+
 # [1.4.0](https://github.com/chizy7/PinnacleMM/compare/v1.3.1...v1.4.0) (2025-10-13)
 
 
