@@ -14,6 +14,7 @@
 #include "exchange/connector/ExchangeConnectorFactory.h"
 #include "exchange/connector/SecureConfig.h"
 #include "exchange/simulator/ExchangeSimulator.h"
+#include "strategies/backtesting/BacktestEngine.h"
 #include "strategies/basic/BasicMarketMaker.h"
 #include "strategies/basic/MLEnhancedMarketMaker.h"
 #include "strategies/config/StrategyConfig.h"
@@ -160,7 +161,7 @@ int main(int argc, char* argv[]) {
         "symbol", po::value<std::string>()->default_value("BTC-USD"),
         "Trading symbol")("mode",
                           po::value<std::string>()->default_value("simulation"),
-                          "Trading mode (simulation/live)")(
+                          "Trading mode (simulation/live/backtest)")(
         "config",
         po::value<std::string>()->default_value("config/default_config.json"),
         "Configuration file")(
@@ -190,7 +191,18 @@ int main(int argc, char* argv[]) {
                 "json-log-file",
                 po::value<std::string>()->default_value(
                     "pinnaclemm_data.jsonl"),
-                "JSON log file path");
+                "JSON log file path")(
+                "backtest-output",
+                po::value<std::string>()->default_value("backtest_results"),
+                "Backtest output directory (data CSVs go in <dir>/data/)")(
+                "initial-balance", po::value<double>()->default_value(100000.0),
+                "Starting balance for backtest")(
+                "trading-fee", po::value<double>()->default_value(0.001),
+                "Trading fee as decimal (e.g. 0.001 = 0.1%)")(
+                "enable-slippage", po::value<bool>()->default_value(true),
+                "Enable slippage simulation in backtest")(
+                "slippage-bps", po::value<double>()->default_value(2.0),
+                "Slippage in basis points for backtest");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -415,6 +427,54 @@ int main(int argc, char* argv[]) {
     }
 
     spdlog::info("Strategy started successfully");
+
+    // Backtest mode: run backtest and exit
+    if (mode == "backtest") {
+      pinnacle::backtesting::BacktestConfiguration btConfig;
+      btConfig.startTimestamp = 0;
+      btConfig.endTimestamp = UINT64_MAX;
+      btConfig.initialBalance = vm["initial-balance"].as<double>();
+      btConfig.tradingFee = vm["trading-fee"].as<double>();
+      btConfig.enableSlippage = vm["enable-slippage"].as<bool>();
+      btConfig.slippageBps = vm["slippage-bps"].as<double>();
+      btConfig.outputDirectory = vm["backtest-output"].as<std::string>();
+      btConfig.speedMultiplier = 10000.0;
+      btConfig.enableML = enableML;
+
+      pinnacle::backtesting::BacktestEngine engine(btConfig);
+      if (!engine.initialize()) {
+        spdlog::error("Failed to initialize backtest engine");
+        strategy->stop();
+        if (varEngine)
+          varEngine->stop();
+        return 1;
+      }
+
+      if (enableML) {
+        auto mlStrategy = std::dynamic_pointer_cast<
+            pinnacle::strategy::MLEnhancedMarketMaker>(strategy);
+        if (mlStrategy)
+          engine.setStrategy(mlStrategy);
+      }
+
+      spdlog::info("Running backtest for {}...", symbol);
+      if (!engine.runBacktest(symbol)) {
+        spdlog::error("Backtest failed");
+        strategy->stop();
+        if (varEngine)
+          varEngine->stop();
+        return 1;
+      }
+
+      std::cout << engine.getDetailedReport() << std::endl;
+      spdlog::info("Results saved to {}", btConfig.outputDirectory);
+
+      if (strategy->isRunning())
+        strategy->stop();
+      if (varEngine)
+        varEngine->stop();
+      return 0;
+    }
 
 #ifdef BUILD_VISUALIZATION
     // Initialize visualization server if enabled

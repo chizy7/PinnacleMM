@@ -23,6 +23,7 @@ Testing/
 # IDE files
 .vscode/
 .idea/
+.cache/
 *.swp
 *.swo
 *~

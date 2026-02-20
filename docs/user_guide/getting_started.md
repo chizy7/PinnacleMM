@@ -108,6 +108,48 @@ Follow the interactive prompts to:
 
 You'll see live BTC prices (currently ~$109,200+) and real-time trading activity.
 
+### Running in Backtest Mode
+
+Backtest mode runs a strategy against historical (or synthetic) data, prints a detailed performance report, and exits. No API keys or exchange connection required.
+
+**Basic backtest with synthetic data** (generates data automatically if no CSV is found):
+
+```bash
+./pinnaclemm --mode backtest --symbol BTC-USD
+```
+
+**With ML-enhanced strategy**:
+
+```bash
+./pinnaclemm --mode backtest --symbol BTC-USD --enable-ml
+```
+
+**Custom parameters**:
+
+```bash
+./pinnaclemm --mode backtest --symbol BTC-USD \
+  --initial-balance 50000 \
+  --trading-fee 0.002 \
+  --slippage-bps 5.0
+```
+
+**Using your own historical data**: Place a CSV file at `backtest_results/data/BTC-USD.csv` with the format:
+
+```csv
+timestamp,symbol,price,bid,ask,volume
+1640995200000000000,BTC-USD,47892.50,47890.00,47895.00,1250.75
+```
+
+Then run the backtest as usual. Results (JSON) are saved to the `backtest_results/` directory.
+
+**Custom output directory**:
+
+```bash
+./pinnaclemm --mode backtest --symbol BTC-USD --backtest-output my_results
+# Data CSVs should be at my_results/data/BTC-USD.csv
+# Results are saved to my_results/
+```
+
 ### Command Line Options
 
 PinnacleMM supports the following command line options:
@@ -115,7 +157,7 @@ PinnacleMM supports the following command line options:
 - `--help`: Show help message
 - `--setup-credentials`: Interactive API credential setup
 - `--symbol <symbol>`: Trading symbol (default: BTC-USD)
-- `--mode <mode>`: Trading mode (simulation/live) (default: simulation)
+- `--mode <mode>`: Trading mode (simulation/live/backtest) (default: simulation)
 - `--exchange <name>`: Exchange name (coinbase/kraken/gemini/binance/bitstamp)
 - `--config <file>`: Configuration file (default: config/default_config.json)
 - `--logfile <file>`: Log file (default: pinnaclemm.log)
@@ -123,6 +165,11 @@ PinnacleMM supports the following command line options:
 - `--lock-free`: Use lock-free data structures (default: enabled)
 - `--json-log`: Enable JSON structured data export (JSONL format)
 - `--json-log-file <file>`: JSON log file path (default: pinnaclemm_data.jsonl)
+- `--backtest-output <dir>`: Backtest output directory (default: backtest_results)
+- `--initial-balance <val>`: Starting balance for backtest (default: 100000.0)
+- `--trading-fee <val>`: Trading fee as decimal, e.g. 0.001 = 0.1% (default: 0.001)
+- `--enable-slippage <bool>`: Enable slippage simulation (default: true)
+- `--slippage-bps <val>`: Slippage in basis points (default: 2.0)
 
 ### Example Configuration
 
