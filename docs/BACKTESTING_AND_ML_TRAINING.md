@@ -32,7 +32,7 @@ The fastest way to run a backtest is from the command line using `--mode backtes
   --initial-balance 50000 \
   --trading-fee 0.002 \
   --slippage-bps 5.0 \
-  --enable-slippage true
+  --backtest-duration 7200
 ```
 
 ### CLI Flags
@@ -44,8 +44,9 @@ The fastest way to run a backtest is from the command line using `--mode backtes
 | `--backtest-output <dir>` | `backtest_results` | Output directory for results; data CSVs go in `<dir>/data/` |
 | `--initial-balance <val>` | `100000.0` | Starting balance |
 | `--trading-fee <val>` | `0.001` | Fee as decimal (0.001 = 0.1%) |
-| `--enable-slippage <bool>` | `true` | Enable slippage simulation |
+| `--disable-slippage` | off | Disable slippage simulation (enabled by default) |
 | `--slippage-bps <val>` | `2.0` | Slippage in basis points |
+| `--backtest-duration <sec>` | `3600` | Duration in seconds (1 hour default) |
 | `--enable-ml` | `false` | Use ML-enhanced market maker |
 | `--verbose` | `false` | Verbose logging |
 

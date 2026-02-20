@@ -168,8 +168,9 @@ PinnacleMM supports the following command line options:
 - `--backtest-output <dir>`: Backtest output directory (default: backtest_results)
 - `--initial-balance <val>`: Starting balance for backtest (default: 100000.0)
 - `--trading-fee <val>`: Trading fee as decimal, e.g. 0.001 = 0.1% (default: 0.001)
-- `--enable-slippage <bool>`: Enable slippage simulation (default: true)
+- `--disable-slippage`: Disable slippage simulation (slippage enabled by default)
 - `--slippage-bps <val>`: Slippage in basis points (default: 2.0)
+- `--backtest-duration <sec>`: Backtest duration in seconds (default: 3600 = 1 hour)
 
 ### Example Configuration
 

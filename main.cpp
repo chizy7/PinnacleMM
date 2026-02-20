@@ -199,10 +199,12 @@ int main(int argc, char* argv[]) {
                 "Starting balance for backtest")(
                 "trading-fee", po::value<double>()->default_value(0.001),
                 "Trading fee as decimal (e.g. 0.001 = 0.1%)")(
-                "enable-slippage", po::value<bool>()->default_value(true),
-                "Enable slippage simulation in backtest")(
+                "disable-slippage", po::bool_switch()->default_value(false),
+                "Disable slippage simulation in backtest")(
                 "slippage-bps", po::value<double>()->default_value(2.0),
-                "Slippage in basis points for backtest");
+                "Slippage in basis points for backtest")(
+                "backtest-duration", po::value<uint64_t>()->default_value(3600),
+                "Backtest duration in seconds (default: 3600 = 1 hour)");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -430,12 +432,15 @@ int main(int argc, char* argv[]) {
 
     // Backtest mode: run backtest and exit
     if (mode == "backtest") {
+      uint64_t durationSec = vm["backtest-duration"].as<uint64_t>();
+      uint64_t nowNs = pinnacle::utils::TimeUtils::getCurrentNanos();
+
       pinnacle::backtesting::BacktestConfiguration btConfig;
-      btConfig.startTimestamp = 0;
-      btConfig.endTimestamp = UINT64_MAX;
+      btConfig.endTimestamp = nowNs;
+      btConfig.startTimestamp = nowNs - (durationSec * 1000000000ULL);
       btConfig.initialBalance = vm["initial-balance"].as<double>();
       btConfig.tradingFee = vm["trading-fee"].as<double>();
-      btConfig.enableSlippage = vm["enable-slippage"].as<bool>();
+      btConfig.enableSlippage = !vm["disable-slippage"].as<bool>();
       btConfig.slippageBps = vm["slippage-bps"].as<double>();
       btConfig.outputDirectory = vm["backtest-output"].as<std::string>();
       btConfig.speedMultiplier = 10000.0;
@@ -450,14 +455,32 @@ int main(int argc, char* argv[]) {
         return 1;
       }
 
+      // BacktestEngine requires MLEnhancedMarketMaker; create one with ML
+      // disabled when --enable-ml is not set
+      std::shared_ptr<pinnacle::strategy::MLEnhancedMarketMaker> btStrategy;
       if (enableML) {
-        auto mlStrategy = std::dynamic_pointer_cast<
+        btStrategy = std::dynamic_pointer_cast<
             pinnacle::strategy::MLEnhancedMarketMaker>(strategy);
-        if (mlStrategy)
-          engine.setStrategy(mlStrategy);
+      } else {
+        pinnacle::strategy::MLEnhancedMarketMaker::MLConfig mlCfg{};
+        mlCfg.enableMLSpreadOptimization = false;
+        mlCfg.fallbackToHeuristics = true;
+        btStrategy =
+            std::make_shared<pinnacle::strategy::MLEnhancedMarketMaker>(
+                symbol, config, mlCfg);
+        auto btOrderBook = std::make_shared<pinnacle::OrderBook>(symbol);
+        if (!btStrategy->initialize(btOrderBook) || !btStrategy->start()) {
+          spdlog::error("Failed to initialize backtest strategy");
+          strategy->stop();
+          if (varEngine)
+            varEngine->stop();
+          return 1;
+        }
       }
+      engine.setStrategy(btStrategy);
 
-      spdlog::info("Running backtest for {}...", symbol);
+      spdlog::info("Running backtest for {} ({} seconds of data)...", symbol,
+                   durationSec);
       if (!engine.runBacktest(symbol)) {
         spdlog::error("Backtest failed");
         strategy->stop();
