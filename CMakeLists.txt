@@ -220,6 +220,12 @@ set(EXCHANGE_SOURCES
     # exchange/fix/InteractiveBrokersFixConnector.cpp
 )
 
+# Risk management library files
+set(RISK_SOURCES
+    core/risk/RiskManager.cpp core/risk/CircuitBreaker.cpp
+    core/risk/VaREngine.cpp core/risk/AlertManager.cpp
+    core/risk/DisasterRecovery.cpp)
+
 # Create core library
 add_library(core STATIC ${CORE_SOURCES})
 target_link_libraries(
@@ -233,9 +239,21 @@ target_link_libraries(
          spdlog::spdlog
          fmt::fmt)
 
+# Create risk library
+add_library(risk STATIC ${RISK_SOURCES})
+target_link_libraries(
+  risk
+  PUBLIC core
+         Threads::Threads
+         Boost::system
+         Boost::filesystem
+         nlohmann_json::nlohmann_json
+         spdlog::spdlog
+         fmt::fmt)
+
 # Create strategy library
 add_library(strategy STATIC ${STRATEGY_SOURCES})
-target_link_libraries(strategy PUBLIC core Threads::Threads Boost::system
+target_link_libraries(strategy PUBLIC core risk Threads::Threads Boost::system
                                       Boost::filesystem)
 
 # Create exchange library
@@ -271,6 +289,7 @@ if(BUILD_VISUALIZATION)
   target_link_libraries(
     visualization
     PUBLIC core
+           risk
            strategy
            Threads::Threads
            Boost::system
@@ -294,12 +313,14 @@ if(BUILD_VISUALIZATION)
 endif()
 set(PINNACLEMM_LIBS
     core
+    risk
     strategy
     exchange
     Threads::Threads
     Boost::system
     Boost::filesystem
     Boost::program_options
+    nlohmann_json::nlohmann_json
     spdlog::spdlog
     fmt::fmt)
 
@@ -431,6 +452,42 @@ if(BUILD_TESTS)
   add_executable(routing_test tests/routing_test.cpp)
   target_link_libraries(routing_test core exchange Threads::Threads fmt::fmt)
   add_test(NAME RoutingTests COMMAND routing_test)
+
+  # Risk Manager tests
+  add_executable(risk_manager_tests tests/unit/RiskManagerTests.cpp)
+  target_link_libraries(risk_manager_tests core risk GTest::gtest_main
+                        GTest::gtest Threads::Threads)
+  add_test(NAME RiskManagerTests COMMAND risk_manager_tests)
+
+  # Circuit Breaker tests
+  add_executable(circuit_breaker_tests tests/unit/CircuitBreakerTests.cpp)
+  target_link_libraries(circuit_breaker_tests core risk GTest::gtest_main
+                        GTest::gtest Threads::Threads)
+  add_test(NAME CircuitBreakerTests COMMAND circuit_breaker_tests)
+
+  # VaR Engine tests
+  add_executable(var_engine_tests tests/unit/VaREngineTests.cpp)
+  target_link_libraries(var_engine_tests core risk GTest::gtest_main
+                        GTest::gtest Threads::Threads)
+  add_test(NAME VaREngineTests COMMAND var_engine_tests)
+
+  # Alert Manager tests
+  add_executable(alert_manager_tests tests/unit/AlertManagerTests.cpp)
+  target_link_libraries(alert_manager_tests core risk GTest::gtest_main
+                        GTest::gtest Threads::Threads)
+  add_test(NAME AlertManagerTests COMMAND alert_manager_tests)
+
+  # Disaster Recovery tests
+  add_executable(disaster_recovery_tests tests/unit/DisasterRecoveryTests.cpp)
+  target_link_libraries(
+    disaster_recovery_tests
+    core
+    risk
+    GTest::gtest_main
+    GTest::gtest
+    Threads::Threads
+    Boost::filesystem)
+  add_test(NAME DisasterRecoveryTests COMMAND disaster_recovery_tests)
 endif()
 
 # Benchmarks
@@ -496,6 +553,11 @@ if(BUILD_BENCHMARKS)
                  tests/performance/BacktestingBenchmark.cpp)
   target_link_libraries(backtesting_benchmark core strategy
                         benchmark::benchmark Threads::Threads)
+
+  # Risk check benchmarks
+  add_executable(risk_check_benchmark tests/performance/RiskCheckBenchmark.cpp)
+  target_link_libraries(risk_check_benchmark core risk benchmark::benchmark
+                        Threads::Threads)
 endif()
 
 # Install targets

@@ -1,0 +1,164 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pinnaclemm-config
+  namespace: pinnaclemm
+  labels:
+    app: pinnaclemm
+data:
+  default_config.json: |
+    {
+        "strategy": {
+          "name": "BasicMarketMaker",
+          "symbol": "BTC-USD",
+          "baseSpreadBps": 10.0,
+          "minSpreadBps": 5.0,
+          "maxSpreadBps": 50.0,
+          "orderQuantity": 0.01,
+          "minOrderQuantity": 0.001,
+          "maxOrderQuantity": 1.0,
+          "targetPosition": 0.0,
+          "maxPosition": 10.0,
+          "inventorySkewFactor": 0.5,
+          "priceLevelSpacing": 0.1,
+          "maxLevels": 3
+        },
+        "risk": {
+          "maxDrawdownPct": 5.0,
+          "stopLossPct": 3.0,
+          "takeProfitPct": 5.0,
+          "maxTradingVolume": 100.0
+        },
+        "timing": {
+          "quoteUpdateIntervalMs": 100,
+          "orderTimeoutMs": 5000,
+          "cancelRetryIntervalMs": 100,
+          "tradeMonitoringIntervalMs": 50,
+          "publishStatsIntervalMs": 5000
+        },
+        "exchange": {
+          "simulator": {
+            "enabled": false,
+            "volatility": 0.2,
+            "drift": 0.0,
+            "tickSize": 0.01,
+            "participants": [
+              {"type": "taker", "frequency": 10.0, "volumeRatio": 0.3},
+              {"type": "maker", "frequency": 20.0, "volumeRatio": 0.4},
+              {"type": "noise", "frequency": 5.0, "volumeRatio": 0.1},
+              {"type": "arbitrageur", "frequency": 2.0, "volumeRatio": 0.2}
+            ]
+          }
+        },
+        "logging": {
+          "level": "info",
+          "console": true,
+          "file": true,
+          "fileName": "/var/log/pinnaclemm/pinnaclemm.log"
+        },
+        "performance": {
+          "useLowLatencyMode": true,
+          "useSharedMemory": false,
+          "useKernelBypass": false
+        },
+        "persistence": {
+          "enabled": true,
+          "dataDirectory": "/data/pinnaclemm",
+          "journalSyncIntervalMs": 100,
+          "snapshotIntervalMin": 15,
+          "keepSnapshots": 5,
+          "compactionThreshold": 1000000
+        },
+        "risk_management": {
+          "limits": {
+            "max_position_size": 10.0,
+            "max_notional_exposure": 1000000.0,
+            "max_net_exposure": 500000.0,
+            "max_gross_exposure": 2000000.0,
+            "max_drawdown_pct": 5.0,
+            "daily_loss_limit": 10000.0,
+            "max_order_size": 1.0,
+            "max_order_value": 50000.0,
+            "max_daily_volume": 100.0,
+            "max_orders_per_second": 100
+          },
+          "circuit_breaker": {
+            "price_move_1min_pct": 2.0,
+            "price_move_5min_pct": 5.0,
+            "spread_widen_multiplier": 3.0,
+            "volume_spike_multiplier": 5.0,
+            "cooldown_period_ms": 30000,
+            "half_open_test_duration_ms": 10000,
+            "max_latency_us": 10000,
+            "price_history_size": 300
+          },
+          "var": {
+            "window_size": 252,
+            "simulation_count": 10000,
+            "horizon": 1.0,
+            "update_interval_ms": 60000,
+            "var_limit_pct": 2.0
+          },
+          "auto_hedge": {
+            "enabled": false,
+            "threshold_pct": 50.0,
+            "interval_ms": 5000
+          },
+          "alerts": {
+            "min_interval_ms": 5000,
+            "max_history": 1000,
+            "warning_threshold_pct": 80.0,
+            "critical_threshold_pct": 100.0
+          }
+        }
+    }
+  ml_config.json: |
+    {
+      "ml_enhanced_market_maker": {
+        "enableMLSpreadOptimization": true,
+        "enableOnlineLearning": true,
+        "fallbackToHeuristics": true,
+        "mlConfidenceThreshold": 0.5,
+        "minConfidenceForExecution": 0.3,
+        "maxSpreadDeviationRatio": 2.0,
+        "enablePerformanceTracking": true,
+        "performanceReportIntervalMs": 300000,
+        "flowAnalysis": {
+          "enableFlowAnalysis": true,
+          "flowAnalysisWindowMs": 1000,
+          "maxFlowEvents": 10000,
+          "flowSpreadAdjustmentWeight": 0.3
+        },
+        "impactPrediction": {
+          "enableImpactPrediction": true,
+          "maxImpactHistorySize": 10000,
+          "impactModelUpdateInterval": 60000,
+          "maxOrderSizeImpactRatio": 0.001,
+          "impactSpreadAdjustmentWeight": 0.2,
+          "impactConfidenceThreshold": 0.3,
+          "maxImpactDeviationRatio": 3.0
+        },
+        "rlParameterAdaptation": {
+          "enableRLParameterAdaptation": true,
+          "adaptationIntervalMs": 5000,
+          "episodeIntervalMs": 60000,
+          "minActionsPerEpisode": 10,
+          "pnlRewardWeight": 0.4,
+          "fillRateRewardWeight": 0.3,
+          "riskRewardWeight": 0.2,
+          "stabilityRewardWeight": 0.1
+        },
+        "optimizerConfig": {
+          "maxTrainingDataPoints": 10000,
+          "minTrainingDataPoints": 1000,
+          "learningRate": 0.001,
+          "batchSize": 32,
+          "epochs": 100,
+          "lookbackPeriod": 100,
+          "retrainIntervalMs": 300000,
+          "useGPU": false,
+          "numThreads": 4,
+          "enableCache": true
+        }
+      }
+    }

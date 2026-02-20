@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pinnaclemm-network-policy
+  namespace: pinnaclemm
+  labels:
+    app: pinnaclemm
+spec:
+  podSelector:
+    matchLabels:
+      app: pinnaclemm
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow inbound traffic to WebSocket port
+    - ports:
+        - port: 8080
+          protocol: TCP
+    # Allow inbound traffic to REST API port
+    - ports:
+        - port: 8081
+          protocol: TCP
+  egress:
+    # Allow all egress for exchange connectivity (REST, WebSocket, FIX)
+    # Exchange endpoints vary by provider and may change without notice.
+    # Use a service mesh or external firewall for fine-grained egress control.
+    - {}

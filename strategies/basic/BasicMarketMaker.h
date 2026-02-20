@@ -1,6 +1,9 @@
 #pragma once
 
 #include "../../core/orderbook/OrderBook.h"
+#include "../../core/risk/CircuitBreaker.h"
+#include "../../core/risk/RiskManager.h"
+#include "../../core/utils/AuditLogger.h"
 #include "../../core/utils/JsonLogger.h"
 #include "../../core/utils/LockFreeQueue.h"
 #include "../../exchange/simulator/MarketDataFeed.h"

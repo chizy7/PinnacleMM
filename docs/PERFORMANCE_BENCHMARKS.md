@@ -107,6 +107,29 @@ BM_OrderRouter_SubmitOrder                    2368 ns         1879 ns       4185
 **Market Data Processing**: Real-time market data updates with nanosecond latency
 **Concurrent Operations**: Thread-safe multi-threaded performance
 
+## Risk Management Performance
+
+### **Risk Check Benchmarks** (`./risk_check_benchmark`)
+```
+Benchmark                       Time             CPU   Iterations
+-----------------------------------------------------------------
+BM_RiskCheckOrder             751 ns          750 ns      9866937
+BM_CircuitBreakerCheck       4.81 ns         4.80 ns    146614053
+BM_OnFill                    2339 ns         2306 ns       304103
+BM_OnPnLUpdate               24.8 ns         24.8 ns     28515794
+```
+
+**Analysis:**
+- **Pre-Trade Risk Check**: 750 nanoseconds (lock-free, multiple atomic loads)
+- **Circuit Breaker Check**: 4.8 nanoseconds (single atomic load)
+- **Post-Trade Fill Update**: 2.3 microseconds (position + exposure update)
+- **PnL Update**: 24.8 nanoseconds (drawdown tracking)
+- **Performance Grade**: **Excellent** - Sub-microsecond pre-trade checks
+
+### **Risk Architecture Notes**
+
+The `CircuitBreaker::isTradingAllowed()` check at ~5ns is called once per quoting cycle (not per order), making it effectively zero-cost. The `RiskManager::checkOrder()` at ~750ns is called per order and involves 8 sequential atomic loads covering halt status, rate limits, order size, position, volume, daily loss, drawdown, and exposure checks.
+
 ## Performance Summary by Component
 
 ### **Ultra-Low Latency Achievements**
@@ -118,6 +141,9 @@ BM_OrderRouter_SubmitOrder                    2368 ns         1879 ns       4185
 | **Routing** | BEST_PRICE Planning | 83.0ns | Exceptional |
 | **Routing** | VWAP Planning | 532ns | Excellent |
 | **Routing** | End-to-End Submission | 1.88μs | Outstanding |
+| **Risk** | Circuit Breaker Check | 4.8ns | Exceptional |
+| **Risk** | Pre-Trade Risk Check | 750ns | Excellent |
+| **Risk** | PnL Update | 24.8ns | Outstanding |
 | **Throughput** | Order Processing | 640k/sec | Production |
 | **Throughput** | Market Execution | 9.8M/sec | Exceptional |
 
@@ -132,6 +158,10 @@ BM_OrderRouter_SubmitOrder                    2368 ns         1879 ns       4185
 | **Routing** | End-to-End Flow | Complete Pipeline | Complete |
 | **Routing** | Multi-Venue | Concurrent Operations | Complete |
 | **Routing** | Large Orders | Order Splitting | Complete |
+| **Risk** | Pre-Trade Check | Lock-Free Latency | Complete |
+| **Risk** | Circuit Breaker | Atomic Load | Complete |
+| **Risk** | Post-Trade Update | Fill Processing | Complete |
+| **Risk** | PnL Tracking | Drawdown Update | Complete |
 | **Integration** | Market Data | Real-time Updates | Complete |
 
 ## Production Readiness Assessment
@@ -165,11 +195,14 @@ cd build
 ./throughput_benchmark
 ./orderbook_benchmark
 
-# Advanced routing performance (NEW)
+# Advanced routing performance
 ./routing_benchmark
 
+# Risk management performance
+./risk_check_benchmark
+
 # All benchmarks in sequence
-for bench in latency_benchmark throughput_benchmark orderbook_benchmark routing_benchmark; do
+for bench in latency_benchmark throughput_benchmark orderbook_benchmark routing_benchmark risk_check_benchmark; do
     echo "Running $bench..."
     ./$bench
     echo "---"

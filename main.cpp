@@ -1,6 +1,13 @@
 #include "core/orderbook/LockFreeOrderBook.h"
 #include "core/orderbook/OrderBook.h"
 #include "core/persistence/PersistenceManager.h"
+#include "core/risk/AlertManager.h"
+#include "core/risk/CircuitBreaker.h"
+#include "core/risk/DisasterRecovery.h"
+#include "core/risk/RiskConfig.h"
+#include "core/risk/RiskManager.h"
+#include "core/risk/VaREngine.h"
+#include "core/utils/AuditLogger.h"
 #include "core/utils/JsonLogger.h"
 #include "core/utils/SecureInput.h"
 #include "core/utils/TimeUtils.h"
@@ -19,6 +26,7 @@
 #include <boost/program_options.hpp>
 #include <chrono>
 #include <csignal>
+#include <fstream>
 #include <iostream>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -27,6 +35,7 @@
 #include <thread>
 
 namespace po = boost::program_options;
+using pinnacle::utils::AuditLogger;
 
 // Global flag for signal handling
 std::atomic<bool> g_running{true};
@@ -224,6 +233,16 @@ int main(int argc, char* argv[]) {
     spdlog::info("Using lock-free data structures: {}",
                  useLockFree ? "enabled" : "disabled");
 
+    // Initialize audit logger
+    auto& auditLogger = pinnacle::utils::AuditLogger::getInstance();
+    auditLogger.initialize("logs/audit.log");
+    std::string sessionId =
+        "session_" +
+        std::to_string(pinnacle::utils::TimeUtils::getCurrentMillis());
+    auditLogger.setCurrentSession("system", sessionId);
+    AUDIT_SYSTEM_EVENT("PinnacleMM system starting", true);
+    spdlog::info("Audit logger initialized with session: {}", sessionId);
+
     // Initialize persistence
     auto& persistenceManager =
         pinnacle::persistence::PersistenceManager::getInstance();
@@ -252,6 +271,75 @@ int main(int argc, char* argv[]) {
                     "start fresh.");
       return 1;
     }
+
+    // Load risk configuration from config file
+    pinnacle::risk::RiskConfig riskConfig;
+    try {
+      std::ifstream configStream(configFile);
+      if (configStream.is_open()) {
+        nlohmann::json configJson;
+        configStream >> configJson;
+        riskConfig = pinnacle::risk::RiskConfig::fromJson(configJson);
+        spdlog::info("Risk configuration loaded from {}", configFile);
+      }
+    } catch (const std::exception& e) {
+      spdlog::warn("Failed to load risk config, using defaults: {}", e.what());
+    }
+
+    // Initialize Risk Manager
+    auto& riskManager = pinnacle::risk::RiskManager::getInstance();
+    riskManager.initialize(riskConfig.limits);
+    spdlog::info("Risk Manager initialized");
+
+    // Initialize Circuit Breaker
+    auto& circuitBreaker = pinnacle::risk::CircuitBreaker::getInstance();
+    circuitBreaker.initialize(riskConfig.circuitBreaker);
+    spdlog::info("Circuit Breaker initialized");
+
+    // Initialize Alert Manager
+    auto& alertManager = pinnacle::risk::AlertManager::getInstance();
+    alertManager.initialize(riskConfig.alerts);
+    spdlog::info("Alert Manager initialized");
+
+    // Initialize Disaster Recovery
+    auto& disasterRecovery = pinnacle::risk::DisasterRecovery::getInstance();
+    disasterRecovery.initialize("data/backups");
+    spdlog::info("Disaster Recovery initialized");
+
+    // Initialize VaR Engine
+    auto varEngine = std::make_shared<pinnacle::risk::VaREngine>();
+    varEngine->initialize(riskConfig.var);
+    varEngine->start();
+    spdlog::info("VaR Engine initialized and started");
+
+    // Wire circuit breaker state changes to alert manager
+    circuitBreaker.setStateCallback(
+        [&alertManager](pinnacle::risk::CircuitBreakerState oldState,
+                        pinnacle::risk::CircuitBreakerState newState,
+                        pinnacle::risk::CircuitBreakerTrigger trigger) {
+          pinnacle::risk::AlertSeverity severity =
+              (newState == pinnacle::risk::CircuitBreakerState::OPEN)
+                  ? pinnacle::risk::AlertSeverity::EMERGENCY
+                  : pinnacle::risk::AlertSeverity::WARNING;
+          pinnacle::risk::AlertType alertType;
+          if (newState == pinnacle::risk::CircuitBreakerState::OPEN)
+            alertType = pinnacle::risk::AlertType::CIRCUIT_BREAKER_OPEN;
+          else if (newState == pinnacle::risk::CircuitBreakerState::HALF_OPEN)
+            alertType = pinnacle::risk::AlertType::CIRCUIT_BREAKER_HALF_OPEN;
+          else
+            alertType = pinnacle::risk::AlertType::CIRCUIT_BREAKER_CLOSED;
+
+          alertManager.raiseAlert(
+              alertType, severity,
+              "Circuit breaker: " +
+                  pinnacle::risk::CircuitBreaker::stateToString(oldState) +
+                  " -> " +
+                  pinnacle::risk::CircuitBreaker::stateToString(newState) +
+                  " (trigger: " +
+                  pinnacle::risk::CircuitBreaker::triggerToString(trigger) +
+                  ")",
+              "CircuitBreaker");
+        });
 
     // Create or retrieve order book
     std::shared_ptr<pinnacle::OrderBook> orderBook;
@@ -524,6 +612,28 @@ int main(int argc, char* argv[]) {
     // Shutdown
     spdlog::info("Shutting down...");
 
+    // Save risk state before shutdown
+    try {
+      auto riskState = riskManager.toJson();
+      nlohmann::json strategyState = {
+          {"position", strategy->getPosition()},
+          {"pnl", strategy->getPnL()},
+          {"symbol", symbol},
+          {"timestamp", pinnacle::utils::TimeUtils::getCurrentNanos()}};
+      disasterRecovery.emergencySave(riskState, strategyState);
+      disasterRecovery.createBackup(
+          "shutdown_" +
+          std::to_string(pinnacle::utils::TimeUtils::getCurrentMillis()));
+      spdlog::info("Risk state saved on shutdown");
+    } catch (const std::exception& e) {
+      spdlog::error("Failed to save risk state on shutdown: {}", e.what());
+    }
+
+    // Stop VaR engine
+    if (varEngine) {
+      varEngine->stop();
+    }
+
     // Stop strategy
     if (strategy->isRunning()) {
       strategy->stop();
@@ -537,6 +647,7 @@ int main(int argc, char* argv[]) {
     spdlog::info("Final statistics:");
     spdlog::info("{}", strategy->getStatistics());
 
+    AUDIT_SYSTEM_EVENT("PinnacleMM system shutdown complete", true);
     spdlog::info("Shutdown complete");
     return 0;
   } catch (const std::exception& e) {

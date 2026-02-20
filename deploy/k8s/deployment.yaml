@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pinnaclemm
+  namespace: pinnaclemm
+  labels:
+    app: pinnaclemm
+spec:
+  serviceName: pinnaclemm
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pinnaclemm
+  template:
+    metadata:
+      labels:
+        app: pinnaclemm
+    spec:
+      terminationGracePeriodSeconds: 60
+      # Ensure the pod is scheduled on a node with low-latency networking
+      # Uncomment and adjust the following for node affinity if needed:
+      # affinity:
+      #   nodeAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #       nodeSelectorTerms:
+      #         - matchExpressions:
+      #             - key: node-role/trading
+      #               operator: In
+      #               values:
+      #                 - "true"
+      containers:
+        - name: pinnaclemm
+          image: pinnaclemm:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: websocket
+              containerPort: 8080
+              protocol: TCP
+            - name: api
+              containerPort: 8081
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/ready
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          env:
+            - name: PINNACLE_CONFIG_PATH
+              value: /etc/pinnaclemm/config/default_config.json
+            - name: PINNACLE_ML_CONFIG_PATH
+              value: /etc/pinnaclemm/config/ml_config.json
+            - name: PINNACLE_DATA_DIR
+              value: /data/pinnaclemm
+            - name: PINNACLE_LOG_DIR
+              value: /var/log/pinnaclemm
+            - name: EXCHANGE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pinnaclemm-exchange-credentials
+                  key: EXCHANGE_API_KEY
+            - name: EXCHANGE_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pinnaclemm-exchange-credentials
+                  key: EXCHANGE_API_SECRET
+            - name: EXCHANGE_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: pinnaclemm-exchange-credentials
+                  key: EXCHANGE_PASSPHRASE
+            - name: FIX_SENDER_COMP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: pinnaclemm-exchange-credentials
+                  key: FIX_SENDER_COMP_ID
+                  optional: true
+            - name: FIX_TARGET_COMP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: pinnaclemm-exchange-credentials
+                  key: FIX_TARGET_COMP_ID
+                  optional: true
+            - name: FIX_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pinnaclemm-exchange-credentials
+                  key: FIX_PASSWORD
+                  optional: true
+          volumeMounts:
+            - name: config
+              mountPath: /etc/pinnaclemm/config
+              readOnly: true
+            - name: secrets
+              mountPath: /etc/pinnaclemm/secrets
+              readOnly: true
+            - name: pinnaclemm-data
+              mountPath: /data/pinnaclemm
+            - name: pinnaclemm-logs
+              mountPath: /var/log/pinnaclemm
+      volumes:
+        - name: config
+          configMap:
+            name: pinnaclemm-config
+        - name: secrets
+          secret:
+            secretName: pinnaclemm-exchange-credentials
+        - name: pinnaclemm-logs
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: pinnaclemm-data
+        labels:
+          app: pinnaclemm
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi

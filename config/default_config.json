@@ -59,5 +59,47 @@
       "snapshotIntervalMin": 15,
       "keepSnapshots": 5,
       "compactionThreshold": 1000000
+    },
+    "risk_management": {
+      "limits": {
+        "max_position_size": 10.0,
+        "max_notional_exposure": 1000000.0,
+        "max_net_exposure": 500000.0,
+        "max_gross_exposure": 2000000.0,
+        "max_drawdown_pct": 5.0,
+        "daily_loss_limit": 10000.0,
+        "max_order_size": 1.0,
+        "max_order_value": 50000.0,
+        "max_daily_volume": 100.0,
+        "max_orders_per_second": 100
+      },
+      "circuit_breaker": {
+        "price_move_1min_pct": 2.0,
+        "price_move_5min_pct": 5.0,
+        "spread_widen_multiplier": 3.0,
+        "volume_spike_multiplier": 5.0,
+        "cooldown_period_ms": 30000,
+        "half_open_test_duration_ms": 10000,
+        "max_latency_us": 10000,
+        "price_history_size": 300
+      },
+      "var": {
+        "window_size": 252,
+        "simulation_count": 10000,
+        "horizon": 1.0,
+        "update_interval_ms": 60000,
+        "var_limit_pct": 2.0
+      },
+      "auto_hedge": {
+        "enabled": false,
+        "threshold_pct": 50.0,
+        "interval_ms": 5000
+      },
+      "alerts": {
+        "min_interval_ms": 5000,
+        "max_history": 1000,
+        "warning_threshold_pct": 80.0,
+        "critical_threshold_pct": 100.0
+      }
     }
 }

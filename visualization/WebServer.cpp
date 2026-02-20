@@ -1,4 +1,8 @@
 #include "WebServer.h"
+#include "../core/risk/AlertManager.h"
+#include "../core/risk/CircuitBreaker.h"
+#include "../core/risk/RiskManager.h"
+#include "../core/risk/VaREngine.h"
 #include "../strategies/analytics/MarketRegimeDetector.h"
 
 #include <algorithm>
@@ -863,6 +867,20 @@ RestAPIServer::handleRequest(http::request<http::string_body>&& req) {
     auto end = target.find("/performance");
     auto strategyId = target.substr(start, end - start);
     return handleGetPerformance(strategyId, "");
+  } else if (target == "/api/risk/state") {
+    return handleGetRiskState();
+  } else if (target == "/api/risk/var") {
+    return handleGetRiskVaR();
+  } else if (target == "/api/risk/limits") {
+    return handleGetRiskLimits();
+  } else if (target == "/api/risk/circuit-breaker") {
+    return handleGetCircuitBreaker();
+  } else if (target == "/api/risk/alerts") {
+    return handleGetAlerts();
+  } else if (target == "/api/health") {
+    return handleGetHealth();
+  } else if (target == "/api/ready") {
+    return handleGetReady();
   } else if (target.starts_with("/")) {
     // Serve static files
     return handleStaticFile(target);
@@ -1020,6 +1038,120 @@ std::string RestAPIServer::getContentType(const std::string& path) {
   if (path.ends_with(".json"))
     return "application/json";
   return "text/plain";
+}
+
+// ============================================================================
+// Risk Management REST Endpoints
+// ============================================================================
+
+http::response<http::string_body> RestAPIServer::handleGetRiskState() {
+  auto state = risk::RiskManager::getInstance().getState();
+  json riskState = {{"position", state.currentPosition},
+                    {"total_pnl", state.totalPnL},
+                    {"daily_pnl", state.dailyPnL},
+                    {"peak_pnl", state.peakPnL},
+                    {"drawdown", state.currentDrawdown},
+                    {"daily_volume", state.dailyVolume},
+                    {"net_exposure", state.netExposure},
+                    {"gross_exposure", state.grossExposure},
+                    {"is_halted", state.isHalted},
+                    {"halt_reason", state.haltReason},
+                    {"last_update_time", state.lastUpdateTime}};
+
+  auto response = createSuccessResponse(riskState);
+  http::response<http::string_body> res{http::status::ok, 11};
+  res.set(http::field::server, "PinnacleMM-Visualization/1.0");
+  res.set(http::field::content_type, "application/json");
+  res.body() = response.dump();
+  res.prepare_payload();
+  return res;
+}
+
+http::response<http::string_body> RestAPIServer::handleGetRiskVaR() {
+  json varData = {{"message", "VaR data available when VaR engine is running"},
+                  {"timestamp", utils::TimeUtils::getCurrentNanos()}};
+
+  auto response = createSuccessResponse(varData);
+  http::response<http::string_body> res{http::status::ok, 11};
+  res.set(http::field::server, "PinnacleMM-Visualization/1.0");
+  res.set(http::field::content_type, "application/json");
+  res.body() = response.dump();
+  res.prepare_payload();
+  return res;
+}
+
+http::response<http::string_body> RestAPIServer::handleGetRiskLimits() {
+  auto limits = risk::RiskManager::getInstance().getLimits();
+  json limitsJson = {{"max_position_size", limits.maxPositionSize},
+                     {"max_notional_exposure", limits.maxNotionalExposure},
+                     {"max_net_exposure", limits.maxNetExposure},
+                     {"max_gross_exposure", limits.maxGrossExposure},
+                     {"max_drawdown_pct", limits.maxDrawdownPct},
+                     {"daily_loss_limit", limits.dailyLossLimit},
+                     {"max_order_size", limits.maxOrderSize},
+                     {"max_order_value", limits.maxOrderValue},
+                     {"max_daily_volume", limits.maxDailyVolume},
+                     {"max_orders_per_second", limits.maxOrdersPerSecond}};
+
+  auto response = createSuccessResponse(limitsJson);
+  http::response<http::string_body> res{http::status::ok, 11};
+  res.set(http::field::server, "PinnacleMM-Visualization/1.0");
+  res.set(http::field::content_type, "application/json");
+  res.body() = response.dump();
+  res.prepare_payload();
+  return res;
+}
+
+http::response<http::string_body> RestAPIServer::handleGetCircuitBreaker() {
+  auto cbJson = risk::CircuitBreaker::getInstance().toJson();
+  auto response = createSuccessResponse(cbJson);
+  http::response<http::string_body> res{http::status::ok, 11};
+  res.set(http::field::server, "PinnacleMM-Visualization/1.0");
+  res.set(http::field::content_type, "application/json");
+  res.body() = response.dump();
+  res.prepare_payload();
+  return res;
+}
+
+http::response<http::string_body> RestAPIServer::handleGetAlerts() {
+  auto alertsJson = risk::AlertManager::getInstance().toJson();
+  auto response = createSuccessResponse(alertsJson);
+  http::response<http::string_body> res{http::status::ok, 11};
+  res.set(http::field::server, "PinnacleMM-Visualization/1.0");
+  res.set(http::field::content_type, "application/json");
+  res.body() = response.dump();
+  res.prepare_payload();
+  return res;
+}
+
+http::response<http::string_body> RestAPIServer::handleGetHealth() {
+  json health = {{"status", "healthy"},
+                 {"timestamp", utils::TimeUtils::getCurrentNanos()},
+                 {"uptime_ms", utils::TimeUtils::getCurrentMillis()}};
+
+  http::response<http::string_body> res{http::status::ok, 11};
+  res.set(http::field::server, "PinnacleMM-Visualization/1.0");
+  res.set(http::field::content_type, "application/json");
+  res.body() = health.dump();
+  res.prepare_payload();
+  return res;
+}
+
+http::response<http::string_body> RestAPIServer::handleGetReady() {
+  bool isReady = !risk::RiskManager::getInstance().isHalted() &&
+                 risk::CircuitBreaker::getInstance().isTradingAllowed();
+
+  json ready = {{"ready", isReady},
+                {"timestamp", utils::TimeUtils::getCurrentNanos()}};
+
+  auto statusCode =
+      isReady ? http::status::ok : http::status::service_unavailable;
+  http::response<http::string_body> res{statusCode, 11};
+  res.set(http::field::server, "PinnacleMM-Visualization/1.0");
+  res.set(http::field::content_type, "application/json");
+  res.body() = ready.dump();
+  res.prepare_payload();
+  return res;
 }
 
 // ============================================================================

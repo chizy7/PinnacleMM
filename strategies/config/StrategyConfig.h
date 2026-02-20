@@ -52,7 +52,11 @@ struct StrategyConfig {
   double maxDrawdownPct = 5.0; // Maximum drawdown percentage before stopping
   double stopLossPct = 3.0;    // Stop loss percentage for individual position
   double takeProfitPct = 5.0;  // Take profit percentage for individual position
-  double maxTradingVolume = 100.0; // Maximum daily trading volume
+  double maxTradingVolume = 100.0;     // Maximum daily trading volume
+  double dailyLossLimit = 10000.0;     // Maximum daily loss in currency
+  double maxOrderValue = 50000.0;      // Maximum single order notional value
+  double maxNetExposure = 500000.0;    // Maximum net exposure
+  double maxGrossExposure = 2000000.0; // Maximum gross exposure
 
   // Timing parameters
   uint64_t quoteUpdateIntervalMs = 100; // Quote update interval in milliseconds

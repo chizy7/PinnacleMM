@@ -121,8 +121,15 @@ WORKDIR /app
 COPY --from=builder /app/build/pinnaclemm /app/
 COPY --from=builder /app/config/ /app/config/
 
+# Create logs and data directories
+RUN mkdir -p /app/logs /app/data /app/data/backups
+
 # Set environment variables
 ENV LD_LIBRARY_PATH=/usr/local/lib
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:8081/api/health || exit 1
 
 # Default command
 ENTRYPOINT ["/app/pinnaclemm"]
