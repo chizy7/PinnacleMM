@@ -462,6 +462,11 @@ BacktestEngine::BacktestEngine(const BacktestConfiguration& config)
   m_analyzer = std::make_unique<PerformanceAnalyzer>();
 }
 
+void BacktestEngine::setStrategy(
+    std::shared_ptr<pinnacle::strategy::MLEnhancedMarketMaker> strategy) {
+  m_strategy = std::move(strategy);
+}
+
 bool BacktestEngine::initialize() {
   spdlog::info("Initializing BacktestEngine");
 

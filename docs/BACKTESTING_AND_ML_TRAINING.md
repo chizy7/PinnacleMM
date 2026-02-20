@@ -14,6 +14,59 @@ This document provides a comprehensive guide to PinnacleMM's advanced backtestin
 6. [Code Examples](#code-examples)
 7. [Best Practices](#best-practices)
 
+## CLI Usage
+
+The fastest way to run a backtest is from the command line using `--mode backtest`. No API keys or exchange connection required.
+
+### Quick Start
+
+```bash
+# Run with synthetic data (auto-generated if no CSV found)
+./pinnaclemm --mode backtest --symbol BTC-USD
+
+# With ML-enhanced strategy
+./pinnaclemm --mode backtest --symbol BTC-USD --enable-ml
+
+# Custom parameters
+./pinnaclemm --mode backtest --symbol BTC-USD \
+  --initial-balance 50000 \
+  --trading-fee 0.002 \
+  --slippage-bps 5.0 \
+  --backtest-duration 7200
+```
+
+### CLI Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--mode backtest` | — | Enables backtest mode |
+| `--symbol <sym>` | `BTC-USD` | Trading symbol to backtest |
+| `--backtest-output <dir>` | `backtest_results` | Output directory for results; data CSVs go in `<dir>/data/` |
+| `--initial-balance <val>` | `100000.0` | Starting balance |
+| `--trading-fee <val>` | `0.001` | Fee as decimal (0.001 = 0.1%) |
+| `--disable-slippage` | off | Disable slippage simulation (enabled by default) |
+| `--slippage-bps <val>` | `2.0` | Slippage in basis points |
+| `--backtest-duration <sec>` | `3600` | Duration in seconds (1 hour default) |
+| `--enable-ml` | `false` | Use ML-enhanced market maker |
+| `--verbose` | `false` | Verbose logging |
+
+### Historical Data
+
+Place CSV files at `<backtest-output>/data/<SYMBOL>.csv`:
+
+```csv
+timestamp,symbol,price,bid,ask,volume
+1640995200000000000,BTC-USD,47892.50,47890.00,47895.00,1250.75
+1640995201000000000,BTC-USD,47893.25,47891.50,47895.00,875.25
+```
+
+If no CSV is found, the engine generates synthetic data automatically.
+
+### Output
+
+- A detailed performance report is printed to the console (Sharpe ratio, drawdown, win rate, etc.)
+- JSON results are saved to the `<backtest-output>/` directory
+
 ## Backtesting Framework
 
 ### Architecture Overview

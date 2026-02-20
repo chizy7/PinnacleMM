@@ -201,6 +201,29 @@ cd build && ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --enab
 
 When running in live mode, you'll be prompted for your master password to decrypt API credentials.
 
+#### Backtest Mode
+```bash
+# Run backtest with synthetic data (no API keys needed, auto-generates data if no CSV found)
+cd build && ./pinnaclemm --mode backtest --symbol BTC-USD
+
+# Backtest with ML-enhanced strategy
+cd build && ./pinnaclemm --mode backtest --symbol BTC-USD --enable-ml
+
+# Custom parameters
+cd build && ./pinnaclemm --mode backtest --symbol BTC-USD \
+  --initial-balance 50000 --trading-fee 0.002 --slippage-bps 5.0
+
+# Custom output directory
+cd build && ./pinnaclemm --mode backtest --symbol BTC-USD --backtest-output my_results
+
+# Using your own historical data: place CSV at <backtest-output>/data/<SYMBOL>.csv
+# e.g. backtest_results/data/BTC-USD.csv with format:
+# timestamp,symbol,price,bid,ask,volume
+# 1640995200000000000,BTC-USD,47892.50,47890.00,47895.00,1250.75
+```
+
+Backtest mode runs the strategy against historical (or synthetic) data, prints a detailed performance report (Sharpe ratio, drawdown, win rate, etc.), saves JSON results to the output directory, and exits cleanly.
+
 ## JSON Data Export
 
 PinnacleMM provides comprehensive structured data export capabilities through JSON Lines (JSONL) format logging. This feature enables detailed analysis, backtesting, monitoring, and debugging of trading strategies and market data.
