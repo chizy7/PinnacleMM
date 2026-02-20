@@ -17,6 +17,17 @@ AlertManager& AlertManager::getInstance() {
 void AlertManager::initialize(const AlertConfig& config) {
   m_config = config;
 
+  // Clear previous state so re-initialization starts clean
+  {
+    std::lock_guard<std::mutex> lock(m_alertsMutex);
+    m_alerts.clear();
+    m_lastAlertTime.clear();
+  }
+  {
+    std::lock_guard<std::mutex> lock(m_callbackMutex);
+    m_callbacks.clear();
+  }
+
   spdlog::info("AlertManager initialized: minIntervalMs={}, maxHistory={}, "
                "warningPct={:.1f}, criticalPct={:.1f}",
                m_config.minAlertIntervalMs, m_config.maxAlertHistory,
@@ -29,11 +40,6 @@ uint64_t AlertManager::raiseAlert(AlertType type, AlertSeverity severity,
                                   const std::string& message,
                                   const std::string& source,
                                   const nlohmann::json& metadata) {
-  // Check throttling before acquiring the lock
-  if (isThrottled(type)) {
-    return 0;
-  }
-
   Alert alert;
   alert.id = m_nextAlertId.fetch_add(1);
   alert.type = type;
@@ -43,9 +49,20 @@ uint64_t AlertManager::raiseAlert(AlertType type, AlertSeverity severity,
   alert.metadata = metadata;
   alert.timestamp = utils::TimeUtils::getCurrentMillis();
 
-  // Store alert and update throttle time
+  // Throttle check + store under a single lock to avoid UB on the
+  // unordered_map and prevent double-locking
   {
     std::lock_guard<std::mutex> lock(m_alertsMutex);
+
+    // Check throttling
+    auto it = m_lastAlertTime.find(static_cast<int>(type));
+    if (it != m_lastAlertTime.end()) {
+      uint64_t elapsed = alert.timestamp - it->second;
+      if (elapsed < m_config.minAlertIntervalMs) {
+        return 0; // Throttled
+      }
+    }
+
     m_alerts.push_back(alert);
     m_lastAlertTime[static_cast<int>(type)] = alert.timestamp;
     pruneHistory();
@@ -282,10 +299,11 @@ std::string AlertManager::severityToString(AlertSeverity severity) {
 }
 
 bool AlertManager::isThrottled(AlertType type) const {
-  // Note: caller should ideally hold m_alertsMutex, but we access
-  // m_lastAlertTime which is only modified under that lock.
-  // For the throttle check in raiseAlert, we read without lock for
-  // a best-effort check to avoid locking on the hot path.
+  // Must hold m_alertsMutex because m_lastAlertTime is a std::unordered_map
+  // and concurrent read/write is undefined behavior (rehashing can corrupt
+  // iterators).
+  std::lock_guard<std::mutex> lock(m_alertsMutex);
+
   auto it = m_lastAlertTime.find(static_cast<int>(type));
   if (it == m_lastAlertTime.end()) {
     return false;

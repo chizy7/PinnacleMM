@@ -1,5 +1,4 @@
 #include "DisasterRecovery.h"
-#include "../persistence/PersistenceManager.h"
 #include "../utils/AuditLogger.h"
 #include "RiskManager.h"
 
@@ -219,17 +218,12 @@ bool DisasterRecovery::createBackup(const std::string& label) {
                      bfs::copy_options::overwrite_existing);
     }
 
-    // Copy journal files from the persistence data directory
-    auto& persistence = persistence::PersistenceManager::getInstance();
-    // The PersistenceManager stores data in m_dataDirectory; journals live
-    // under <dataDir>/journals/.  We re-derive the path from the backup
-    // directory's parent (convention: backup dir sits next to data dir) or
-    // fall back to a well-known relative path.  To stay decoupled we simply
-    // scan for any .journal files in known locations.
-
-    // Journals directory is typically at the same level as our backup root
+    // Copy journal files from the persistence data directory.
+    // m_backupDirectory is typically "data/backups", so parent_path() gives
+    // us "data" which is the PersistenceManager's data root.  Journals live
+    // at "data/journals".
     bfs::path journalsDir =
-        bfs::path(m_backupDirectory).parent_path() / "data" / "journals";
+        bfs::path(m_backupDirectory).parent_path() / "journals";
     if (bfs::exists(journalsDir) && bfs::is_directory(journalsDir)) {
       bfs::path destJournals = bfs::path(backupPath) / "journals";
       bfs::create_directories(destJournals);
@@ -302,7 +296,7 @@ bool DisasterRecovery::restoreBackup(const std::string& label) {
     bfs::path backupJournals = bfs::path(backupPath) / "journals";
     if (bfs::exists(backupJournals) && bfs::is_directory(backupJournals)) {
       bfs::path journalsDir =
-          bfs::path(m_backupDirectory).parent_path() / "data" / "journals";
+          bfs::path(m_backupDirectory).parent_path() / "journals";
       bfs::create_directories(journalsDir);
 
       for (bfs::directory_iterator it(backupJournals);
@@ -413,7 +407,7 @@ bool DisasterRecovery::validateJournalIntegrity() const {
 
   try {
     bfs::path journalsDir =
-        bfs::path(m_backupDirectory).parent_path() / "data" / "journals";
+        bfs::path(m_backupDirectory).parent_path() / "journals";
 
     if (!bfs::exists(journalsDir)) {
       spdlog::warn("DisasterRecovery: journals directory does not exist: {}",
@@ -473,7 +467,7 @@ bool DisasterRecovery::validateSnapshotIntegrity() const {
 
   try {
     bfs::path snapshotsDir =
-        bfs::path(m_backupDirectory).parent_path() / "data" / "snapshots";
+        bfs::path(m_backupDirectory).parent_path() / "snapshots";
 
     if (!bfs::exists(snapshotsDir)) {
       spdlog::warn("DisasterRecovery: snapshots directory does not exist: {}",

@@ -23,10 +23,23 @@ RiskManager::~RiskManager() {
 }
 
 void RiskManager::initialize(const RiskLimits& limits) {
+  // Stop any previously running hedge thread before re-initializing
+  if (m_hedgeRunning.load(std::memory_order_acquire)) {
+    m_hedgeRunning.store(false, std::memory_order_release);
+  }
+  if (m_hedgeThread.joinable()) {
+    m_hedgeThread.join();
+  }
+
   {
     std::lock_guard<std::mutex> lock(m_stateMutex);
     m_limits = limits;
-    m_dailyResetTime = utils::TimeUtils::getCurrentMillis();
+    // Use system_clock so m_dailyResetTime is comparable to calendar-day
+    // boundaries in checkDailyReset()
+    m_dailyResetTime = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count());
   }
 
   // Reset all atomic state
@@ -168,16 +181,23 @@ RiskCheckResult RiskManager::checkOrder(OrderSide side, double price,
 void RiskManager::onFill(OrderSide side, double price, double quantity,
                          const std::string& symbol) {
   double notional = price * quantity;
+  double delta = (side == OrderSide::BUY) ? quantity : -quantity;
 
-  // Update position atomically
+  // Update position with CAS loop to avoid lost concurrent updates
   double prevPos = m_position.load(std::memory_order_relaxed);
-  double newPos =
-      (side == OrderSide::BUY) ? (prevPos + quantity) : (prevPos - quantity);
-  m_position.store(newPos, std::memory_order_release);
+  double newPos;
+  do {
+    newPos = prevPos + delta;
+  } while (!m_position.compare_exchange_weak(
+      prevPos, newPos, std::memory_order_release, std::memory_order_relaxed));
 
-  // Update daily volume atomically
+  // Update daily volume with CAS loop
   double prevVol = m_dailyVolume.load(std::memory_order_relaxed);
-  m_dailyVolume.store(prevVol + quantity, std::memory_order_release);
+  double newVol;
+  do {
+    newVol = prevVol + quantity;
+  } while (!m_dailyVolume.compare_exchange_weak(
+      prevVol, newVol, std::memory_order_release, std::memory_order_relaxed));
 
   // Update exposure -- requires mutex for multi-field consistency
   {
@@ -195,7 +215,7 @@ void RiskManager::onFill(OrderSide side, double price, double quantity,
 
   spdlog::debug("Fill: {} {} {} @ {} | pos={} vol={} notional={}",
                 (side == OrderSide::BUY) ? "BUY" : "SELL", quantity, symbol,
-                price, newPos, prevVol + quantity, notional);
+                price, newPos, newVol, notional);
 
   // Check for daily reset while we are updating
   checkDailyReset();
@@ -515,7 +535,11 @@ void RiskManager::resetDaily() {
 
   {
     std::lock_guard<std::mutex> lock(m_stateMutex);
-    m_dailyResetTime = utils::TimeUtils::getCurrentMillis();
+    // Use system_clock to stay consistent with checkDailyReset()
+    m_dailyResetTime = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count());
   }
 
   spdlog::info("Daily risk counters reset");
