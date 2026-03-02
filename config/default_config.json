@@ -60,6 +60,30 @@
       "keepSnapshots": 5,
       "compactionThreshold": 1000000
     },
+    "instruments": [
+      {
+        "symbol": "BTC-USD",
+        "enabled": true,
+        "useLockFree": true,
+        "enableML": false,
+        "baseSpreadBps": 10.0,
+        "orderQuantity": 0.01,
+        "maxPosition": 10.0
+      }
+    ],
+    "arbitrage": {
+      "enabled": false,
+      "minSpreadBps": 5.0,
+      "minProfitUsd": 1.0,
+      "maxStalenessMs": 500,
+      "scanIntervalMs": 10,
+      "dryRun": true,
+      "venues": ["coinbase", "kraken"],
+      "venueFees": {
+        "coinbase": 0.001,
+        "kraken": 0.0016
+      }
+    },
     "risk_management": {
       "limits": {
         "max_position_size": 10.0,

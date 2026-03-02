@@ -213,6 +213,86 @@ TEST_F(RiskManagerTest, DailyLossUtilization) {
   EXPECT_NEAR(util, 50.0, 1.0); // 500/1000 = 50 %
 }
 
+// ---------------------------------------------------------------------------
+// Per-Symbol Risk Tracking Tests
+// ---------------------------------------------------------------------------
+
+TEST_F(RiskManagerTest, PerSymbolTracking) {
+  auto& rm = RiskManager::getInstance();
+  rm.initialize(defaultLimits());
+
+  rm.registerSymbol("BTC-USD");
+  rm.registerSymbol("ETH-USD");
+
+  rm.onFill(OrderSide::BUY, 100.0, 5.0, "BTC-USD");
+  rm.onFill(OrderSide::BUY, 50.0, 3.0, "ETH-USD");
+
+  auto* btcState = rm.getSymbolState("BTC-USD");
+  auto* ethState = rm.getSymbolState("ETH-USD");
+
+  ASSERT_NE(btcState, nullptr);
+  ASSERT_NE(ethState, nullptr);
+
+  EXPECT_DOUBLE_EQ(btcState->position.load(), 5.0);
+  EXPECT_DOUBLE_EQ(ethState->position.load(), 3.0);
+
+  // Global position should be the sum
+  EXPECT_DOUBLE_EQ(rm.getPosition(), 8.0);
+}
+
+TEST_F(RiskManagerTest, PerSymbolLimits) {
+  auto& rm = RiskManager::getInstance();
+  rm.initialize(defaultLimits());
+
+  rm.registerSymbol("BTC-USD");
+
+  pinnacle::risk::PerSymbolLimits btcLimits{};
+  btcLimits.symbol = "BTC-USD";
+  btcLimits.maxPositionSize = 3.0; // Very tight per-symbol limit
+
+  rm.setSymbolLimits(btcLimits);
+
+  // Fill up to per-symbol limit
+  rm.onFill(OrderSide::BUY, 100.0, 3.0, "BTC-USD");
+
+  // Next buy on BTC-USD should be rejected (per-symbol limit)
+  auto result = rm.checkOrder(OrderSide::BUY, 100.0, 1.0, "BTC-USD");
+  EXPECT_EQ(result, RiskCheckResult::REJECTED_POSITION_LIMIT);
+}
+
+TEST_F(RiskManagerTest, AggregateAcrossSymbols) {
+  auto& rm = RiskManager::getInstance();
+  rm.initialize(defaultLimits());
+
+  rm.registerSymbol("BTC-USD");
+  rm.registerSymbol("ETH-USD");
+
+  rm.onFill(OrderSide::BUY, 100.0, 2.0, "BTC-USD");
+  rm.onFill(OrderSide::SELL, 50.0, 1.0, "ETH-USD");
+
+  // Global position = 2.0 + (-1.0) = 1.0
+  EXPECT_DOUBLE_EQ(rm.getPosition(), 1.0);
+
+  // Per-symbol positions
+  auto* btcState = rm.getSymbolState("BTC-USD");
+  auto* ethState = rm.getSymbolState("ETH-USD");
+  ASSERT_NE(btcState, nullptr);
+  ASSERT_NE(ethState, nullptr);
+  EXPECT_DOUBLE_EQ(btcState->position.load(), 2.0);
+  EXPECT_DOUBLE_EQ(ethState->position.load(), -1.0);
+}
+
+TEST_F(RiskManagerTest, UnregisteredSymbolFallbackToGlobal) {
+  auto& rm = RiskManager::getInstance();
+  rm.initialize(defaultLimits());
+
+  // Don't register any symbols — should use global limits
+  auto result = rm.checkOrder(OrderSide::BUY, 100.0, 1.0, "UNKNOWN-USD");
+  EXPECT_EQ(result, RiskCheckResult::APPROVED);
+
+  EXPECT_EQ(rm.getSymbolState("UNKNOWN-USD"), nullptr);
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

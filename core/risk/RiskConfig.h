@@ -37,6 +37,19 @@ struct RiskLimits {
 };
 
 /**
+ * @struct PerSymbolLimits
+ * @brief Per-symbol risk limits (overrides global if set)
+ */
+struct PerSymbolLimits {
+  std::string symbol;
+  double maxPositionSize{0.0};     // 0 = use global
+  double maxDailyVolume{0.0};      // 0 = use global
+  double dailyLossLimit{0.0};      // 0 = use global
+  double maxOrderSize{0.0};        // 0 = use global
+  double maxNotionalExposure{0.0}; // 0 = use global
+};
+
+/**
  * @struct CircuitBreakerConfig
  * @brief Configuration for the circuit breaker
  */
@@ -96,6 +109,7 @@ struct RiskConfig {
   CircuitBreakerConfig circuitBreaker;
   VaRConfig var;
   AlertConfig alerts;
+  std::vector<PerSymbolLimits> perSymbolLimits;
 
   /**
    * @brief Load risk configuration from JSON
@@ -186,6 +200,22 @@ struct RiskConfig {
         config.alerts.criticalThresholdPct = al.value(
             "critical_threshold_pct", config.alerts.criticalThresholdPct);
       }
+
+      if (rm.contains("per_symbol_limits") &&
+          rm["per_symbol_limits"].is_array()) {
+        for (const auto& psl : rm["per_symbol_limits"]) {
+          PerSymbolLimits limits;
+          limits.symbol = psl.value("symbol", std::string{});
+          limits.maxPositionSize = psl.value("max_position_size", 0.0);
+          limits.maxDailyVolume = psl.value("max_daily_volume", 0.0);
+          limits.dailyLossLimit = psl.value("daily_loss_limit", 0.0);
+          limits.maxOrderSize = psl.value("max_order_size", 0.0);
+          limits.maxNotionalExposure = psl.value("max_notional_exposure", 0.0);
+          if (!limits.symbol.empty()) {
+            config.perSymbolLimits.push_back(limits);
+          }
+        }
+      }
     }
 
     return config;
@@ -195,7 +225,7 @@ struct RiskConfig {
    * @brief Serialize to JSON
    */
   nlohmann::json toJson() const {
-    return {
+    nlohmann::json result = {
         {"risk_management",
          {{"limits",
            {{"max_position_size", limits.maxPositionSize},
@@ -233,6 +263,22 @@ struct RiskConfig {
             {"max_history", alerts.maxAlertHistory},
             {"warning_threshold_pct", alerts.warningThresholdPct},
             {"critical_threshold_pct", alerts.criticalThresholdPct}}}}}};
+
+    // Add per-symbol limits
+    nlohmann::json pslArray = nlohmann::json::array();
+    for (const auto& psl : perSymbolLimits) {
+      pslArray.push_back({{"symbol", psl.symbol},
+                          {"max_position_size", psl.maxPositionSize},
+                          {"max_daily_volume", psl.maxDailyVolume},
+                          {"daily_loss_limit", psl.dailyLossLimit},
+                          {"max_order_size", psl.maxOrderSize},
+                          {"max_notional_exposure", psl.maxNotionalExposure}});
+    }
+    if (!pslArray.empty()) {
+      result["risk_management"]["per_symbol_limits"] = pslArray;
+    }
+
+    return result;
   }
 };
 

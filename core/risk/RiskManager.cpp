@@ -2,6 +2,7 @@
 #include "../utils/AuditLogger.h"
 
 #include <cmath>
+#include <shared_mutex>
 #include <spdlog/spdlog.h>
 
 namespace pinnacle {
@@ -53,6 +54,13 @@ void RiskManager::initialize(const RiskLimits& limits) {
   m_halted.store(false, std::memory_order_relaxed);
   m_ordersThisSecond.store(0, std::memory_order_relaxed);
   m_currentSecond.store(0, std::memory_order_relaxed);
+
+  // Clear per-symbol state so tests and re-initialization start fresh
+  {
+    std::unique_lock<std::shared_mutex> lock(m_symbolMutex);
+    m_symbolStates.clear();
+    m_symbolLimits.clear();
+  }
 
   spdlog::info("RiskManager initialized - maxPos={} maxOrderSize={} "
                "dailyLossLimit={} maxDrawdown={}%",
@@ -114,11 +122,30 @@ RiskCheckResult RiskManager::checkOrder(OrderSide side, double price,
     return RiskCheckResult::REJECTED_ORDER_SIZE_LIMIT;
   }
 
-  // 4. Position limit check
+  // 4. Position limit check (per-symbol if registered, else global)
   double currentPos = m_position.load(std::memory_order_relaxed);
   double projectedPos = (side == OrderSide::BUY) ? (currentPos + quantity)
                                                  : (currentPos - quantity);
   double maxPos = m_limits.maxPositionSize;
+
+  // Check per-symbol position limit if available
+  {
+    std::shared_lock<std::shared_mutex> lock(m_symbolMutex);
+    auto limIt = m_symbolLimits.find(symbol);
+    auto stateIt = m_symbolStates.find(symbol);
+    if (limIt != m_symbolLimits.end() && limIt->second.maxPositionSize > 0.0 &&
+        stateIt != m_symbolStates.end()) {
+      double symPos = stateIt->second->position.load(std::memory_order_relaxed);
+      double symProjected =
+          (side == OrderSide::BUY) ? (symPos + quantity) : (symPos - quantity);
+      if (std::abs(symProjected) > limIt->second.maxPositionSize) {
+        AUDIT_ORDER_ACTIVITY("system", "", "rejected_position_limit", symbol,
+                             false);
+        return RiskCheckResult::REJECTED_POSITION_LIMIT;
+      }
+    }
+  }
+
   if (std::abs(projectedPos) > maxPos) {
     AUDIT_ORDER_ACTIVITY("system", "", "rejected_position_limit", symbol,
                          false);
@@ -211,6 +238,36 @@ void RiskManager::onFill(OrderSide side, double price, double quantity,
 
     m_grossExposure.store(gross, std::memory_order_release);
     m_netExposure.store(net, std::memory_order_release);
+  }
+
+  // Update per-symbol state if registered (grow-only map — pointer is stable)
+  {
+    std::shared_lock<std::shared_mutex> lock(m_symbolMutex);
+    auto symIt = m_symbolStates.find(symbol);
+    if (symIt != m_symbolStates.end()) {
+      auto& ss = *symIt->second;
+
+      double sPrev = ss.position.load(std::memory_order_relaxed);
+      double sNew;
+      do {
+        sNew = sPrev + delta;
+      } while (!ss.position.compare_exchange_weak(
+          sPrev, sNew, std::memory_order_release, std::memory_order_relaxed));
+
+      double vPrev = ss.dailyVolume.load(std::memory_order_relaxed);
+      double vNew;
+      do {
+        vNew = vPrev + quantity;
+      } while (!ss.dailyVolume.compare_exchange_weak(
+          vPrev, vNew, std::memory_order_release, std::memory_order_relaxed));
+
+      double ePrev = ss.exposure.load(std::memory_order_relaxed);
+      double eNew;
+      do {
+        eNew = ePrev + notional;
+      } while (!ss.exposure.compare_exchange_weak(
+          ePrev, eNew, std::memory_order_release, std::memory_order_relaxed));
+    }
   }
 
   spdlog::debug("Fill: {} {} {} @ {} | pos={} vol={} notional={}",
@@ -565,6 +622,53 @@ void RiskManager::checkDailyReset() {
   if (lastReset < todayMs) {
     resetDaily();
   }
+}
+
+// ---------------------------------------------------------------------------
+// Per-symbol tracking
+// ---------------------------------------------------------------------------
+void RiskManager::registerSymbol(const std::string& symbol) {
+  std::unique_lock<std::shared_mutex> lock(m_symbolMutex);
+  if (m_symbolStates.count(symbol)) {
+    return; // already registered
+  }
+  m_symbolStates[symbol] = std::make_shared<SymbolRiskState>(symbol);
+  spdlog::info("Registered per-symbol risk tracking for {}", symbol);
+}
+
+SymbolRiskState* RiskManager::getSymbolState(const std::string& symbol) {
+  std::shared_lock<std::shared_mutex> lock(m_symbolMutex);
+  auto it = m_symbolStates.find(symbol);
+  if (it != m_symbolStates.end()) {
+    return it->second.get();
+  }
+  return nullptr;
+}
+
+const SymbolRiskState*
+RiskManager::getSymbolState(const std::string& symbol) const {
+  std::shared_lock<std::shared_mutex> lock(m_symbolMutex);
+  auto it = m_symbolStates.find(symbol);
+  if (it != m_symbolStates.end()) {
+    return it->second.get();
+  }
+  return nullptr;
+}
+
+void RiskManager::setSymbolLimits(const PerSymbolLimits& limits) {
+  std::unique_lock<std::shared_mutex> lock(m_symbolMutex);
+  m_symbolLimits[limits.symbol] = limits;
+  spdlog::info("Set per-symbol limits for {}", limits.symbol);
+}
+
+const PerSymbolLimits*
+RiskManager::getSymbolLimits(const std::string& symbol) const {
+  std::shared_lock<std::shared_mutex> lock(m_symbolMutex);
+  auto it = m_symbolLimits.find(symbol);
+  if (it != m_symbolLimits.end()) {
+    return &it->second;
+  }
+  return nullptr;
 }
 
 // ---------------------------------------------------------------------------
