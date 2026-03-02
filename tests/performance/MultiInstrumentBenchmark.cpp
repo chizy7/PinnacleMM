@@ -59,8 +59,9 @@ BENCHMARK(BM_ObjectPoolAcquireRelease);
 // Benchmark: Raw new/delete vs pool
 static void BM_RawNewDelete(benchmark::State& state) {
   for (auto _ : state) {
-    auto obj = std::make_shared<Order>();
-    benchmark::DoNotOptimize(obj.get());
+    auto* obj = new Order();
+    benchmark::DoNotOptimize(obj);
+    delete obj;
   }
 }
 BENCHMARK(BM_RawNewDelete);

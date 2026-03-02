@@ -93,6 +93,9 @@ public:
   // Find order by ID
   std::shared_ptr<Order> findOrder(const std::string& orderId) const;
 
+  // Subtract a quantity from the level total (used after fills)
+  void subtractQuantity(double qty);
+
   // Apply a function to each order
   void
   forEachOrder(const std::function<void(std::shared_ptr<Order>)>& func) const;

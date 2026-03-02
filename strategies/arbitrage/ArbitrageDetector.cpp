@@ -110,14 +110,22 @@ void ArbitrageDetector::scanLoop() {
 
     m_totalScans.fetch_add(1, std::memory_order_relaxed);
 
-    // Update current opportunities
+    // Save a copy for callbacks before moving into shared state
     size_t newOppsCount = allOpps.size();
+    std::vector<ArbitrageOpportunity> callbackOpps;
+    if (newOppsCount > 0) {
+      callbackOpps = allOpps;
+    }
+
+    // Update current opportunities
     {
       std::lock_guard<std::mutex> lock(m_opportunitiesMutex);
       m_opportunities = std::move(allOpps);
     }
 
-    // Fire callbacks for new opportunities
+    // Fire callbacks outside any lock to prevent deadlock
+    // (callback may call getCurrentOpportunities() which locks
+    // m_opportunitiesMutex)
     if (newOppsCount > 0) {
       m_totalOpportunities.fetch_add(newOppsCount, std::memory_order_relaxed);
 
@@ -128,8 +136,7 @@ void ArbitrageDetector::scanLoop() {
       }
 
       if (cb) {
-        std::lock_guard<std::mutex> lock(m_opportunitiesMutex);
-        for (const auto& opp : m_opportunities) {
+        for (const auto& opp : callbackOpps) {
           cb(opp);
         }
       }

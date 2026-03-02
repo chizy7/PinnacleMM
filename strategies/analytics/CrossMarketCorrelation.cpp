@@ -64,6 +64,11 @@ void CrossMarketCorrelation::addPair(const std::string& symbolA,
   pair.symbolB = symbolB;
   m_pairs[key] = pair;
   m_signalsDirty = true;
+
+  // Initialize metrics immediately if both symbols already have data
+  if (m_series.count(symbolA) && m_series.count(symbolB)) {
+    updatePair(key);
+  }
 }
 
 void CrossMarketCorrelation::removePair(const std::string& symbolA,
@@ -147,8 +152,11 @@ double CrossMarketCorrelation::computePearsonCorrelation(
     sumY2 += y[yi] * y[yi];
   }
 
-  double denom =
-      std::sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+  double denomSq = (n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY);
+  if (denomSq <= 0.0) {
+    return 0.0;
+  }
+  double denom = std::sqrt(denomSq);
   if (denom < 1e-15) {
     return 0.0;
   }
@@ -193,10 +201,11 @@ CrossMarketCorrelation::computeLeadLag(const std::deque<double>& x,
     double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
 
     for (size_t i = 0; i < effectiveN; ++i) {
-      size_t xi = (lag >= 0) ? (x.size() - effectiveN + i)
-                             : (x.size() - effectiveN + i - lag);
-      size_t yi = (lag >= 0) ? (y.size() - effectiveN + i + lag)
-                             : (y.size() - effectiveN + i);
+      // Use n (not effectiveN) as the base window to avoid double-offsetting.
+      // For lag >= 0: correlate x[t] with y[t+lag], t = 0..effectiveN-1
+      // For lag < 0:  correlate x[t+|lag|] with y[t], t = 0..effectiveN-1
+      size_t xi = (lag >= 0) ? (x.size() - n + i) : (x.size() - n + i - lag);
+      size_t yi = (lag >= 0) ? (y.size() - n + i + lag) : (y.size() - n + i);
 
       if (xi >= x.size() || yi >= y.size()) {
         continue;
@@ -209,8 +218,12 @@ CrossMarketCorrelation::computeLeadLag(const std::deque<double>& x,
       sumY2 += y[yi] * y[yi];
     }
 
-    double denom = std::sqrt((effectiveN * sumX2 - sumX * sumX) *
-                             (effectiveN * sumY2 - sumY * sumY));
+    double denomSq =
+        (effectiveN * sumX2 - sumX * sumX) * (effectiveN * sumY2 - sumY * sumY);
+    if (denomSq <= 0.0) {
+      continue;
+    }
+    double denom = std::sqrt(denomSq);
     if (denom < 1e-15) {
       continue;
     }

@@ -69,30 +69,35 @@ The `ArbitrageDetector` maintains a per-venue, per-symbol quote cache. On each s
 1. For each symbol, enumerate all venue pairs
 2. For each pair, check if `venue_A.bid - venue_B.ask > fees`
 3. Apply staleness filtering (reject quotes older than `maxStalenessMs`)
-4. Apply fee adjustment: `net_spread = bid - ask - (bid * fee_sell) - (ask * fee_buy)`
-5. Convert to basis points: `spreadBps = (net_spread / ask) * 10000`
+4. Apply fee adjustment: `net_spread = (bid - ask) - (ask * fee_buy) - (bid * fee_sell)`
+5. Convert to basis points: `spreadBps = (net_spread / midPrice) * 10000` where `midPrice = (ask + bid) / 2`
 6. Filter by `minSpreadBps` and `minProfitUsd`
 
 ### Data Flow
 
-```
-Venue WebSocket Feeds
-  │
-  ├─ updateVenueQuote("coinbase", "BTC-USD", bid, bidSize, ask, askSize, ts)
-  ├─ updateVenueQuote("kraken",   "BTC-USD", bid, bidSize, ask, askSize, ts)
-  │
-  ▼
-ArbitrageDetector (background scan thread)
-  │
-  ├─ detectOpportunities("BTC-USD")
-  │    └─ Compare all venue pairs, apply fees, filter
-  │
-  ├─ opportunityCallback(ArbitrageOpportunity)
-  │
-  ▼
-ArbitrageExecutor
-  ├─ Dry-run: log opportunity
-  └─ Live: submit buy + sell via OrderRouter
+```mermaid
+graph TD
+    A["Venue WebSocket Feeds"] --> B["updateVenueQuote<br/>(coinbase, BTC-USD, bid, bidSize, ask, askSize, ts)"]
+    A --> C["updateVenueQuote<br/>(kraken, BTC-USD, bid, bidSize, ask, askSize, ts)"]
+
+    B --> D["ArbitrageDetector<br/>(background scan thread)"]
+    C --> D
+
+    D --> E["detectOpportunities(BTC-USD)"]
+    E --> F["Compare all venue pairs,<br/>apply fees, filter"]
+
+    F --> G["opportunityCallback<br/>(ArbitrageOpportunity)"]
+
+    G --> H["ArbitrageExecutor"]
+
+    H --> I["Dry-run:<br/>log opportunity"]
+    H --> J["Live:<br/>submit buy + sell<br/>via OrderRouter"]
+
+    style A fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    style D fill:#e8a838,stroke:#b07c1e,color:#fff
+    style H fill:#5cb85c,stroke:#3d8b3d,color:#fff
+    style I fill:#f0ad4e,stroke:#c78c2e,color:#fff
+    style J fill:#d9534f,stroke:#a94442,color:#fff
 ```
 
 ### ArbitrageOpportunity
@@ -104,10 +109,10 @@ struct ArbitrageOpportunity {
     std::string sellVenue;     // Venue with highest bid
     double buyPrice;           // Best ask at buy venue
     double sellPrice;          // Best bid at sell venue
-    double spread;             // Raw spread (sellPrice - buyPrice)
-    double spreadBps;          // Net spread in basis points (after fees)
+    double spread;             // Net spread after fees (sellPrice - buyPrice - fees)
+    double spreadBps;          // Net spread in basis points: (spread / midPrice) * 10000
     double maxQuantity;        // Min of buy/sell available size
-    double estimatedProfit;    // spreadBps/10000 * buyPrice * quantity
+    double estimatedProfit;    // spread * maxQuantity
     uint64_t detectedAt;       // Nanosecond timestamp
 };
 ```

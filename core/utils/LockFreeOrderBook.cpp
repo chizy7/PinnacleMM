@@ -92,6 +92,11 @@ bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
   return false;
 }
 
+void LockFreePriceLevel::subtractQuantity(double qty) {
+  double prev = m_totalQuantity.load(std::memory_order_relaxed);
+  m_totalQuantity.store(std::max(0.0, prev - qty), std::memory_order_release);
+}
+
 void LockFreePriceLevel::updateTotalQuantity() {
   // Kept for compatibility but now rarely needed — add/remove do O(1) updates.
   // This full-scan version can be used if quantities change externally.
@@ -418,6 +423,11 @@ bool LockFreeOrderBook::executeOrder(const std::string& orderId,
   if (order->isBuy()) {
     std::shared_ptr<LockFreePriceLevel> level = m_bids.findLevel(price);
     if (level) {
+      // Subtract the filled quantity from the level total.
+      // This must happen before removeOrder, because removeOrder subtracts
+      // getRemainingQuantity() which is 0 for fully filled orders.
+      level->subtractQuantity(quantity);
+
       // If order is fully filled, remove it
       if (order->getStatus() == OrderStatus::FILLED) {
         level->removeOrder(orderId);
@@ -434,6 +444,9 @@ bool LockFreeOrderBook::executeOrder(const std::string& orderId,
   } else {
     std::shared_ptr<LockFreePriceLevel> level = m_asks.findLevel(price);
     if (level) {
+      // Subtract the filled quantity from the level total
+      level->subtractQuantity(quantity);
+
       // If order is fully filled, remove it
       if (order->getStatus() == OrderStatus::FILLED) {
         level->removeOrder(orderId);
@@ -555,8 +568,6 @@ double LockFreeOrderBook::executeMarketOrder(
 
       auto orders = level->getOrders();
       std::vector<std::string> filledOrders;
-      double levelExecutedQty = 0.0;
-      (void)levelExecutedQty; // Used for potential future logging
 
       for (auto& order : orders) {
         if (remainingQty <= 0)
@@ -569,7 +580,9 @@ double LockFreeOrderBook::executeMarketOrder(
             fills.emplace_back(order->getOrderId(), fillQty);
             remainingQty -= fillQty;
             executedQuantity += fillQty;
-            levelExecutedQty += fillQty;
+
+            // Subtract fill from level total before potential removal
+            level->subtractQuantity(fillQty);
 
             if (order->getStatus() == OrderStatus::FILLED) {
               filledOrders.push_back(order->getOrderId());
@@ -599,8 +612,6 @@ double LockFreeOrderBook::executeMarketOrder(
 
       auto orders = level->getOrders();
       std::vector<std::string> filledOrders;
-      double levelExecutedQty = 0.0;
-      (void)levelExecutedQty; // Used for potential future logging
 
       for (auto& order : orders) {
         if (remainingQty <= 0)
@@ -613,7 +624,9 @@ double LockFreeOrderBook::executeMarketOrder(
             fills.emplace_back(order->getOrderId(), fillQty);
             remainingQty -= fillQty;
             executedQuantity += fillQty;
-            levelExecutedQty += fillQty;
+
+            // Subtract fill from level total before potential removal
+            level->subtractQuantity(fillQty);
 
             if (order->getStatus() == OrderStatus::FILLED) {
               filledOrders.push_back(order->getOrderId());

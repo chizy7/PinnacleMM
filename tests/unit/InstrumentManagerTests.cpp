@@ -52,7 +52,7 @@ TEST_F(InstrumentManagerTest, GetContext) {
   auto cfg = makeConfig("ETH-USD");
   manager.addInstrument(cfg, "simulation");
 
-  auto* ctx = manager.getContext("ETH-USD");
+  auto ctx = manager.getContext("ETH-USD");
   ASSERT_NE(ctx, nullptr);
   EXPECT_EQ(ctx->symbol, "ETH-USD");
   EXPECT_NE(ctx->orderBook, nullptr);
@@ -66,7 +66,7 @@ TEST_F(InstrumentManagerTest, LiveModeNoSimulator) {
   auto cfg = makeConfig("BTC-USD");
   manager.addInstrument(cfg, "live");
 
-  auto* ctx = manager.getContext("BTC-USD");
+  auto ctx = manager.getContext("BTC-USD");
   ASSERT_NE(ctx, nullptr);
   EXPECT_EQ(ctx->simulator, nullptr);
 }
@@ -89,14 +89,19 @@ TEST_F(InstrumentManagerTest, StartAndStopAll) {
   EXPECT_TRUE(manager.startAll());
 
   // Verify both are running
-  auto* btc = manager.getContext("BTC-USD");
-  auto* eth = manager.getContext("ETH-USD");
+  auto btc = manager.getContext("BTC-USD");
+  auto eth = manager.getContext("ETH-USD");
   ASSERT_NE(btc, nullptr);
   ASSERT_NE(eth, nullptr);
   EXPECT_TRUE(btc->running);
   EXPECT_TRUE(eth->running);
 
   EXPECT_TRUE(manager.stopAll());
+  // Re-fetch contexts (shared_ptr still valid)
+  btc = manager.getContext("BTC-USD");
+  eth = manager.getContext("ETH-USD");
+  ASSERT_NE(btc, nullptr);
+  ASSERT_NE(eth, nullptr);
   EXPECT_FALSE(btc->running);
   EXPECT_FALSE(eth->running);
 }

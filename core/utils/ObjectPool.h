@@ -17,6 +17,9 @@ namespace utils {
  * Pre-allocates objects and returns them via shared_ptr with a custom deleter
  * that recycles objects back to the pool instead of destroying them.
  *
+ * Uses a SharedState pattern so that deleters safely handle the case where
+ * the pool is destroyed before all objects are returned.
+ *
  * @tparam T The type of object to pool
  */
 template <typename T> class ObjectPool {
@@ -25,10 +28,12 @@ public:
    * @brief Construct pool with initial capacity
    * @param initialSize Number of objects to pre-allocate
    */
-  explicit ObjectPool(size_t initialSize = 64) {
-    m_pool.reserve(initialSize);
+  explicit ObjectPool(size_t initialSize = 64)
+      : m_state(std::make_shared<SharedState>()) {
+    std::lock_guard<std::mutex> lock(m_state->mutex);
+    m_state->pool.reserve(initialSize);
     for (size_t i = 0; i < initialSize; ++i) {
-      m_pool.push_back(std::make_unique<T>());
+      m_state->pool.push_back(std::make_unique<T>());
     }
     m_totalAllocated.store(initialSize, std::memory_order_relaxed);
   }
@@ -39,15 +44,17 @@ public:
    * @param factory Function to create new objects
    */
   ObjectPool(size_t initialSize, std::function<std::unique_ptr<T>()> factory)
-      : m_factory(std::move(factory)) {
-    m_pool.reserve(initialSize);
+      : m_state(std::make_shared<SharedState>()),
+        m_factory(std::move(factory)) {
+    std::lock_guard<std::mutex> lock(m_state->mutex);
+    m_state->pool.reserve(initialSize);
     for (size_t i = 0; i < initialSize; ++i) {
-      m_pool.push_back(m_factory ? m_factory() : std::make_unique<T>());
+      m_state->pool.push_back(m_factory ? m_factory() : std::make_unique<T>());
     }
     m_totalAllocated.store(initialSize, std::memory_order_relaxed);
   }
 
-  ~ObjectPool() { m_alive->store(false, std::memory_order_release); }
+  ~ObjectPool() { m_state->alive.store(false, std::memory_order_release); }
 
   ObjectPool(const ObjectPool&) = delete;
   ObjectPool& operator=(const ObjectPool&) = delete;
@@ -64,10 +71,10 @@ public:
     T* raw = nullptr;
 
     {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      if (!m_pool.empty()) {
-        raw = m_pool.back().release();
-        m_pool.pop_back();
+      std::lock_guard<std::mutex> lock(m_state->mutex);
+      if (!m_state->pool.empty()) {
+        raw = m_state->pool.back().release();
+        m_state->pool.pop_back();
       }
     }
 
@@ -79,12 +86,14 @@ public:
 
     m_acquireCount.fetch_add(1, std::memory_order_relaxed);
 
-    // Return with custom deleter that recycles back to pool (or deletes if pool
-    // is destroyed)
-    auto alive = m_alive;
-    return std::shared_ptr<T>(raw, [this, alive](T* obj) {
-      if (alive->load(std::memory_order_acquire)) {
-        recycle(obj);
+    // Capture shared_ptr to SharedState (not `this`) so the deleter can
+    // safely access the mutex and pool even if the ObjectPool is destroyed.
+    auto state = m_state;
+    return std::shared_ptr<T>(raw, [state](T* obj) {
+      if (state->alive.load(std::memory_order_acquire)) {
+        state->recycleCount.fetch_add(1, std::memory_order_relaxed);
+        std::lock_guard<std::mutex> lock(state->mutex);
+        state->pool.push_back(std::unique_ptr<T>(obj));
       } else {
         delete obj;
       }
@@ -95,8 +104,8 @@ public:
    * @brief Get current number of available objects in the pool
    */
   size_t available() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return m_pool.size();
+    std::lock_guard<std::mutex> lock(m_state->mutex);
+    return m_state->pool.size();
   }
 
   /**
@@ -117,30 +126,27 @@ public:
    * @brief Get total number of recycle operations
    */
   size_t recycleCount() const {
-    return m_recycleCount.load(std::memory_order_relaxed);
+    return m_state->recycleCount.load(std::memory_order_relaxed);
   }
 
 private:
-  void recycle(T* obj) {
-    if (!obj) {
-      return;
-    }
+  /**
+   * @brief Shared state that outlives the ObjectPool if objects are still
+   * in flight. The deleter captures a shared_ptr<SharedState> so it can
+   * safely call recycle even after the ObjectPool destructor runs.
+   */
+  struct SharedState {
+    std::mutex mutex;
+    std::vector<std::unique_ptr<T>> pool;
+    std::atomic<bool> alive{true};
+    std::atomic<size_t> recycleCount{0};
+  };
 
-    m_recycleCount.fetch_add(1, std::memory_order_relaxed);
-
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_pool.push_back(std::unique_ptr<T>(obj));
-  }
-
-  mutable std::mutex m_mutex;
-  std::vector<std::unique_ptr<T>> m_pool;
+  std::shared_ptr<SharedState> m_state;
   std::function<std::unique_ptr<T>()> m_factory;
 
-  std::shared_ptr<std::atomic<bool>> m_alive =
-      std::make_shared<std::atomic<bool>>(true);
   std::atomic<size_t> m_totalAllocated{0};
   std::atomic<size_t> m_acquireCount{0};
-  std::atomic<size_t> m_recycleCount{0};
 };
 
 } // namespace utils

@@ -55,46 +55,47 @@ ArbitrageExecutor::execute(const ArbitrageOpportunity& opportunity) {
     if (!cb) {
       result.error = "No order submit callback registered";
       m_failedExecutions.fetch_add(1, std::memory_order_relaxed);
-      return result;
-    }
-
-    // Submit buy order
-    result.buyFilled =
-        cb(opportunity.buyVenue, opportunity.symbol, OrderSide::BUY,
-           opportunity.buyPrice, opportunity.maxQuantity);
-
-    // Submit sell order
-    result.sellFilled =
-        cb(opportunity.sellVenue, opportunity.symbol, OrderSide::SELL,
-           opportunity.sellPrice, opportunity.maxQuantity);
-
-    if (result.buyFilled && result.sellFilled) {
-      result.buyFillPrice = opportunity.buyPrice;
-      result.sellFillPrice = opportunity.sellPrice;
-      result.fillQuantity = opportunity.maxQuantity;
-      result.realizedProfit = opportunity.estimatedProfit;
-      m_successfulExecutions.fetch_add(1, std::memory_order_relaxed);
-
-      double prev = m_totalProfit.load(std::memory_order_relaxed);
-      while (!m_totalProfit.compare_exchange_weak(
-          prev, prev + result.realizedProfit, std::memory_order_release,
-          std::memory_order_relaxed)) {
-      }
+      // Fall through to finalization (timing + history)
     } else {
-      result.error = "Partial fill — ";
-      if (!result.buyFilled) {
-        result.error += "buy failed ";
+      // Submit buy order first
+      result.buyFilled =
+          cb(opportunity.buyVenue, opportunity.symbol, OrderSide::BUY,
+             opportunity.buyPrice, opportunity.maxQuantity);
+
+      if (result.buyFilled) {
+        // Only submit sell if buy succeeded to prevent unhedged exposure
+        result.sellFilled =
+            cb(opportunity.sellVenue, opportunity.symbol, OrderSide::SELL,
+               opportunity.sellPrice, opportunity.maxQuantity);
       }
-      if (!result.sellFilled) {
-        result.error += "sell failed";
+
+      if (result.buyFilled && result.sellFilled) {
+        result.buyFillPrice = opportunity.buyPrice;
+        result.sellFillPrice = opportunity.sellPrice;
+        result.fillQuantity = opportunity.maxQuantity;
+        result.realizedProfit = opportunity.estimatedProfit;
+        m_successfulExecutions.fetch_add(1, std::memory_order_relaxed);
+
+        double prev = m_totalProfit.load(std::memory_order_relaxed);
+        while (!m_totalProfit.compare_exchange_weak(
+            prev, prev + result.realizedProfit, std::memory_order_release,
+            std::memory_order_relaxed)) {
+        }
+      } else {
+        result.error = "Execution failed — ";
+        if (!result.buyFilled) {
+          result.error += "buy failed";
+        } else {
+          result.error += "sell failed (buy filled, unwind needed)";
+        }
+        m_failedExecutions.fetch_add(1, std::memory_order_relaxed);
       }
-      m_failedExecutions.fetch_add(1, std::memory_order_relaxed);
     }
   }
 
+  // Always record timing and history regardless of execution path
   result.executionTimeNs = utils::TimeUtils::getCurrentNanos() - startTime;
 
-  // Store recent result
   {
     std::lock_guard<std::mutex> lock(m_resultsMutex);
     m_recentResults.push_back(result);

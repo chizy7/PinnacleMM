@@ -49,6 +49,9 @@ struct InstrumentContext {
  * Manages the lifecycle of per-instrument components. Supports adding/removing
  * instruments at runtime. Keeps single-symbol mode working for backward
  * compatibility.
+ *
+ * Contexts are stored as shared_ptr so that getContext() returns a safe handle
+ * that remains valid even if the map is modified concurrently.
  */
 class InstrumentManager {
 public:
@@ -102,16 +105,17 @@ public:
   /**
    * @brief Get the context for a specific instrument
    * @param symbol Trading symbol
-   * @return Pointer to InstrumentContext, or nullptr if not found
+   * @return shared_ptr to InstrumentContext, or nullptr if not found
    */
-  InstrumentContext* getContext(const std::string& symbol);
+  std::shared_ptr<InstrumentContext> getContext(const std::string& symbol);
 
   /**
    * @brief Get the context for a specific instrument (const version)
    * @param symbol Trading symbol
-   * @return Const pointer to InstrumentContext, or nullptr if not found
+   * @return shared_ptr to const InstrumentContext, or nullptr if not found
    */
-  const InstrumentContext* getContext(const std::string& symbol) const;
+  std::shared_ptr<const InstrumentContext>
+  getContext(const std::string& symbol) const;
 
   /**
    * @brief Get all registered symbols
@@ -145,7 +149,8 @@ public:
 
 private:
   mutable std::mutex m_mutex;
-  std::unordered_map<std::string, InstrumentContext> m_instruments;
+  std::unordered_map<std::string, std::shared_ptr<InstrumentContext>>
+      m_instruments;
 };
 
 } // namespace instrument
