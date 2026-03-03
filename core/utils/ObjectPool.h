@@ -49,7 +49,11 @@ public:
     std::lock_guard<std::mutex> lock(m_state->mutex);
     m_state->pool.reserve(initialSize);
     for (size_t i = 0; i < initialSize; ++i) {
-      m_state->pool.push_back(m_factory ? m_factory() : std::make_unique<T>());
+      auto obj = m_factory ? m_factory() : std::make_unique<T>();
+      if (!obj) {
+        obj = std::make_unique<T>(); // Fallback if factory returns null
+      }
+      m_state->pool.push_back(std::move(obj));
     }
     m_totalAllocated.store(initialSize, std::memory_order_relaxed);
   }
@@ -80,7 +84,12 @@ public:
 
     if (!raw) {
       // Pool exhausted — allocate a new object
-      raw = m_factory ? m_factory().release() : new T();
+      if (m_factory) {
+        auto obj = m_factory();
+        raw = obj ? obj.release() : new T();
+      } else {
+        raw = new T();
+      }
       m_totalAllocated.fetch_add(1, std::memory_order_relaxed);
     }
 
@@ -89,11 +98,16 @@ public:
     // Capture shared_ptr to SharedState (not `this`) so the deleter can
     // safely access the mutex and pool even if the ObjectPool is destroyed.
     auto state = m_state;
-    return std::shared_ptr<T>(raw, [state](T* obj) {
+    return std::shared_ptr<T>(raw, [state](T* obj) noexcept {
       if (state->alive.load(std::memory_order_acquire)) {
-        state->recycleCount.fetch_add(1, std::memory_order_relaxed);
-        std::lock_guard<std::mutex> lock(state->mutex);
-        state->pool.push_back(std::unique_ptr<T>(obj));
+        try {
+          std::lock_guard<std::mutex> lock(state->mutex);
+          state->pool.push_back(std::unique_ptr<T>(obj));
+          state->recycleCount.fetch_add(1, std::memory_order_relaxed);
+        } catch (...) {
+          // push_back failed (e.g., allocation) — delete directly
+          delete obj;
+        }
       } else {
         delete obj;
       }

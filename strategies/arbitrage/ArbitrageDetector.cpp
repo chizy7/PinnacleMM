@@ -21,7 +21,15 @@ bool ArbitrageDetector::start() {
     return true; // Already running
   }
 
-  m_scanThread = std::thread(&ArbitrageDetector::scanLoop, this);
+  try {
+    m_scanThread = std::thread(&ArbitrageDetector::scanLoop, this);
+  } catch (const std::exception& e) {
+    m_running.store(false, std::memory_order_release);
+    spdlog::error("ArbitrageDetector failed to start scan thread: {}",
+                  e.what());
+    return false;
+  }
+
   spdlog::info("ArbitrageDetector started (scanInterval={}ms dryRun={})",
                m_config.scanIntervalMs, m_config.dryRun);
   return true;
@@ -151,9 +159,7 @@ std::vector<ArbitrageOpportunity>
 ArbitrageDetector::detectOpportunities(const std::string& symbol) const {
   std::vector<ArbitrageOpportunity> opportunities;
 
-  std::lock_guard<std::mutex> lock(m_quotesMutex);
-
-  // Collect non-stale quotes for this symbol across venues
+  // Collect non-stale quotes for this symbol across venues under the lock
   struct VenueData {
     std::string venue;
     VenueQuote quote;
@@ -161,30 +167,33 @@ ArbitrageDetector::detectOpportunities(const std::string& symbol) const {
   };
 
   std::vector<VenueData> venueData;
-  for (const auto& venue : m_config.venues) {
-    auto venueIt = m_quotes.find(venue);
-    if (venueIt == m_quotes.end()) {
-      continue;
+  {
+    std::lock_guard<std::mutex> lock(m_quotesMutex);
+    for (const auto& venue : m_config.venues) {
+      auto venueIt = m_quotes.find(venue);
+      if (venueIt == m_quotes.end()) {
+        continue;
+      }
+
+      auto symbolIt = venueIt->second.find(symbol);
+      if (symbolIt == venueIt->second.end()) {
+        continue;
+      }
+
+      const auto& quote = symbolIt->second;
+      if (isStale(quote)) {
+        continue;
+      }
+
+      if (quote.bidPrice <= 0 || quote.askPrice <= 0) {
+        continue;
+      }
+
+      venueData.push_back({venue, quote, getVenueFee(venue)});
     }
+  } // lock released — all data is in local venueData
 
-    auto symbolIt = venueIt->second.find(symbol);
-    if (symbolIt == venueIt->second.end()) {
-      continue;
-    }
-
-    const auto& quote = symbolIt->second;
-    if (isStale(quote)) {
-      continue;
-    }
-
-    if (quote.bidPrice <= 0 || quote.askPrice <= 0) {
-      continue;
-    }
-
-    venueData.push_back({venue, quote, getVenueFee(venue)});
-  }
-
-  // Compare all venue pairs for arbitrage
+  // Compare all venue pairs for arbitrage (no lock held)
   uint64_t now = utils::TimeUtils::getCurrentNanos();
 
   for (size_t i = 0; i < venueData.size(); ++i) {

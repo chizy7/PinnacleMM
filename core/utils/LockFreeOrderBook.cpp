@@ -2,6 +2,9 @@
 #include "../utils/TimeUtils.h"
 #include <algorithm>
 #include <limits>
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 
 namespace pinnacle {
 namespace utils {
@@ -93,6 +96,7 @@ bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
 }
 
 void LockFreePriceLevel::subtractQuantity(double qty) {
+  std::unique_lock<std::shared_mutex> lock(m_nodeAccessMutex);
   double prev = m_totalQuantity.load(std::memory_order_relaxed);
   m_totalQuantity.store(std::max(0.0, prev - qty), std::memory_order_release);
 }
@@ -177,12 +181,18 @@ LockFreeOrderMap::ShardGuard::ShardGuard(std::atomic_flag& lock)
     : m_lock(lock) {
   // Spin with pause hint to reduce contention
   while (m_lock.test_and_set(std::memory_order_acquire)) {
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+#if defined(_MSC_VER)
+#if defined(_M_X64) || defined(_M_IX86)
     _mm_pause();
-#elif defined(__x86_64__) || defined(__i386__)
+#elif defined(_M_ARM64)
+    __yield();
+#endif
+#elif defined(__GNUC__) || defined(__clang__)
+#if defined(__x86_64__) || defined(__i386__)
     __builtin_ia32_pause();
-#elif defined(__aarch64__) || defined(_M_ARM64)
-    asm volatile("yield" ::: "memory");
+#elif defined(__aarch64__)
+    __asm__ __volatile__("yield" ::: "memory");
+#endif
 #endif
   }
 }
