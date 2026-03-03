@@ -402,6 +402,13 @@ double MLEnhancedMarketMaker::calculateTargetSpread() const {
       }
     }
 
+    // Apply cross-market correlation adjustment if enabled
+    if (m_mlConfig.enableCrossMarketSignals && m_crossMarketEngine) {
+      double crossAdj = calculateCrossMarketAdjustment();
+      double weight = m_mlConfig.crossMarketSpreadAdjustmentWeight;
+      mlSpread = mlSpread * (1.0 - weight) + (mlSpread * crossAdj) * weight;
+    }
+
     // Apply RL parameter adaptation if enabled
     if (m_mlConfig.enableRLParameterAdaptation && m_rlAdapter) {
       applyRLParameterAdaptation();
@@ -1200,6 +1207,58 @@ double MLEnhancedMarketMaker::calculateRegimeAwareSpread() const {
   }
 
   return baseSpread * regimeAdjustment;
+}
+
+// ============================================================================
+// Cross-Market Correlation Integration
+// ============================================================================
+
+void MLEnhancedMarketMaker::setCrossMarketCorrelation(
+    pinnacle::analytics::CrossMarketCorrelation* engine) {
+  m_crossMarketEngine = engine;
+}
+
+bool MLEnhancedMarketMaker::isCrossMarketSignalsEnabled() const {
+  return m_mlConfig.enableCrossMarketSignals && m_crossMarketEngine != nullptr;
+}
+
+double MLEnhancedMarketMaker::calculateCrossMarketAdjustment() const {
+  if (!m_crossMarketEngine) {
+    return 1.0;
+  }
+
+  auto signals = m_crossMarketEngine->getActiveSignals();
+  if (signals.empty()) {
+    return 1.0;
+  }
+
+  // Find the strongest signal relevant to our symbol
+  double maxAdjustment = 0.0;
+  double bestConfidence = 0.0;
+
+  for (const auto& signal : signals) {
+    // Only use signals where our symbol is the lag symbol (being predicted)
+    if (signal.lagSymbol != m_symbol) {
+      continue;
+    }
+
+    if (signal.confidence > bestConfidence) {
+      bestConfidence = signal.confidence;
+      // Widen spread proportionally to expected move magnitude
+      // Higher expected move → more uncertainty → wider spread
+      maxAdjustment = std::abs(signal.expectedMove) * signal.confidence;
+    }
+  }
+
+  if (maxAdjustment < 1e-10) {
+    return 1.0;
+  }
+
+  // Scale: a 1% expected move with full confidence → 50% wider spread
+  double adjustmentFactor = 1.0 + (maxAdjustment * 50.0);
+
+  // Clamp to reasonable bounds
+  return std::max(0.8, std::min(2.0, adjustmentFactor));
 }
 
 } // namespace strategy

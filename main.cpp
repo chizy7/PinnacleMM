@@ -1,3 +1,4 @@
+#include "core/instrument/InstrumentManager.h"
 #include "core/orderbook/LockFreeOrderBook.h"
 #include "core/orderbook/OrderBook.h"
 #include "core/persistence/PersistenceManager.h"
@@ -14,6 +15,8 @@
 #include "exchange/connector/ExchangeConnectorFactory.h"
 #include "exchange/connector/SecureConfig.h"
 #include "exchange/simulator/ExchangeSimulator.h"
+#include "strategies/arbitrage/ArbitrageDetector.h"
+#include "strategies/arbitrage/ArbitrageExecutor.h"
 #include "strategies/backtesting/BacktestEngine.h"
 #include "strategies/basic/BasicMarketMaker.h"
 #include "strategies/basic/MLEnhancedMarketMaker.h"
@@ -32,6 +35,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
+#include <sstream>
 #include <string>
 #include <thread>
 
@@ -204,7 +208,15 @@ int main(int argc, char* argv[]) {
                 "slippage-bps", po::value<double>()->default_value(2.0),
                 "Slippage in basis points for backtest")(
                 "backtest-duration", po::value<uint64_t>()->default_value(3600),
-                "Backtest duration in seconds (default: 3600 = 1 hour)");
+                "Backtest duration in seconds (default: 3600 = 1 hour)")(
+                "symbols", po::value<std::string>(),
+                "Comma-separated list of symbols (e.g. BTC-USD,ETH-USD)")(
+                "enable-arbitrage", po::bool_switch()->default_value(false),
+                "Enable cross-exchange arbitrage detection")(
+                "arb-min-spread", po::value<double>()->default_value(5.0),
+                "Minimum spread in bps for arbitrage")(
+                "arb-dry-run", po::bool_switch()->default_value(true),
+                "Arbitrage dry-run mode (log only, no execution)");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -230,6 +242,23 @@ int main(int argc, char* argv[]) {
     bool verbose = vm["verbose"].as<bool>();
     bool useLockFree = vm["lock-free"].as<bool>();
 
+    // Parse multi-symbol flag
+    std::vector<std::string> symbols;
+    if (vm.count("symbols")) {
+      std::string symbolsStr = vm["symbols"].as<std::string>();
+      std::istringstream iss(symbolsStr);
+      std::string tok;
+      while (std::getline(iss, tok, ',')) {
+        if (!tok.empty()) {
+          symbols.push_back(tok);
+        }
+      }
+    }
+    if (symbols.empty()) {
+      symbols.push_back(symbol); // fallback to --symbol
+    }
+    bool multiInstrument = symbols.size() > 1;
+
     // Initialize logger
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     auto file_sink =
@@ -243,7 +272,18 @@ int main(int argc, char* argv[]) {
     }
     spdlog::set_default_logger(logger);
 
-    spdlog::info("Starting PinnacleMM for {} in {} mode", symbol, mode);
+    if (multiInstrument) {
+      std::string symbolList;
+      for (size_t i = 0; i < symbols.size(); ++i) {
+        if (i > 0)
+          symbolList += ", ";
+        symbolList += symbols[i];
+      }
+      spdlog::info("Starting PinnacleMM with {} instruments [{}] in {} mode",
+                   symbols.size(), symbolList, mode);
+    } else {
+      spdlog::info("Starting PinnacleMM for {} in {} mode", symbol, mode);
+    }
     spdlog::info("Using lock-free data structures: {}",
                  useLockFree ? "enabled" : "disabled");
 
@@ -355,6 +395,135 @@ int main(int argc, char* argv[]) {
               "CircuitBreaker");
         });
 
+    // Register all symbols with the risk manager for per-symbol tracking
+    for (const auto& sym : symbols) {
+      riskManager.registerSymbol(sym);
+    }
+
+    // Apply per-symbol limits from config
+    for (const auto& psl : riskConfig.perSymbolLimits) {
+      riskManager.setSymbolLimits(psl);
+    }
+
+    // InstrumentManager for multi-instrument mode
+    pinnacle::instrument::InstrumentManager instrumentManager;
+    bool enableML = vm["enable-ml"].as<bool>();
+
+    // Initialize JSON logger if enabled
+    std::shared_ptr<pinnacle::utils::JsonLogger> jsonLogger;
+    if (vm["json-log"].as<bool>()) {
+      std::string jsonLogFile = vm["json-log-file"].as<std::string>();
+      jsonLogger =
+          std::make_shared<pinnacle::utils::JsonLogger>(jsonLogFile, true);
+      spdlog::info("JSON logging enabled, output file: {}", jsonLogFile);
+    }
+
+    if (multiInstrument) {
+      // Multi-instrument path: use InstrumentManager
+      for (const auto& sym : symbols) {
+        pinnacle::instrument::InstrumentConfig instCfg;
+        instCfg.symbol = sym;
+        instCfg.useLockFree = useLockFree;
+        instCfg.enableML = enableML;
+        instrumentManager.addInstrument(instCfg, mode);
+      }
+
+      // For backtest mode with multiple instruments, not yet supported
+      if (mode == "backtest") {
+        spdlog::warn("Backtest mode with multiple instruments not yet "
+                     "supported. Using first symbol only.");
+        // Fall through to single-instrument backtest below
+      } else if (mode != "live") {
+        // Simulation mode: start all instruments
+        if (!instrumentManager.startAll()) {
+          spdlog::error("Failed to start all instruments");
+          return 1;
+        }
+
+        spdlog::info("All {} instruments started in simulation mode",
+                     symbols.size());
+
+        // Setup arbitrage if enabled
+        std::unique_ptr<pinnacle::arbitrage::ArbitrageDetector> arbDetector;
+        std::unique_ptr<pinnacle::arbitrage::ArbitrageExecutor> arbExecutor;
+        if (vm["enable-arbitrage"].as<bool>()) {
+          pinnacle::arbitrage::ArbitrageConfig arbConfig;
+          arbConfig.minSpreadBps = vm["arb-min-spread"].as<double>();
+          arbConfig.dryRun = vm["arb-dry-run"].as<bool>();
+          arbConfig.symbols = symbols;
+          arbConfig.scanIntervalMs = 100;
+
+          arbDetector =
+              std::make_unique<pinnacle::arbitrage::ArbitrageDetector>(
+                  arbConfig);
+          arbExecutor =
+              std::make_unique<pinnacle::arbitrage::ArbitrageExecutor>(
+                  arbConfig.dryRun);
+
+          arbDetector->setOpportunityCallback(
+              [&arbExecutor](
+                  const pinnacle::arbitrage::ArbitrageOpportunity& opp) {
+                arbExecutor->execute(opp);
+              });
+
+          arbDetector->start();
+          spdlog::info("Arbitrage detector started (dryRun={})",
+                       arbConfig.dryRun);
+        }
+
+        // Main loop for multi-instrument simulation
+        uint64_t lastStatsTime = 0;
+        uint64_t lastCheckpointTime = 0;
+
+        while (g_running.load()) {
+          uint64_t currentTime = pinnacle::utils::TimeUtils::getCurrentMillis();
+
+          if (currentTime - lastStatsTime > 5000) {
+            spdlog::info("======================");
+            spdlog::info("Current time: {}",
+                         pinnacle::utils::TimeUtils::getCurrentISOTimestamp());
+            spdlog::info("{}", instrumentManager.getAggregateStatistics());
+
+            if (arbDetector) {
+              spdlog::info("{}", arbDetector->getStatistics());
+            }
+
+            spdlog::info("======================");
+            lastStatsTime = currentTime;
+          }
+
+          if (currentTime - lastCheckpointTime > 5 * 60 * 1000) {
+            instrumentManager.createCheckpoints();
+            lastCheckpointTime = currentTime;
+          }
+
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        // Shutdown
+        spdlog::info("Shutting down multi-instrument mode...");
+
+        if (arbDetector) {
+          arbDetector->stop();
+        }
+
+        instrumentManager.stopAll();
+
+        if (varEngine) {
+          varEngine->stop();
+        }
+
+        spdlog::info("Final statistics:");
+        spdlog::info("{}", instrumentManager.getAggregateStatistics());
+
+        AUDIT_SYSTEM_EVENT("PinnacleMM system shutdown complete", true);
+        spdlog::info("Shutdown complete");
+        return 0;
+      }
+    }
+
+    // --- Single-instrument path (backward compatible) ---
+
     // Create or retrieve order book
     std::shared_ptr<pinnacle::OrderBook> orderBook;
 
@@ -382,17 +551,7 @@ int main(int argc, char* argv[]) {
     config.symbol = symbol;
 
     // Initialize strategy (basic or ML-enhanced)
-    bool enableML = vm["enable-ml"].as<bool>();
     std::shared_ptr<pinnacle::strategy::BasicMarketMaker> strategy;
-
-    // Initialize JSON logger if enabled
-    std::shared_ptr<pinnacle::utils::JsonLogger> jsonLogger;
-    if (vm["json-log"].as<bool>()) {
-      std::string jsonLogFile = vm["json-log-file"].as<std::string>();
-      jsonLogger =
-          std::make_shared<pinnacle::utils::JsonLogger>(jsonLogFile, true);
-      spdlog::info("JSON logging enabled, output file: {}", jsonLogFile);
-    }
 
     if (enableML) {
       spdlog::info("Initializing ML-enhanced market maker");

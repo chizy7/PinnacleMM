@@ -152,15 +152,41 @@ PinnacleMM is an ultra-low latency market making system designed for high-freque
 **Goal:** Fine-tune performance and scale to multiple markets.
 
 ### Deliverables
-- 🔲 Multi-instrument support
-- 🔲 Cross-exchange arbitrage capabilities
-- 🔲 Advanced statistical models for cross-market correlations
-- 🔲 Dynamic resource allocation
-- 🔲 Performance profiling and additional optimizations
-- 🔲 Comprehensive documentation and case studies
+- Multi-instrument support via `InstrumentManager` with `--symbols` CLI flag
+- Cross-exchange arbitrage detection and execution (dry-run and live)
+- Cross-market correlation analysis (Pearson, rolling, lead-lag, Engle-Granger cointegration)
+- Per-symbol risk tracking with atomic state and per-symbol position limits
+- Lock-free order book performance fix (56x regression eliminated, now 4.5x faster than mutex)
+- Object pool for hot-path allocation recycling
+- CPU affinity and thread pinning (macOS + Linux)
+- Link-Time Optimization (LTO) build option
+- Dynamic resource allocation for multi-instrument deployments
+- Multi-instrument benchmarks and scaling tests
+- MLEnhancedMarketMaker integration with cross-market signals
 
-### Expected Completion
-- 4 weeks
+### Key Components Implemented
+- **InstrumentManager**: Central orchestrator for per-symbol {orderbook, strategy, simulator} tuples (9 unit tests)
+- **ArbitrageDetector/Executor**: Background scan thread with venue quote cache, fee-adjusted opportunity detection, dry-run support (8 unit tests)
+- **CrossMarketCorrelation**: Pearson/rolling correlation, lead-lag analysis, simplified Engle-Granger ADF test, signal generation for MLEnhancedMarketMaker (7 unit tests)
+- **Per-Symbol Risk**: `SymbolRiskState` with atomics, `registerSymbol()`, `setSymbolLimits()`, `getSymbolState()` (4 new unit tests, 15 total passing)
+- **LockFreeOrderBook Fix**: O(1) quantity updates, physical node unlinking, eliminated CAS retries, platform-specific yield hints
+- **ObjectPool**: Header-only thread-safe pool template with custom shared_ptr deleter
+- **ThreadAffinity**: `pinToCore()`, `setThreadName()`, `getNumCores()` for macOS and Linux
+- **ResourceAllocator**: CPU core distribution across instruments
+
+### Testing
+- 39 new unit tests across 5 test suites (all passing)
+- Multi-instrument benchmark for startup scaling and throughput
+- Full regression check — no existing test regressions
+
+### Documentation
+- [Multi-Instrument Guide](MULTI_INSTRUMENT_GUIDE.md)
+- [Cross-Exchange Arbitrage](CROSS_EXCHANGE_ARBITRAGE.md)
+- [Cross-Market Correlation](CROSS_MARKET_CORRELATION.md)
+- [Performance Optimization Guide](PERFORMANCE_OPTIMIZATION_GUIDE.md)
+
+### Completion
+- **Completed**: March 2026
 
 ## Testing Integration
 

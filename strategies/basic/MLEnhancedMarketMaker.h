@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../core/utils/TimeUtils.h"
+#include "../analytics/CrossMarketCorrelation.h"
 #include "../analytics/MarketImpactPredictor.h"
 #include "../analytics/MarketRegimeDetector.h"
 #include "../analytics/OrderBookAnalyzer.h"
@@ -68,6 +69,11 @@ public:
     double regimeSpreadAdjustmentWeight{
         0.4}; // Weight for regime-based adjustments
     bool enableRegimeAwareParameterAdaptation{true};
+
+    // Cross-market correlation configuration
+    bool enableCrossMarketSignals{false};
+    double crossMarketSpreadAdjustmentWeight{
+        0.2}; // Weight for cross-market signal adjustments
 
     MLConfig() {}
   };
@@ -304,6 +310,23 @@ public:
    */
   bool isRegimeDetectionEnabled() const;
 
+  // ============================================================================
+  // Cross-Market Correlation API
+  // ============================================================================
+
+  /**
+   * @brief Set a cross-market correlation engine for signal-based spread
+   * adjustment
+   * @param engine Pointer to a CrossMarketCorrelation instance (not owned)
+   */
+  void setCrossMarketCorrelation(
+      pinnacle::analytics::CrossMarketCorrelation* engine);
+
+  /**
+   * @brief Check if cross-market signals are enabled and active
+   */
+  bool isCrossMarketSignalsEnabled() const;
+
   /**
    * @brief Save regime detection model to file
    */
@@ -327,6 +350,7 @@ private:
   std::unique_ptr<pinnacle::analytics::MarketImpactPredictor> m_impactPredictor;
   std::unique_ptr<pinnacle::analytics::MarketRegimeDetector> m_regimeDetector;
   std::unique_ptr<rl::RLParameterAdapter> m_rlAdapter;
+  pinnacle::analytics::CrossMarketCorrelation* m_crossMarketEngine{nullptr};
 
   // Performance tracking for ML predictions
   struct MLPerformanceTracker {
@@ -412,6 +436,9 @@ private:
   // Regime detection integration methods
   void updateRegimeDetector(const OrderBook& orderBook);
   double calculateRegimeAwareSpread() const;
+
+  // Cross-market correlation integration methods
+  double calculateCrossMarketAdjustment() const;
 };
 
 } // namespace strategy

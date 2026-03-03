@@ -21,7 +21,8 @@
     <a href="docs/ORDER_ROUTING.md">Order Routing</a>&nbsp;&nbsp;•&nbsp;&nbsp;
     <a href="docs/PERFORMANCE_BENCHMARKS.md">Performance Benchmarks</a>&nbsp;&nbsp;•&nbsp;&nbsp;
     <a href="docs/api/reference.md">API Reference</a>&nbsp;&nbsp;•&nbsp;&nbsp;
-    <a href="docs/exchange/connector_guide.md">Exchange Connectors</a>
+    <a href="docs/exchange/connector_guide.md">Exchange Connectors</a>&nbsp;&nbsp;•&nbsp;&nbsp;
+    <a href="docs/MULTI_INSTRUMENT_GUIDE.md">Multi-Instrument</a>
   </p>
 </div>
 
@@ -52,6 +53,11 @@ PinnacleMM is a high-performance, production-grade market making system designed
 - **Disaster Recovery**: Atomic risk state persistence, position reconciliation, and labeled backup management
 - **Kubernetes Deployment**: Production-ready StatefulSet with health probes, PVC, network policies, and pod disruption budget
 - **Enterprise Security**: AES-256-CBC encryption with unique salts, 100,000 PBKDF2 iterations, secure password input, comprehensive input validation, audit logging, rate limiting, and certificate pinning
+- **Multi-Instrument Trading**: Simultaneous trading across multiple symbols with `InstrumentManager` orchestration
+- **Cross-Exchange Arbitrage**: Venue price discrepancy detection with fee-adjusted opportunity scanning and dry-run execution
+- **Cross-Market Correlation**: Pearson/rolling correlation, lead-lag analysis, Engle-Granger cointegration, and signal-based spread adjustment
+- **Per-Symbol Risk Tracking**: Atomic per-symbol position, PnL, and volume tracking with configurable per-symbol limits
+- **Dynamic Resource Allocation**: CPU core distribution and thread pinning for multi-instrument deployments
 - **Comprehensive Testing**: Extensive test suite ensuring reliability and performance
 
 ## System Architecture
@@ -160,6 +166,12 @@ cd build && ./pinnaclemm --mode simulation --enable-ml --json-log --json-log-fil
 
 # Combined: ML + visualization + JSON logging
 cd build && ./pinnaclemm --mode simulation --enable-ml --enable-visualization --json-log --json-log-file sim_ml_data.jsonl
+
+# Multi-instrument simulation
+cd build && ./pinnaclemm --mode simulation --symbols BTC-USD,ETH-USD
+
+# Arbitrage detection (dry-run)
+cd build && ./pinnaclemm --mode simulation --symbol BTC-USD --enable-arbitrage --arb-dry-run
 
 # The visualization dashboard will be available at:
 # - WebSocket: ws://localhost:8080 (or custom port with --viz-ws-port)
@@ -453,6 +465,9 @@ docker run -it --name pinnaclemm-live \
 - **Market Regime Detector**: Hidden Markov Model-based detection of 8 market regimes
 - **RL Parameter Adapter**: Reinforcement learning for dynamic strategy parameter optimization
 - **Advanced Backtesting Engine**: Historical replay with Monte Carlo analysis and statistical testing
+- **Instrument Manager**: Multi-instrument orchestration with per-symbol order books, strategies, and simulators
+- **Arbitrage Detector**: Cross-exchange price discrepancy detection with fee-adjusted scanning
+- **Cross-Market Correlation**: Statistical lead-lag analysis and cointegration testing for signal generation
 - **Real-Time Visualization**: Web-based dashboard with Chart.js and D3.js visualization
 - **FIX Protocol Engine**: Professional-grade FIX connectivity for institutional trading
 - **Persistence System**: Crash recovery with memory-mapped files
@@ -548,6 +563,12 @@ open build/test_dashboard.html
 # or manually: file:///path/to/PinnacleMM/build/test_dashboard.html
 ```
 
+### Multi-Instrument & Optimization
+- [Multi-Instrument Guide](docs/MULTI_INSTRUMENT_GUIDE.md) - **Multi-symbol trading with InstrumentManager**
+- [Cross-Exchange Arbitrage](docs/CROSS_EXCHANGE_ARBITRAGE.md) - **Venue spread detection and execution**
+- [Cross-Market Correlation](docs/CROSS_MARKET_CORRELATION.md) - **Statistical correlation and signal generation**
+- [Performance Optimization Guide](docs/PERFORMANCE_OPTIMIZATION_GUIDE.md) - **LTO, CPU affinity, object pooling, lock-free fixes**
+
 ### Exchange Integration
 - [FIX Protocol Integration Guide](docs/FIX_PROTOCOL_INTEGRATION.md)
 - [FIX Testing Guide](docs/TESTING_GUIDE.md)
@@ -620,6 +641,12 @@ cd build
 ./alert_manager_tests         # 8 tests - alerting, throttling
 ./disaster_recovery_tests     # 8 tests - state persistence, backups
 ./risk_check_benchmark        # Risk check latency benchmarks
+
+# Test multi-instrument and optimization components (Phase 5)
+./instrument_manager_tests         # 9 tests - lifecycle management
+./arbitrage_detector_tests         # 8 tests - opportunity detection, fees
+./cross_market_correlation_tests   # 7 tests - correlation, lead-lag
+./multi_instrument_benchmark       # Startup scaling benchmarks
 
 # Memory safety validation with Address Sanitizer (development builds)
 cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON .. && make -j8

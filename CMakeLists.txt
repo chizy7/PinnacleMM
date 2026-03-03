@@ -150,6 +150,18 @@ option(BUILD_VISUALIZATION "Build visualization server" ON)
 option(USE_TBB "Use Intel TBB for parallel algorithms" OFF)
 option(USE_DPDK "Use DPDK for kernel bypass networking" OFF)
 option(USE_LOCK_FREE "Use lock-free data structures" ON)
+option(ENABLE_LTO "Enable Link-Time Optimization for release builds" OFF)
+
+# LTO support
+if(ENABLE_LTO)
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT LTO_SUPPORTED)
+  if(LTO_SUPPORTED)
+    message(STATUS "LTO/IPO enabled")
+  else()
+    message(STATUS "LTO/IPO not supported by this compiler")
+  endif()
+endif()
 
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${WEBSOCKETPP_INCLUDE_DIRS}
@@ -191,7 +203,10 @@ set(CORE_SOURCES
     core/persistence/journal/Journal.cpp
     core/persistence/journal/JournalEntry.cpp
     core/persistence/snapshot/SnapshotManager.cpp
-    core/routing/OrderRouter.cpp)
+    core/routing/OrderRouter.cpp
+    core/instrument/InstrumentManager.cpp
+    core/instrument/ResourceAllocator.cpp
+    core/utils/ThreadAffinity.cpp)
 
 # Strategy library files
 set(STRATEGY_SOURCES
@@ -203,7 +218,10 @@ set(STRATEGY_SOURCES
     strategies/analytics/MarketRegimeDetector.cpp
     strategies/rl/RLParameterAdapter.cpp
     strategies/backtesting/BacktestEngine.cpp
-    strategies/config/StrategyConfig.cpp)
+    strategies/config/StrategyConfig.cpp
+    strategies/arbitrage/ArbitrageDetector.cpp
+    strategies/arbitrage/ArbitrageExecutor.cpp
+    strategies/analytics/CrossMarketCorrelation.cpp)
 
 # Exchange library files
 set(EXCHANGE_SOURCES
@@ -329,6 +347,11 @@ if(BUILD_VISUALIZATION)
 endif()
 
 target_link_libraries(pinnaclemm ${PINNACLEMM_LIBS})
+
+# Apply LTO to main executable in release builds
+if(ENABLE_LTO AND LTO_SUPPORTED)
+  set_property(TARGET pinnaclemm PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 
 # Tests
 if(BUILD_TESTS)
@@ -488,6 +511,33 @@ if(BUILD_TESTS)
     Threads::Threads
     Boost::filesystem)
   add_test(NAME DisasterRecoveryTests COMMAND disaster_recovery_tests)
+
+  # Instrument Manager tests
+  add_executable(instrument_manager_tests tests/unit/InstrumentManagerTests.cpp)
+  target_link_libraries(
+    instrument_manager_tests
+    core
+    risk
+    strategy
+    exchange
+    GTest::gtest_main
+    GTest::gtest
+    Threads::Threads)
+  add_test(NAME InstrumentManagerTests COMMAND instrument_manager_tests)
+
+  # Arbitrage Detector tests
+  add_executable(arbitrage_detector_tests tests/unit/ArbitrageDetectorTests.cpp)
+  target_link_libraries(arbitrage_detector_tests core strategy
+                        GTest::gtest_main GTest::gtest Threads::Threads)
+  add_test(NAME ArbitrageDetectorTests COMMAND arbitrage_detector_tests)
+
+  # Cross-Market Correlation tests
+  add_executable(cross_market_correlation_tests
+                 tests/unit/CrossMarketCorrelationTests.cpp)
+  target_link_libraries(cross_market_correlation_tests core strategy
+                        GTest::gtest_main GTest::gtest Threads::Threads)
+  add_test(NAME CrossMarketCorrelationTests
+           COMMAND cross_market_correlation_tests)
 endif()
 
 # Benchmarks
@@ -558,6 +608,18 @@ if(BUILD_BENCHMARKS)
   add_executable(risk_check_benchmark tests/performance/RiskCheckBenchmark.cpp)
   target_link_libraries(risk_check_benchmark core risk benchmark::benchmark
                         Threads::Threads)
+
+  # Multi-instrument benchmarks
+  add_executable(multi_instrument_benchmark
+                 tests/performance/MultiInstrumentBenchmark.cpp)
+  target_link_libraries(
+    multi_instrument_benchmark
+    core
+    risk
+    strategy
+    exchange
+    benchmark::benchmark
+    Threads::Threads)
 endif()
 
 # Install targets

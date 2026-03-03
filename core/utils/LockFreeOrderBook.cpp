@@ -2,6 +2,9 @@
 #include "../utils/TimeUtils.h"
 #include <algorithm>
 #include <limits>
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 
 namespace pinnacle {
 namespace utils {
@@ -27,7 +30,82 @@ LockFreePriceLevel::~LockFreePriceLevel() {
   }
 }
 
+bool LockFreePriceLevel::addOrder(std::shared_ptr<Order> order) {
+  if (!order) {
+    return false;
+  }
+
+  double qty = order->getRemainingQuantity();
+
+  // Use exclusive lock — direct append, no CAS loop needed
+  std::unique_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
+  OrderNode* newNode = new OrderNode(std::move(order));
+
+  // Direct append: we hold exclusive lock so no concurrent modification
+  OrderNode* tail = m_tail.load(std::memory_order_relaxed);
+  tail->next.store(newNode, std::memory_order_relaxed);
+  m_tail.store(newNode, std::memory_order_relaxed);
+
+  m_orderCount.fetch_add(1, std::memory_order_release);
+
+  // O(1) quantity update instead of walking the list
+  double prev = m_totalQuantity.load(std::memory_order_relaxed);
+  m_totalQuantity.store(prev + qty, std::memory_order_release);
+
+  return true;
+}
+
+bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
+  // Use exclusive lock — physically unlink the node
+  std::unique_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
+  OrderNode* prev = m_head.load(std::memory_order_relaxed);
+  OrderNode* curr = prev->next.load(std::memory_order_relaxed);
+
+  while (curr != nullptr) {
+    if (curr->order && curr->order->getOrderId() == orderId) {
+      double qty = curr->order->getRemainingQuantity();
+
+      // Physical unlink: prev->next = curr->next
+      OrderNode* next = curr->next.load(std::memory_order_relaxed);
+      prev->next.store(next, std::memory_order_relaxed);
+
+      // Update tail if we removed the last node
+      if (m_tail.load(std::memory_order_relaxed) == curr) {
+        m_tail.store(prev, std::memory_order_relaxed);
+      }
+
+      delete curr;
+
+      m_orderCount.fetch_sub(1, std::memory_order_release);
+
+      // O(1) quantity update
+      double prevTotal = m_totalQuantity.load(std::memory_order_relaxed);
+      m_totalQuantity.store(std::max(0.0, prevTotal - qty),
+                            std::memory_order_release);
+
+      return true;
+    }
+
+    prev = curr;
+    curr = curr->next.load(std::memory_order_relaxed);
+  }
+
+  return false;
+}
+
+void LockFreePriceLevel::subtractQuantity(double qty) {
+  std::unique_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+  double prev = m_totalQuantity.load(std::memory_order_relaxed);
+  m_totalQuantity.store(std::max(0.0, prev - qty), std::memory_order_release);
+}
+
 void LockFreePriceLevel::updateTotalQuantity() {
+  // Kept for compatibility but now rarely needed — add/remove do O(1) updates.
+  // This full-scan version can be used if quantities change externally.
+  std::shared_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
   double total = 0.0;
   OrderNode* current = m_head.load(std::memory_order_acquire)
                            ->next.load(std::memory_order_acquire);
@@ -40,79 +118,6 @@ void LockFreePriceLevel::updateTotalQuantity() {
   }
 
   m_totalQuantity.store(total, std::memory_order_release);
-}
-
-bool LockFreePriceLevel::addOrder(std::shared_ptr<Order> order) {
-  if (!order) {
-    return false;
-  }
-
-  // Use exclusive lock to prevent readers during structure modification
-  std::unique_lock<std::shared_mutex> lock(m_nodeAccessMutex);
-
-  // Create a new node
-  OrderNode* newNode = new OrderNode(std::move(order));
-
-  // Add to the end of the list using a Michael-Scott queue approach
-  while (true) {
-    OrderNode* tail = m_tail.load(std::memory_order_acquire);
-    OrderNode* next = tail->next.load(std::memory_order_acquire);
-
-    // Check if tail is still the last node
-    if (tail == m_tail.load(std::memory_order_acquire)) {
-      if (next == nullptr) {
-        // Tail is pointing to the last node, try to append the new node
-        if (tail->next.compare_exchange_weak(next, newNode,
-                                             std::memory_order_release,
-                                             std::memory_order_relaxed)) {
-          // Successfully appended the new node, try to update the tail
-          m_tail.compare_exchange_strong(tail, newNode,
-                                         std::memory_order_release,
-                                         std::memory_order_relaxed);
-          m_orderCount.fetch_add(1, std::memory_order_release);
-          updateTotalQuantity();
-          return true;
-        }
-      } else {
-        // Tail is not pointing to the last node, try to help advance it
-        m_tail.compare_exchange_strong(tail, next, std::memory_order_release,
-                                       std::memory_order_relaxed);
-      }
-    }
-  }
-}
-
-bool LockFreePriceLevel::removeOrder(const std::string& orderId) {
-  // Use exclusive lock to prevent readers from accessing during modification
-  std::unique_lock<std::shared_mutex> lock(m_nodeAccessMutex);
-
-  OrderNode* prev = m_head.load(std::memory_order_acquire);
-  OrderNode* curr = prev->next.load(std::memory_order_acquire);
-
-  bool found = false;
-  while (curr != nullptr) {
-    // Find the node to remove
-    if (curr->order && curr->order->getOrderId() == orderId) {
-      found = true;
-
-      // Logical deletion: null out the order pointer
-      // This prevents use-after-free while allowing safe traversal
-      // The Order object will be automatically cleaned up by shared_ptr
-      curr->order = nullptr;
-      m_orderCount.fetch_sub(1, std::memory_order_release);
-      break;
-    }
-
-    prev = curr;
-    curr = curr->next.load(std::memory_order_acquire);
-  }
-
-  // Update total quantity if an order was removed
-  if (found) {
-    updateTotalQuantity();
-  }
-
-  return found;
 }
 
 std::vector<std::shared_ptr<Order>> LockFreePriceLevel::getOrders() const {
@@ -140,6 +145,8 @@ std::vector<std::shared_ptr<Order>> LockFreePriceLevel::getOrders() const {
 
 std::shared_ptr<Order>
 LockFreePriceLevel::findOrder(const std::string& orderId) const {
+  std::shared_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
   OrderNode* current = m_head.load(std::memory_order_acquire)
                            ->next.load(std::memory_order_acquire);
 
@@ -155,6 +162,8 @@ LockFreePriceLevel::findOrder(const std::string& orderId) const {
 
 void LockFreePriceLevel::forEachOrder(
     const std::function<void(std::shared_ptr<Order>)>& func) const {
+  std::shared_lock<std::shared_mutex> lock(m_nodeAccessMutex);
+
   OrderNode* current = m_head.load(std::memory_order_acquire)
                            ->next.load(std::memory_order_acquire);
 
@@ -170,8 +179,21 @@ void LockFreePriceLevel::forEachOrder(
 
 LockFreeOrderMap::ShardGuard::ShardGuard(std::atomic_flag& lock)
     : m_lock(lock) {
+  // Spin with pause hint to reduce contention
   while (m_lock.test_and_set(std::memory_order_acquire)) {
-    // Spin until we acquire the lock
+#if defined(_MSC_VER)
+#if defined(_M_X64) || defined(_M_IX86)
+    _mm_pause();
+#elif defined(_M_ARM64)
+    __yield();
+#endif
+#elif defined(__GNUC__) || defined(__clang__)
+#if defined(__x86_64__) || defined(__i386__)
+    __builtin_ia32_pause();
+#elif defined(__aarch64__)
+    __asm__ __volatile__("yield" ::: "memory");
+#endif
+#endif
   }
 }
 
@@ -258,12 +280,7 @@ bool LockFreeOrderBook::addOrder(std::shared_ptr<Order> order) {
     return false;
   }
 
-  // Check if the order already exists
-  if (m_orders.contains(order->getOrderId())) {
-    return false;
-  }
-
-  // Add to the order map
+  // Single-step insert (returns false if already exists — no separate contains)
   if (!m_orders.insert(order->getOrderId(), order)) {
     return false;
   }
@@ -416,6 +433,11 @@ bool LockFreeOrderBook::executeOrder(const std::string& orderId,
   if (order->isBuy()) {
     std::shared_ptr<LockFreePriceLevel> level = m_bids.findLevel(price);
     if (level) {
+      // Subtract the filled quantity from the level total.
+      // This must happen before removeOrder, because removeOrder subtracts
+      // getRemainingQuantity() which is 0 for fully filled orders.
+      level->subtractQuantity(quantity);
+
       // If order is fully filled, remove it
       if (order->getStatus() == OrderStatus::FILLED) {
         level->removeOrder(orderId);
@@ -432,6 +454,9 @@ bool LockFreeOrderBook::executeOrder(const std::string& orderId,
   } else {
     std::shared_ptr<LockFreePriceLevel> level = m_asks.findLevel(price);
     if (level) {
+      // Subtract the filled quantity from the level total
+      level->subtractQuantity(quantity);
+
       // If order is fully filled, remove it
       if (order->getStatus() == OrderStatus::FILLED) {
         level->removeOrder(orderId);
@@ -553,8 +578,6 @@ double LockFreeOrderBook::executeMarketOrder(
 
       auto orders = level->getOrders();
       std::vector<std::string> filledOrders;
-      double levelExecutedQty = 0.0;
-      (void)levelExecutedQty; // Used for potential future logging
 
       for (auto& order : orders) {
         if (remainingQty <= 0)
@@ -567,7 +590,9 @@ double LockFreeOrderBook::executeMarketOrder(
             fills.emplace_back(order->getOrderId(), fillQty);
             remainingQty -= fillQty;
             executedQuantity += fillQty;
-            levelExecutedQty += fillQty;
+
+            // Subtract fill from level total before potential removal
+            level->subtractQuantity(fillQty);
 
             if (order->getStatus() == OrderStatus::FILLED) {
               filledOrders.push_back(order->getOrderId());
@@ -597,8 +622,6 @@ double LockFreeOrderBook::executeMarketOrder(
 
       auto orders = level->getOrders();
       std::vector<std::string> filledOrders;
-      double levelExecutedQty = 0.0;
-      (void)levelExecutedQty; // Used for potential future logging
 
       for (auto& order : orders) {
         if (remainingQty <= 0)
@@ -611,7 +634,9 @@ double LockFreeOrderBook::executeMarketOrder(
             fills.emplace_back(order->getOrderId(), fillQty);
             remainingQty -= fillQty;
             executedQuantity += fillQty;
-            levelExecutedQty += fillQty;
+
+            // Subtract fill from level total before potential removal
+            level->subtractQuantity(fillQty);
 
             if (order->getStatus() == OrderStatus::FILLED) {
               filledOrders.push_back(order->getOrderId());

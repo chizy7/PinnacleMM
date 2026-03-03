@@ -7,9 +7,12 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <thread>
+#include <unordered_map>
 
 namespace pinnacle {
 namespace risk {
@@ -53,6 +56,28 @@ struct RiskState {
 };
 
 /**
+ * @struct SymbolRiskState
+ * @brief Per-symbol atomic tracking for position, PnL, and volume
+ *
+ * Uses atomics so the hot path can read without locks.
+ * The map holding these is grow-only so readers are safe.
+ */
+struct SymbolRiskState {
+  std::string symbol;
+  std::atomic<double> position{0.0};
+  std::atomic<double> dailyPnL{0.0};
+  std::atomic<double> dailyVolume{0.0};
+  std::atomic<double> exposure{0.0};
+
+  SymbolRiskState() = default;
+  explicit SymbolRiskState(const std::string& sym) : symbol(sym) {}
+
+  // Non-copyable due to atomics — use shared_ptr
+  SymbolRiskState(const SymbolRiskState&) = delete;
+  SymbolRiskState& operator=(const SymbolRiskState&) = delete;
+};
+
+/**
  * @class RiskManager
  * @brief Singleton risk manager providing pre-trade checks and position
  * tracking
@@ -60,6 +85,9 @@ struct RiskState {
  * The hot path (checkOrder) is fully lock-free, relying only on atomic loads.
  * State mutations (onFill, onPnLUpdate) use atomic stores and acquire the mutex
  * only when complex multi-field consistency is required.
+ *
+ * Per-symbol tracking is grow-only: once a symbol is registered, its
+ * SymbolRiskState pointer is stable so reads need no lock.
  */
 class RiskManager {
 public:
@@ -143,6 +171,35 @@ public:
   double getPositionUtilization() const;
   double getDailyLossUtilization() const;
 
+  // --- Per-symbol tracking ---
+
+  /**
+   * @brief Register a symbol for per-symbol risk tracking
+   * @param symbol Trading symbol
+   */
+  void registerSymbol(const std::string& symbol);
+
+  /**
+   * @brief Get per-symbol risk state (nullptr if not registered)
+   */
+  SymbolRiskState* getSymbolState(const std::string& symbol);
+
+  /**
+   * @brief Get per-symbol risk state (const, nullptr if not registered)
+   */
+  const SymbolRiskState* getSymbolState(const std::string& symbol) const;
+
+  /**
+   * @brief Set per-symbol limits (overrides global for that symbol)
+   * @param limits Per-symbol limit configuration
+   */
+  void setSymbolLimits(const PerSymbolLimits& limits);
+
+  /**
+   * @brief Get per-symbol limits (returns nullptr if not set)
+   */
+  const PerSymbolLimits* getSymbolLimits(const std::string& symbol) const;
+
   /**
    * @brief Update risk limits at runtime
    * @param limits New risk limits
@@ -204,6 +261,13 @@ private:
   RiskLimits m_limits;
   std::string m_haltReason;
   uint64_t m_dailyResetTime{0};
+
+  // Per-symbol state (grow-only map — reads safe without lock once inserted)
+  std::unordered_map<std::string, std::shared_ptr<SymbolRiskState>>
+      m_symbolStates;
+  std::unordered_map<std::string, PerSymbolLimits> m_symbolLimits;
+  mutable std::shared_mutex
+      m_symbolMutex; // shared for reads, exclusive for writes
 
   // Hedge state
   std::mutex m_hedgeMutex;
