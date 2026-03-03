@@ -51,7 +51,8 @@ public:
     for (size_t i = 0; i < initialSize; ++i) {
       auto obj = m_factory ? m_factory() : std::make_unique<T>();
       if (!obj) {
-        obj = std::make_unique<T>(); // Fallback if factory returns null
+        throw std::runtime_error(
+            "ObjectPool factory returned nullptr during pre-allocation");
       }
       m_state->pool.push_back(std::move(obj));
     }
@@ -86,7 +87,11 @@ public:
       // Pool exhausted — allocate a new object
       if (m_factory) {
         auto obj = m_factory();
-        raw = obj ? obj.release() : new T();
+        if (!obj) {
+          throw std::runtime_error(
+              "ObjectPool factory returned nullptr during acquire()");
+        }
+        raw = obj.release();
       } else {
         raw = new T();
       }
