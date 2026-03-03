@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/chizy7/PinnacleMM/compare/v1.6.0...v1.7.0) (2026-03-03)
+
+
+### Features
+
+* add multi-instrument support, cross-exchange arbitrage, and performance optimizations ([#56](https://github.com/chizy7/PinnacleMM/issues/56)) ([008a244](https://github.com/chizy7/PinnacleMM/commit/008a24464b8367d61dfde676bcc058180e8bc7ce))
+
 # [1.6.0](https://github.com/chizy7/PinnacleMM/compare/v1.5.0...v1.6.0) (2026-02-20)
 
 
