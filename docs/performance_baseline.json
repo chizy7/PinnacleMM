@@ -1,10 +1,10 @@
 {
   "context": {
-    "date": "2026-03-09T04:18:58+00:00",
+    "date": "2026-03-09T04:20:05+00:00",
     "host_name": "runnervm0kj6c",
     "executable": "./latency_benchmark",
     "num_cpus": 4,
-    "mhz_per_cpu": 3243,
+    "mhz_per_cpu": 2869,
     "cpu_scaling_enabled": false,
     "caches": [
       {
@@ -22,7 +22,7 @@
       {
         "type": "Unified",
         "level": 2,
-        "size": 524288,
+        "size": 1048576,
         "num_sharing": 2
       },
       {
@@ -32,7 +32,7 @@
         "num_sharing": 4
       }
     ],
-    "load_avg": [2.07275,1.24805,0.549316],
+    "load_avg": [2.02246,1.18848,0.476562],
     "library_build_type": "debug"
   },
   "benchmarks": [
@@ -45,9 +45,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 31548,
-      "real_time": 6.3309515753480628e+04,
-      "cpu_time": 6.3435692024850570e+04,
+      "iterations": 28544,
+      "real_time": 6.5188500735850168e+04,
+      "cpu_time": 6.5311358709360720e+04,
       "time_unit": "ns"
     },
     {
@@ -59,9 +59,9 @@
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 40348468,
-      "real_time": 1.7406711873174359e+01,
-      "cpu_time": 1.7402864168225669e+01,
+      "iterations": 37039375,
+      "real_time": 1.8896131994666710e+01,
+      "cpu_time": 1.8895237082159191e+01,
       "time_unit": "ns"
     }
   ]
