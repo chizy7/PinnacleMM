@@ -274,9 +274,14 @@ void HistoricalDataManager::printDataStatistics() const {
   double avgVolume = totalVolume / m_dataPoints.size();
   double avgSpread = totalSpread / m_dataPoints.size();
 
+  // Read timestamps directly - getStartTime()/getEndTime() would
+  // re-enter m_dataMutex (non-recursive) and deadlock.
+  uint64_t startTs = m_dataPoints.front().timestamp;
+  uint64_t endTs = m_dataPoints.back().timestamp;
+
   spdlog::info("Data Statistics:");
   spdlog::info("  Data Points: {}", m_dataPoints.size());
-  spdlog::info("  Time Range: {} to {}", getStartTime(), getEndTime());
+  spdlog::info("  Time Range: {} to {}", startTs, endTs);
   spdlog::info("  Price Range: ${:.2f} - ${:.2f} (avg: ${:.2f})", minPrice,
                maxPrice, avgPrice);
   spdlog::info("  Average Volume: {:.2f}", avgVolume);
