@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/chizy7/PinnacleMM/compare/v1.7.0...v1.7.1) (2026-04-19)
+
+
+### Bug Fixes
+
+* **backtest:** deadlock in printDataStatistics ([#61](https://github.com/chizy7/PinnacleMM/issues/61)) ([211d02b](https://github.com/chizy7/PinnacleMM/commit/211d02b64457d8f165685ce9262b29532e1248f6))
+
 # [1.7.0](https://github.com/chizy7/PinnacleMM/compare/v1.6.0...v1.7.0) (2026-03-03)
 
 
