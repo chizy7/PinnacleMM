@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/chizy7/PinnacleMM/compare/v1.7.1...v1.8.0) (2026-04-19)
+
+
+### Features
+
+* **backtest:** implement tick-by-tick fill loop with JSONL output ([#62](https://github.com/chizy7/PinnacleMM/issues/62)) ([9fb74d6](https://github.com/chizy7/PinnacleMM/commit/9fb74d65d2451ec799aebb3ee82718692a6d9351))
+
 ## [1.7.1](https://github.com/chizy7/PinnacleMM/compare/v1.7.0...v1.7.1) (2026-04-19)
 
 
