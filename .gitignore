@@ -45,6 +45,9 @@ data/*.csv
 data/*.json
 *.log
 
+# Backtest output
+backtest_results/
+
 # Dependency directories
 third_party/
 
