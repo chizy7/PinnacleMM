@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <numeric>
 #include <random>
 #include <sstream>
@@ -472,6 +473,41 @@ void BacktestEngine::setStrategy(
   m_strategy = std::move(strategy);
 }
 
+void BacktestEngine::setJsonLogger(
+    std::shared_ptr<pinnacle::utils::JsonLogger> jsonLogger) {
+  m_jsonLogger = std::move(jsonLogger);
+}
+
+void BacktestEngine::emitFinalStrategyMetrics() {
+  if (!m_jsonLogger || !m_jsonLogger->isEnabled()) {
+    return;
+  }
+
+  const auto stats = m_analyzer->calculateStatistics();
+
+  // nlohmann::json serializes NaN/Inf as `null` without warning, but the Go
+  // runner rejects that — and profitFactor naturally goes to +Inf when there
+  // are no losing trades. Replace non-finite values with null explicitly so
+  // the JSON is at least well-defined.
+  auto finite = [](double v) -> nlohmann::json {
+    return std::isfinite(v) ? nlohmann::json(v) : nlohmann::json(nullptr);
+  };
+
+  nlohmann::json entry = {{"type", "strategy_metrics"},
+                          {"sharpe_ratio", finite(stats.sharpeRatio)},
+                          {"max_drawdown", finite(stats.maxDrawdown)},
+                          {"win_rate", finite(stats.winRate)},
+                          {"total_trades", stats.totalTrades},
+                          {"total_pnl", finite(stats.totalPnL)},
+                          {"total_volume", finite(stats.totalVolume)},
+                          {"profit_factor", finite(stats.profitFactor)},
+                          {"var_95", finite(stats.valueAtRisk95)},
+                          {"var_99", finite(stats.valueAtRisk99)},
+                          {"timestamp", m_currentTime}};
+  m_jsonLogger->log(entry);
+  m_jsonLogger->flush();
+}
+
 bool BacktestEngine::initialize() {
   spdlog::info("Initializing BacktestEngine");
 
@@ -491,10 +527,10 @@ bool BacktestEngine::initialize() {
 
 bool BacktestEngine::runBacktest(const std::string& symbol) {
   if (!m_strategy) {
-    spdlog::error("No strategy set for backtesting");
-    return false;
+    // Data-replay-only mode: produce zero-trade metrics. Useful for
+    // validating data ingestion and for tests that don't need a strategy.
+    spdlog::warn("Running backtest without a strategy (data replay only)");
   }
-
   return runBacktest(symbol, m_strategy);
 }
 
@@ -537,6 +573,8 @@ bool BacktestEngine::runBacktest(
   m_position = 0.0;
   m_unrealizedPnL = 0.0;
   m_realizedPnL = 0.0;
+  m_avgCostBasis = 0.0;
+  m_lastData = MarketDataPoint{};
 
   size_t totalDataPoints = m_dataManager->getDataPointCount();
   size_t processedPoints = 0;
@@ -549,11 +587,21 @@ bool BacktestEngine::runBacktest(
 
     m_currentTime = dataPoint.timestamp;
 
-    // Process market data
-    processMarketData(dataPoint);
+    // Update the market-data snapshot the fill logic reads from. We do this
+    // before processStrategyOrders so that any quotes carried over from the
+    // previous tick are matched against the new bid/ask (i.e., they fill if
+    // the market walked through them between ticks).
+    m_lastData = dataPoint;
+    m_analyzer->recordMarketData(dataPoint);
 
-    // Process strategy orders
+    // Match any previously-queued strategy orders against the new market.
     processStrategyOrders();
+
+    // Feed the new tick to the strategy so it can regenerate quotes. Those
+    // quotes become resting orders that the next iteration will try to fill.
+    if (m_strategy) {
+      m_strategy->updateMarketData(dataPoint);
+    }
 
     // Update portfolio
     updatePortfolio(dataPoint);
@@ -581,8 +629,15 @@ bool BacktestEngine::runBacktest(
   // Final performance calculation
   calculatePerformance();
 
+  // Fast-path summary for the platform runner: one JSONL line with
+  // pre-computed Sharpe / drawdown / win rate.
+  emitFinalStrategyMetrics();
+
   m_isRunning.store(false);
-  m_progress.store(1.0);
+  // Preserve partial progress if the run was interrupted via stop().
+  if (!m_shouldStop.load()) {
+    m_progress.store(1.0);
+  }
 
   auto endTime = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -600,28 +655,177 @@ bool BacktestEngine::runBacktest(
 }
 
 void BacktestEngine::processMarketData(const MarketDataPoint& data) {
-  // Record market data for analysis
+  // Kept for compatibility / external callers. The main backtest loop does
+  // not call this — it inlines the equivalent steps so it can interleave
+  // strategy updates with fill matching. Notably, this function does NOT
+  // invoke processStrategyOrders, so calling it directly will record market
+  // data and regenerate strategy quotes without attempting any fills.
   m_analyzer->recordMarketData(data);
-
-  // Update strategy with new market data (if strategy supports it)
+  m_lastData = data;
   if (m_strategy) {
-    // Note: I would need to add a method to update market data in the strategy
-    // m_strategy->updateMarketData(data);
+    m_strategy->updateMarketData(data);
   }
 }
 
-void BacktestEngine::processStrategyOrders() {
-  // This is a simplified implementation
-  // In a real implementation, we would:
-  // 1. Get orders from the strategy
-  // 2. Validate orders against risk limits
-  // 3. Execute orders with simulated market impact
-  // 4. Update strategy with fill information
+double BacktestEngine::applyFillToCostBasis(OrderSide side, double qty,
+                                            double fillPrice) {
+  const double signedQty = (side == OrderSide::BUY) ? qty : -qty;
+  const double prev = m_position;
+  const double next = prev + signedQty;
+  double realized = 0.0;
 
-  // For now, we'll simulate some basic trading activity
-  if (m_strategy && m_currentTime % 5000000000ULL == 0) { // Every 5 seconds
-    // Simulate strategy generating orders
-    // This would be replaced with actual strategy integration
+  const bool sameSide = (prev == 0.0) || ((prev > 0) == (signedQty > 0));
+  if (sameSide) {
+    // Opening or increasing: recompute weighted-average cost basis.
+    if (next != 0.0) {
+      m_avgCostBasis = (prev * m_avgCostBasis + signedQty * fillPrice) / next;
+    } else {
+      m_avgCostBasis = 0.0;
+    }
+  } else {
+    // Reducing (possibly flipping) position. P&L is realized on the portion
+    // that closes existing exposure, valued against m_avgCostBasis.
+    const double closeQty = std::min(std::abs(signedQty), std::abs(prev));
+    if (prev > 0.0) {
+      realized = (fillPrice - m_avgCostBasis) * closeQty;
+    } else {
+      realized = (m_avgCostBasis - fillPrice) * closeQty;
+    }
+
+    if (next == 0.0) {
+      m_avgCostBasis = 0.0;
+    } else if ((prev > 0.0) != (next > 0.0)) {
+      // Flipped sides: remaining qty opens a fresh position at fillPrice.
+      m_avgCostBasis = fillPrice;
+    }
+    // else: partial close, keep existing cost basis on the residual.
+  }
+
+  m_position = next;
+  return realized;
+}
+
+void BacktestEngine::processStrategyOrders() {
+  if (!m_strategy) {
+    return;
+  }
+
+  auto pending = m_strategy->getPendingOrders();
+  if (pending.empty()) {
+    return;
+  }
+
+  const double currentBid = m_lastData.bid;
+  const double currentAsk = m_lastData.ask;
+  if (currentBid <= 0.0 || currentAsk <= 0.0 || currentAsk <= currentBid) {
+    return;
+  }
+
+  for (const auto& order : pending) {
+    if (!order) {
+      continue;
+    }
+
+    const OrderSide side = order->getSide();
+    const double limitPrice = order->getPrice();
+    const double qty = order->getQuantity();
+    if (qty <= 0.0) {
+      continue;
+    }
+
+    // Marketable limit: buy fills if its limit >= best ask; sell fills
+    // if its limit <= best bid. Non-marketable limits are dropped (a real
+    // book would queue them, but in this synchronous replay we don't
+    // simulate resting liquidity).
+    double fillPrice = 0.0;
+    bool filled = false;
+    if (side == OrderSide::BUY && limitPrice >= currentAsk) {
+      fillPrice = currentAsk;
+      filled = true;
+    } else if (side == OrderSide::SELL && limitPrice <= currentBid) {
+      fillPrice = currentBid;
+      filled = true;
+    }
+
+    if (!filled) {
+      continue;
+    }
+
+    // Adverse slippage: push fill price against the taker. Clamp to a
+    // positive minimum — pathological slippageBps on a low-priced asset
+    // could otherwise drive sell-fills to zero or negative.
+    if (m_config.enableSlippage && m_config.slippageBps > 0.0) {
+      const double slip = fillPrice * m_config.slippageBps * 0.0001;
+      fillPrice += (side == OrderSide::BUY) ? slip : -slip;
+      if (fillPrice <= 0.0) {
+        spdlog::warn("Slippage drove fill price non-positive; skipping order "
+                     "{} (slippageBps={})",
+                     order->getOrderId(), m_config.slippageBps);
+        continue;
+      }
+    }
+
+    const double notional = qty * fillPrice;
+    const double fee = std::abs(notional) * m_config.tradingFee;
+
+    // Enforce position limit: reject fills that would push |position| above
+    // configured maxPosition. A real venue would reject these upstream; the
+    // strategy's inventory skew should keep us away, but this is belt-and-
+    // braces.
+    const double signedQty = (side == OrderSide::BUY) ? qty : -qty;
+    const double wouldBePosition = m_position + signedQty;
+    if (m_config.maxPosition > 0.0 &&
+        std::abs(wouldBePosition) > m_config.maxPosition) {
+      continue;
+    }
+
+    // Buys can't overspend available balance (fee included). Sells always OK
+    // here since we model long-or-short positions uniformly.
+    if (side == OrderSide::BUY && m_balance < notional + fee) {
+      continue;
+    }
+
+    double realized = 0.0;
+    double tradePnL = 0.0;
+    {
+      // Mutate portfolio state under the same mutex createSnapshot reads
+      // under, so external observers never see a torn update.
+      std::lock_guard<std::mutex> stateLock(m_stateMutex);
+      realized = applyFillToCostBasis(side, qty, fillPrice);
+      tradePnL = realized - fee;
+
+      // Cash: buying consumes balance (+fees), selling releases it (-fees).
+      m_balance -= (side == OrderSide::BUY) ? notional : -notional;
+      m_balance -= fee;
+      m_realizedPnL += tradePnL;
+    }
+
+    BacktestTrade trade;
+    trade.timestamp = m_currentTime;
+    trade.orderId = order->getOrderId();
+    trade.symbol = order->getSymbol();
+    trade.side = side;
+    trade.quantity = qty;
+    trade.price = fillPrice;
+    trade.fee = fee;
+    trade.pnl = tradePnL;
+    trade.position = m_position;
+    trade.balance = m_balance;
+    trade.strategy = "BasicMarketMaker";
+    trade.regime = "";
+    m_analyzer->recordTrade(trade);
+
+    m_strategy->onBacktestFill(side, fillPrice, qty, m_currentTime);
+
+    if (m_jsonLogger && m_jsonLogger->isEnabled()) {
+      nlohmann::json entry = {{"type", "order_filled"},
+                              {"side", side == OrderSide::BUY ? "buy" : "sell"},
+                              {"price", fillPrice},
+                              {"quantity", qty},
+                              {"pnl", tradePnL},
+                              {"timestamp", m_currentTime}};
+      m_jsonLogger->log(entry);
+    }
   }
 }
 

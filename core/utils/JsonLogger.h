@@ -97,6 +97,16 @@ public:
                           const std::string& message = "");
 
   /**
+   * @brief Write a raw JSON object as a single line.
+   *
+   * Use this when the consumer expects a specific top-level shape that
+   * doesn't match the wrappers emitted by logTradingEvent/etc.
+   *
+   * @param entry JSON entry to write
+   */
+  void log(const nlohmann::json& entry);
+
+  /**
    * @brief Flush all pending writes to disk
    */
   void flush();

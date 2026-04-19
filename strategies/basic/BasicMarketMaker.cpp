@@ -624,5 +624,102 @@ void BasicMarketMaker::setJsonLogger(
   m_jsonLogger = jsonLogger;
 }
 
+void BasicMarketMaker::updateMarketData(
+    const pinnacle::analytics::MarketDataPoint& data) {
+  if (data.bid <= 0.0 || data.ask <= 0.0 || data.ask <= data.bid) {
+    return;
+  }
+  m_btLastBid = data.bid;
+  m_btLastAsk = data.ask;
+  m_btLastMid = (data.bid + data.ask) * 0.5;
+  m_btLastTimestamp = data.timestamp;
+  generateBacktestQuotes();
+}
+
+void BasicMarketMaker::generateBacktestQuotes() {
+  const double mid = m_btLastMid;
+  if (mid <= 0.0) {
+    return;
+  }
+
+  // Target spread from config, clamped to [min, max].
+  double targetSpread = m_config.baseSpreadBps * 0.0001 * mid;
+  const double minSpread = m_config.minSpreadBps * 0.0001 * mid;
+  const double maxSpread = m_config.maxSpreadBps * 0.0001 * mid;
+  targetSpread = std::max(minSpread, std::min(targetSpread, maxSpread));
+
+  // Inventory skew: skew both sides away from an over-long/short position.
+  const double position = m_position.load(std::memory_order_relaxed);
+  const double positionRatio =
+      (m_config.maxPosition > 0.0) ? (position / m_config.maxPosition) : 0.0;
+  const double skewFactor =
+      static_cast<double>(m_config.inventorySkewFactor) * positionRatio;
+  const double skewAdjust = skewFactor * mid * 0.0001;
+
+  const double bidPrice = mid - (targetSpread / 2.0) - skewAdjust;
+  const double askPrice = mid + (targetSpread / 2.0) - skewAdjust;
+
+  const double bidQty = calculateOrderQuantity(OrderSide::BUY);
+  const double askQty = calculateOrderQuantity(OrderSide::SELL);
+
+  std::lock_guard<std::mutex> lock(m_pendingOrdersMutex);
+  m_pendingOrders.clear();
+
+  // Order IDs are unique per (symbol, side, timestamp). The stats counter is
+  // NOT read here — that would be a data race against m_statsMutex.
+  if (bidPrice > 0.0 && bidQty >= m_config.minOrderQuantity) {
+    std::string orderId =
+        m_symbol + "-BT-BUY-" + std::to_string(m_btLastTimestamp);
+    m_pendingOrders.push_back(std::make_shared<Order>(
+        orderId, m_symbol, OrderSide::BUY, OrderType::LIMIT, bidPrice, bidQty,
+        m_btLastTimestamp));
+  }
+  if (askPrice > 0.0 && askQty >= m_config.minOrderQuantity) {
+    std::string orderId =
+        m_symbol + "-BT-SELL-" + std::to_string(m_btLastTimestamp);
+    m_pendingOrders.push_back(std::make_shared<Order>(
+        orderId, m_symbol, OrderSide::SELL, OrderType::LIMIT, askPrice, askQty,
+        m_btLastTimestamp));
+  }
+
+  {
+    std::lock_guard<std::mutex> statsLock(m_statsMutex);
+    m_stats.quoteUpdateCount++;
+    m_stats.orderPlacedCount += m_pendingOrders.size();
+  }
+}
+
+std::vector<std::shared_ptr<Order>> BasicMarketMaker::getPendingOrders() {
+  std::lock_guard<std::mutex> lock(m_pendingOrdersMutex);
+  std::vector<std::shared_ptr<Order>> out;
+  out.swap(m_pendingOrders);
+  return out;
+}
+
+void BasicMarketMaker::onBacktestFill(OrderSide side, double price,
+                                      double quantity, uint64_t /*timestamp*/) {
+  const double signedQty = (side == OrderSide::BUY) ? quantity : -quantity;
+
+  // CAS loop: atomically add signedQty to m_position. In backtest mode this
+  // runs single-threaded, but a CAS is cheap insurance against future callers
+  // (and matches how fills are applied on the live path).
+  double prev = m_position.load(std::memory_order_relaxed);
+  double next;
+  do {
+    next = prev + signedQty;
+  } while (
+      !m_position.compare_exchange_weak(prev, next, std::memory_order_relaxed));
+
+  // Keep a simple PnL estimate consistent with updateStatistics(): mark the
+  // position at fill price. BacktestEngine tracks canonical realized PnL.
+  m_pnl.store(next * price, std::memory_order_relaxed);
+
+  std::lock_guard<std::mutex> statsLock(m_statsMutex);
+  m_stats.orderFilledCount++;
+  m_stats.totalVolumeTraded += quantity;
+  m_stats.maxPosition = std::max(m_stats.maxPosition, next);
+  m_stats.minPosition = std::min(m_stats.minPosition, next);
+}
+
 } // namespace strategy
 } // namespace pinnacle

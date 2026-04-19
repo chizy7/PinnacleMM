@@ -132,6 +132,12 @@ void JsonLogger::logConnectionEvent(const std::string& eventType,
   writeLogEntry(entry);
 }
 
+void JsonLogger::log(const nlohmann::json& entry) {
+  if (!m_enabled)
+    return;
+  writeLogEntry(entry);
+}
+
 void JsonLogger::flush() {
   if (m_fileStream && m_fileStream->is_open()) {
     m_fileStream->flush();

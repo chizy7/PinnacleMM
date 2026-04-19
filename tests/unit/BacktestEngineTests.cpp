@@ -478,6 +478,14 @@ TEST_F(BacktestEngineTest, StrategyComparisonTest) {
 TEST_F(BacktestEngineTest, StopBacktestTest) {
   createTestDataFile("TESTCOIN", 1000); // Large dataset
 
+  // Slow the loop so 50ms of parent sleep lands mid-run. The engine sleeps
+  // (1000us / speedMultiplier) per tick when speedMultiplier < 1.0, so
+  // 0.01 gives 100ms per tick — the first tick alone outlasts the parent's
+  // sleep window and lets stop() observe a non-complete progress.
+  BacktestConfiguration slowConfig = config_;
+  slowConfig.speedMultiplier = 0.01;
+  engine_->updateConfiguration(slowConfig);
+
   EXPECT_TRUE(engine_->initialize());
 
   // Start backtest in background
