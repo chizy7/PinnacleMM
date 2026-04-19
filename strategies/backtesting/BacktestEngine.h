@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../core/orderbook/Order.h"
+#include "../../core/utils/JsonLogger.h"
 #include "../../core/utils/TimeUtils.h"
 #include "../../strategies/analytics/MarketRegimeDetector.h"
 #include "../../strategies/basic/MLEnhancedMarketMaker.h"
@@ -237,6 +238,9 @@ public:
   void setStrategy(
       std::shared_ptr<pinnacle::strategy::MLEnhancedMarketMaker> strategy);
 
+  // Structured JSONL logging (platform runner ingests this format).
+  void setJsonLogger(std::shared_ptr<pinnacle::utils::JsonLogger> jsonLogger);
+
   // Results access
   TradingStatistics getResults() const;
   std::vector<BacktestTrade> getTrades() const;
@@ -287,6 +291,13 @@ private:
   double m_position;
   double m_unrealizedPnL;
   double m_realizedPnL;
+  double m_avgCostBasis{0.0};
+
+  // Latest market snapshot (used by processStrategyOrders to decide fills).
+  MarketDataPoint m_lastData;
+
+  // Optional structured JSONL sink for external consumers.
+  std::shared_ptr<pinnacle::utils::JsonLogger> m_jsonLogger;
 
   // Time management
   uint64_t m_currentTime;
@@ -300,6 +311,13 @@ private:
   void processStrategyOrders();
   void updatePortfolio(const MarketDataPoint& data);
   void calculatePerformance();
+
+  // Realize P&L against cost basis when a fill reduces/flips position.
+  // Returns the realized P&L for this fill (excluding fees).
+  double applyFillToCostBasis(OrderSide side, double qty, double fillPrice);
+
+  // Emit a single JSONL strategy_metrics record at the end of the run.
+  void emitFinalStrategyMetrics();
 
   // Order execution simulation
   bool executeOrder(const Order& order, const MarketDataPoint& marketData,

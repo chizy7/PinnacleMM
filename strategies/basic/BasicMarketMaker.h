@@ -7,6 +7,7 @@
 #include "../../core/utils/JsonLogger.h"
 #include "../../core/utils/LockFreeQueue.h"
 #include "../../exchange/simulator/MarketDataFeed.h"
+#include "../analytics/MarketRegimeDetector.h"
 #include "../config/StrategyConfig.h"
 
 #include <atomic>
@@ -106,6 +107,30 @@ public:
    * @param update Market update containing price, volume, bid/ask data
    */
   void onMarketUpdate(const pinnacle::exchange::MarketUpdate& update);
+
+  /**
+   * @brief Feed a backtest market-data tick into the strategy.
+   *
+   * Updates the strategy's view of the market and regenerates the set of
+   * quotes it would like to place. Intended for synchronous driving from
+   * BacktestEngine; the strategy's worker thread is not required to be
+   * running.
+   */
+  virtual void
+  updateMarketData(const pinnacle::analytics::MarketDataPoint& data);
+
+  /**
+   * @brief Pull (and clear) the set of orders the strategy wants to submit
+   *        based on the most recent updateMarketData call.
+   */
+  std::vector<std::shared_ptr<Order>> getPendingOrders();
+
+  /**
+   * @brief Notify the strategy that one of its pending orders was filled in
+   *        backtest. Updates position and fill statistics.
+   */
+  void onBacktestFill(OrderSide side, double price, double quantity,
+                      uint64_t timestamp);
 
   /**
    * @brief Get the current strategy statistics
@@ -231,6 +256,15 @@ private:
   std::mutex m_eventMutex;
   std::condition_variable m_eventCondition;
 
+  // Backtest driving state: populated by updateMarketData, consumed by
+  // getPendingOrders. Not used in live/simulation paths.
+  std::vector<std::shared_ptr<Order>> m_pendingOrders;
+  mutable std::mutex m_pendingOrdersMutex;
+  double m_btLastBid{0.0};
+  double m_btLastAsk{0.0};
+  double m_btLastMid{0.0};
+  uint64_t m_btLastTimestamp{0};
+
   // Internal implementation methods
   void strategyMainLoop();
   void processEvents();
@@ -240,6 +274,7 @@ private:
   void updateStatistics();
   double calculateOrderQuantity(OrderSide side) const;
   double calculateInventorySkewFactor() const;
+  void generateBacktestQuotes();
 };
 
 } // namespace strategy

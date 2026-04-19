@@ -614,6 +614,10 @@ int main(int argc, char* argv[]) {
         return 1;
       }
 
+      if (jsonLogger) {
+        engine.setJsonLogger(jsonLogger);
+      }
+
       // BacktestEngine requires MLEnhancedMarketMaker; create one with ML
       // disabled when --enable-ml is not set
       std::shared_ptr<pinnacle::strategy::MLEnhancedMarketMaker> btStrategy;
