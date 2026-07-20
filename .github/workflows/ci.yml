@@ -33,7 +33,7 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -fsanitize=address"
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=20 -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -fsanitize=address"
 
     - name: Build
       run: |
@@ -101,7 +101,7 @@ jobs:
 
     - name: Build for analysis
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20
         cmake --build build -j$(nproc)
 
     - name: Perform CodeQL Analysis

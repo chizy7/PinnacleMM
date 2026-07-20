@@ -76,18 +76,8 @@ endif()
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-# Handle spdlog and fmt with fallback to FetchContent
+# Handle fmt and spdlog with fallback to FetchContent
 include(FetchContent)
-
-find_package(spdlog QUIET)
-if(NOT spdlog_FOUND)
-  message(STATUS "spdlog not found, downloading...")
-  FetchContent_Declare(
-    spdlog
-    GIT_REPOSITORY https://github.com/gabime/spdlog.git
-    GIT_TAG v1.12.0)
-  FetchContent_MakeAvailable(spdlog)
-endif()
 
 find_package(fmt QUIET)
 if(NOT fmt_FOUND)
@@ -95,8 +85,22 @@ if(NOT fmt_FOUND)
   FetchContent_Declare(
     fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-    GIT_TAG 10.1.1)
+    GIT_TAG 10.2.1)
   FetchContent_MakeAvailable(fmt)
+endif()
+
+set(SPDLOG_FMT_EXTERNAL
+    ON
+    CACHE BOOL "Use external fmt in spdlog" FORCE)
+
+find_package(spdlog QUIET)
+if(NOT spdlog_FOUND)
+  message(STATUS "spdlog not found, downloading...")
+  FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.14.1)
+  FetchContent_MakeAvailable(spdlog)
 endif()
 
 # Create OpenSSL targets if they don't exist (for compatibility with older
