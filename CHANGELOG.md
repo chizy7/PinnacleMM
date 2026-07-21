@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/chizy7/PinnacleMM/compare/v1.8.0...v1.8.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* **build:** pin fmt/spdlog and remove unused websocketpp dependency ([#69](https://github.com/chizy7/PinnacleMM/issues/69)) ([a63e131](https://github.com/chizy7/PinnacleMM/commit/a63e131c2e25284f2e4690a9f727a21685bfa617))
+
 # [1.8.0](https://github.com/chizy7/PinnacleMM/compare/v1.7.1...v1.8.0) (2026-04-19)
 
 
