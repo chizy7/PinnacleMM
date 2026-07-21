@@ -79,8 +79,8 @@ Read more about the [system architecture](docs/architecture/system_overview.md).
 - C++20 compatible compiler (GCC 10+, Clang 10+, or MSVC 2019+)
 - CMake 3.14+
 - Boost libraries 1.72+
-- spdlog library (for structured logging)
-- fmt library (for formatting, spdlog dependency)
+- spdlog library (for structured logging; auto-downloaded at v1.15.3 if not installed)
+- fmt library (for formatting, spdlog dependency; auto-downloaded at 11.2.0 if not installed)
 - OpenSSL library (for secure credential handling)
 - nlohmann_json library (for configuration handling)
 

@@ -9,8 +9,8 @@ To build and run PinnacleMM, you'll need the following:
 - **C++20 compatible compiler** (GCC 10+, Clang 10+, or MSVC 2019+)
 - **CMake** (version 3.14 or higher)
 - **Boost libraries** (version 1.72 or higher)
-- **spdlog** (for structured logging)
-- **fmt** (formatting library, required by spdlog)
+- **spdlog** (for structured logging; auto-downloaded at v1.15.3 via FetchContent if not installed)
+- **fmt** (formatting library, required by spdlog; auto-downloaded at 11.2.0 via FetchContent if not installed)
 - **Google Test** (for running unit tests)
 - **Git** (for cloning the repository)
 
