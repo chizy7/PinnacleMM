@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcrypto++8 \
     openssl \
     nlohmann-json3-dev \
-    libwebsocketpp-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/* \
     && ldconfig

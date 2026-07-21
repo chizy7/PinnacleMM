@@ -79,24 +79,29 @@ find_package(nlohmann_json REQUIRED)
 # Handle spdlog and fmt with fallback to FetchContent
 include(FetchContent)
 
-find_package(spdlog QUIET)
-if(NOT spdlog_FOUND)
-  message(STATUS "spdlog not found, downloading...")
-  FetchContent_Declare(
-    spdlog
-    GIT_REPOSITORY https://github.com/gabime/spdlog.git
-    GIT_TAG v1.12.0)
-  FetchContent_MakeAvailable(spdlog)
-endif()
-
-find_package(fmt QUIET)
+# fmt must be resolved before spdlog so a fetched spdlog can build against it
+# (SPDLOG_FMT_EXTERNAL) instead of its bundled fmt copy
+find_package(fmt 11.2.0 QUIET)
 if(NOT fmt_FOUND)
   message(STATUS "fmt not found, downloading...")
   FetchContent_Declare(
     fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-    GIT_TAG 10.1.1)
+    GIT_TAG 11.2.0)
   FetchContent_MakeAvailable(fmt)
+endif()
+
+find_package(spdlog 1.15.3 QUIET)
+if(NOT spdlog_FOUND)
+  message(STATUS "spdlog not found, downloading...")
+  set(SPDLOG_FMT_EXTERNAL
+      ON
+      CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.15.3)
+  FetchContent_MakeAvailable(spdlog)
 endif()
 
 # Create OpenSSL targets if they don't exist (for compatibility with older
@@ -115,23 +120,6 @@ if(OPENSSL_FOUND AND NOT TARGET OpenSSL::Crypto)
     OpenSSL::Crypto
     PROPERTIES IMPORTED_LOCATION "${OPENSSL_CRYPTO_LIBRARY}"
                INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}")
-endif()
-
-# WebSocket++ is a header-only library
-find_path(WEBSOCKETPP_INCLUDE_DIRS websocketpp/client.hpp
-          HINTS /usr/local/include /usr/include /opt/homebrew/include)
-if(NOT WEBSOCKETPP_INCLUDE_DIRS)
-  message(STATUS "WebSocket++ not found in system, downloading...")
-  # Set policy to handle older CMake versions in WebSocket++
-  set(CMAKE_POLICY_DEFAULT_CMP0048 NEW)
-  FetchContent_Declare(
-    websocketpp
-    GIT_REPOSITORY https://github.com/zaphoyd/websocketpp.git
-    GIT_TAG 0.8.2
-    GIT_SHALLOW TRUE
-    CONFIGURE_COMMAND "" BUILD_COMMAND "")
-  FetchContent_MakeAvailable(websocketpp)
-  set(WEBSOCKETPP_INCLUDE_DIRS ${websocketpp_SOURCE_DIR})
 endif()
 
 # hffix is a header-only FIX protocol library
@@ -164,8 +152,7 @@ if(ENABLE_LTO)
 endif()
 
 # Include directories
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${WEBSOCKETPP_INCLUDE_DIRS}
-                    ${HFFIX_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${HFFIX_INCLUDE_DIRS})
 
 # Add TBB if enabled
 if(USE_TBB)
@@ -316,9 +303,7 @@ if(BUILD_VISUALIZATION)
            spdlog::spdlog
            fmt::fmt)
 
-  target_include_directories(visualization PRIVATE ${WEBSOCKETPP_INCLUDE_DIRS})
-  target_compile_definitions(visualization PRIVATE ASIO_STANDALONE
-                                                   BUILD_VISUALIZATION)
+  target_compile_definitions(visualization PRIVATE BUILD_VISUALIZATION)
 endif()
 
 # Main executable
