@@ -1,0 +1,13 @@
+{
+  "$schema": "./certificate_pins.schema.json",
+  "pins": {
+    "api.pinnaclemm.exchange": [
+      "REPLACE_WITH_SPKI_SHA256_BASE64_PIN_01",
+      "REPLACE_WITH_SPKI_SHA256_BASE64_PIN_02"
+    ],
+    "ws.pinnaclemm.exchange": [
+      "REPLACE_WITH_SPKI_SHA256_BASE64_PIN_03",
+      "REPLACE_WITH_SPKI_SHA256_BASE64_PIN_04"
+    ]
+  }
+}
