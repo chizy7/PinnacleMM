@@ -1097,6 +1097,11 @@ parseQueryString(const std::string& query) {
   return params;
 }
 
+std::string RestAPIServer::urlDecode(const std::string& str) {
+  std::string decoded;
+  return decodeQueryComponent(str, decoded) ? decoded : std::string{};
+}
+
 std::string RestAPIServer::extractPath(const std::string& target) {
   auto pos = target.find('?');
   return pos != std::string::npos ? target.substr(0, pos) : target;
