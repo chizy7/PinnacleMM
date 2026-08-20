@@ -1,0 +1,3 @@
+# Default owner for everything in the repo.
+# Later matches take precedence over earlier ones.
+* @chizy7
