@@ -14,6 +14,55 @@
 namespace pinnacle {
 namespace visualization {
 
+namespace {
+
+bool decodeQueryComponent(const std::string& encoded, std::string& decoded) {
+  decoded.clear();
+  decoded.reserve(encoded.size());
+
+  const auto hexValue = [](char character) -> int {
+    if (character >= '0' && character <= '9') {
+      return character - '0';
+    }
+    if (character >= 'a' && character <= 'f') {
+      return character - 'a' + 10;
+    }
+    if (character >= 'A' && character <= 'F') {
+      return character - 'A' + 10;
+    }
+    return -1;
+  };
+
+  for (std::size_t index = 0; index < encoded.size(); ++index) {
+    if (encoded[index] == '+') {
+      decoded.push_back(' ');
+      continue;
+    }
+
+    if (encoded[index] != '%') {
+      decoded.push_back(encoded[index]);
+      continue;
+    }
+
+    if (index + 2 >= encoded.size()) {
+      return false;
+    }
+
+    auto high = hexValue(encoded[index + 1]);
+    auto low = hexValue(encoded[index + 2]);
+    if (high < 0 || low < 0) {
+      return false;
+    }
+
+    decoded.push_back(static_cast<char>((high << 4) | low));
+    index += 2;
+  }
+
+  return true;
+}
+
+} // namespace
+
 // ============================================================================
 // PerformanceCollector Implementation
 // ============================================================================
@@ -857,33 +906,36 @@ http::response<http::string_body>
 RestAPIServer::handleRequest(http::request<http::string_body>&& req) {
   // Simple routing
   auto target = std::string(req.target());
+  auto path = extractPath(target);
+  auto queryPos = target.find('?');
+  auto query = queryPos == std::string::npos ? "" : target.substr(queryPos + 1);
 
-  if (target == "/api/v1/strategies") {
+  if (path == "/api/v1/strategies") {
     return handleGetStrategies();
-  } else if (target.starts_with("/api/v1/strategies/") &&
-             target.ends_with("/performance")) {
+  } else if (path.starts_with("/api/v1/strategies/") &&
+             path.ends_with("/performance")) {
     // Extract strategy ID
-    auto start = target.find("/api/v1/strategies/") + 19;
-    auto end = target.find("/performance");
-    auto strategyId = target.substr(start, end - start);
-    return handleGetPerformance(strategyId, "");
-  } else if (target == "/api/risk/state") {
+    auto start = path.find("/api/v1/strategies/") + 19;
+    auto end = path.find("/performance");
+    auto strategyId = path.substr(start, end - start);
+    return handleGetPerformance(strategyId, query);
+  } else if (path == "/api/risk/state") {
     return handleGetRiskState();
-  } else if (target == "/api/risk/var") {
+  } else if (path == "/api/risk/var") {
     return handleGetRiskVaR();
-  } else if (target == "/api/risk/limits") {
+  } else if (path == "/api/risk/limits") {
     return handleGetRiskLimits();
-  } else if (target == "/api/risk/circuit-breaker") {
+  } else if (path == "/api/risk/circuit-breaker") {
     return handleGetCircuitBreaker();
-  } else if (target == "/api/risk/alerts") {
+  } else if (path == "/api/risk/alerts") {
     return handleGetAlerts();
-  } else if (target == "/api/health") {
+  } else if (path == "/api/health") {
     return handleGetHealth();
-  } else if (target == "/api/ready") {
+  } else if (path == "/api/ready") {
     return handleGetReady();
-  } else if (target.starts_with("/")) {
+  } else if (path.starts_with("/")) {
     // Serve static files
-    return handleStaticFile(target);
+    return handleStaticFile(path);
   }
 
   // Not found
@@ -1016,10 +1068,32 @@ json RestAPIServer::createSuccessResponse(const json& data) {
 }
 
 std::unordered_map<std::string, std::string>
-RestAPIServer::parseQueryString(const std::string& query) {
+parseQueryString(const std::string& query) {
   std::unordered_map<std::string, std::string> params;
-  // Simple query string parsing (not implemented for brevity)
-  boost::ignore_unused(query);
+
+  auto queryStart = query.starts_with('?') ? 1 : 0;
+  std::istringstream queryStream(query.substr(queryStart));
+  std::string parameter;
+
+  while (std::getline(queryStream, parameter, '&')) {
+    if (parameter.empty()) {
+      continue;
+    }
+
+    auto equalsPos = parameter.find('=');
+    auto encodedKey = parameter.substr(0, equalsPos);
+    auto encodedValue =
+        equalsPos == std::string::npos ? "" : parameter.substr(equalsPos + 1);
+    std::string key;
+    std::string value;
+    if (!decodeQueryComponent(encodedKey, key) ||
+        !decodeQueryComponent(encodedValue, value) || key.empty()) {
+      continue;
+    }
+
+    params[key] = value;
+  }
+
   return params;
 }
 
