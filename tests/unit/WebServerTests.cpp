@@ -4,6 +4,49 @@
 
 namespace pinnacle::visualization {
 
+class PerformanceHistory : public ::testing::Test {
+protected:
+  PerformanceCollector collector;
+};
+
+TEST_F(PerformanceHistory, FiltersSnapshotsInclusivelyByTimeRange) {
+  PerformanceData first;
+  first.timestamp = 100;
+  first.pnl = 1.0;
+  PerformanceData second;
+  second.timestamp = 200;
+  second.pnl = 2.0;
+  PerformanceData third;
+  third.timestamp = 300;
+  third.pnl = 3.0;
+
+  collector.recordPerformance("strategy", first);
+  collector.recordPerformance("strategy", second);
+  collector.recordPerformance("strategy", third);
+
+  auto history = collector.getPerformanceHistory("strategy", 200, 300);
+
+  ASSERT_EQ(history.size(), 2);
+  EXPECT_EQ(history[0].timestamp, 200);
+  EXPECT_EQ(history[1].timestamp, 300);
+}
+
+TEST_F(PerformanceHistory, AppliesMaximumHistorySize) {
+  collector.setMaxHistorySize(2);
+
+  for (uint64_t timestamp = 1; timestamp <= 3; ++timestamp) {
+    PerformanceData data;
+    data.timestamp = timestamp;
+    collector.recordPerformance("strategy", data);
+  }
+
+  auto history = collector.getPerformanceHistory("strategy", 0, 3);
+
+  ASSERT_EQ(history.size(), 2);
+  EXPECT_EQ(history[0].timestamp, 2);
+  EXPECT_EQ(history[1].timestamp, 3);
+}
+
 TEST(QueryString, ParsesStandardQueryParameters) {
   auto params = parseQueryString("start=1234567890&end=9876543210&limit=100");
 
