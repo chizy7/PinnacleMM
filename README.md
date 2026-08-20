@@ -110,7 +110,7 @@ cd build && ./pinnaclemm --mode simulation --symbol BTC-USD
 scripts/run-native.sh --setup-credentials
 
 # Start live trading
-./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
+cd build && ./pinnaclemm --mode live --exchange coinbase --symbol BTC-USD --verbose
 ```
 
 See [Security & API Key Management](docs/security/credentials.md) for credential details.
@@ -119,7 +119,7 @@ See [Security & API Key Management](docs/security/credentials.md) for credential
 
 ```bash
 # Runs against historical data (auto-generates synthetic data if no CSV found)
-./pinnaclemm --mode backtest --symbol BTC-USD
+cd build && ./pinnaclemm --mode backtest --symbol BTC-USD
 ```
 
 Backtest mode prints a detailed performance report (Sharpe ratio, drawdown, win rate) and saves JSON results. See the [Advanced Backtesting Guide](docs/ADVANCED_BACKTESTING.md) for custom data and parameters.

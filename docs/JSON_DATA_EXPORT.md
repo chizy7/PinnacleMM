@@ -9,7 +9,7 @@ PinnacleMM provides comprehensive structured data export capabilities through JS
 - **Order Book Updates**: Complete order book state with bid and ask arrays
 - **Connection Events**: WebSocket connections, disconnections, and errors
 - **Trading Events**: Order placements, fills, cancellations, and status updates
-- **Thread-Safe**: Concurrent logging without performance impact
+- **Thread-Safe**: Concurrent writes are serialized; logging adds mutex and file-I/O overhead
 - **JSONL Format**: One JSON object per line for easy parsing and streaming
 
 ## Usage

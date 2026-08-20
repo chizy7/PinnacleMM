@@ -111,7 +111,7 @@ CI runs the same hooks on every PR (`.github/workflows/pre-commit.yml`), so skip
 
 PR titles **must** follow [Conventional Commits](https://www.conventionalcommits.org/) — this is enforced by CI (`pr-title-lint.yml`) and PRs with non-conforming titles cannot merge:
 
-```
+```text
 <type>(<optional scope>): <subject>
 ```
 
@@ -121,7 +121,7 @@ PR titles **must** follow [Conventional Commits](https://www.conventionalcommits
 
 Examples:
 
-```
+```text
 feat(strategy): add inventory-skew quoting to basic market maker
 fix(exchange): handle coinbase websocket reconnect race
 perf(core): reduce order book update latency with arena allocator
