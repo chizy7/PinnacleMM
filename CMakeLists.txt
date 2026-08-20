@@ -523,6 +523,13 @@ if(BUILD_TESTS)
                         GTest::gtest_main GTest::gtest Threads::Threads)
   add_test(NAME CrossMarketCorrelationTests
            COMMAND cross_market_correlation_tests)
+
+  if(BUILD_VISUALIZATION)
+    add_executable(web_server_tests tests/unit/WebServerTests.cpp)
+    target_link_libraries(web_server_tests visualization GTest::gtest_main
+                          GTest::gtest Threads::Threads)
+    add_test(NAME WebServerTests COMMAND web_server_tests)
+  endif()
 endif()
 
 # Benchmarks
