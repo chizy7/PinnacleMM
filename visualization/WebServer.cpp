@@ -1068,7 +1068,7 @@ json RestAPIServer::createSuccessResponse(const json& data) {
 }
 
 std::unordered_map<std::string, std::string>
-RestAPIServer::parseQueryString(const std::string& query) {
+parseQueryString(const std::string& query) {
   std::unordered_map<std::string, std::string> params;
 
   auto queryStart = query.starts_with('?') ? 1 : 0;
@@ -1095,11 +1095,6 @@ RestAPIServer::parseQueryString(const std::string& query) {
   }
 
   return params;
-}
-
-std::string RestAPIServer::urlDecode(const std::string& str) {
-  std::string decoded;
-  return decodeQueryComponent(str, decoded) ? decoded : std::string{};
 }
 
 std::string RestAPIServer::extractPath(const std::string& target) {

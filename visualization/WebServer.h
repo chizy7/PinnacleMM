@@ -32,6 +32,9 @@ namespace beast = boost::beast;
 namespace http = beast::http;
 namespace net = boost::asio;
 
+std::unordered_map<std::string, std::string>
+parseQueryString(const std::string& query);
+
 // Simple data structures for visualization
 struct PerformanceData {
   uint64_t timestamp{0};
@@ -195,7 +198,6 @@ private:
 
 // Forward declaration for HTTP session
 class HttpSession;
-class WebServerTests;
 
 /**
  * @class RestAPIServer
@@ -245,14 +247,10 @@ private:
   // Utility methods
   json createErrorResponse(const std::string& error, int code = 400);
   json createSuccessResponse(const json& data);
-  std::string urlDecode(const std::string& str);
-  std::unordered_map<std::string, std::string>
-  parseQueryString(const std::string& query);
   std::string extractPath(const std::string& target);
   std::string getContentType(const std::string& path);
 
   friend class HttpSession;
-  friend class WebServerTests;
 };
 
 /**
