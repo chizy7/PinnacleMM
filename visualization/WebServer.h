@@ -11,6 +11,7 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <nlohmann/json.hpp>
@@ -91,10 +92,15 @@ public:
   void registerStrategy(const std::string& strategyId,
                         std::shared_ptr<void> strategy);
   void unregisterStrategy(const std::string& strategyId);
+  void recordPerformance(const std::string& strategyId,
+                         const PerformanceData& data);
   void startCollection(uint64_t intervalMs = 1000);
   void stopCollection();
 
   PerformanceData getLatestPerformance(const std::string& strategyId) const;
+  std::vector<PerformanceData>
+  getPerformanceHistory(const std::string& strategyId, uint64_t startTime,
+                        uint64_t endTime) const;
   std::vector<ChartDataPoint> getChartData(const std::string& strategyId,
                                            const std::string& metric,
                                            uint64_t timeRange) const;
@@ -108,6 +114,8 @@ private:
   std::atomic<bool> m_collecting{false};
   std::thread m_collectionThread;
   size_t m_maxHistorySize{10000};
+  std::unordered_map<std::string, std::deque<PerformanceData>>
+      m_performanceHistory;
   std::unordered_map<std::string, MarketData> m_marketData;
 };
 
@@ -312,6 +320,8 @@ public:
 
   // Market data updates
   void updateMarketData(const std::string& symbol, const MarketData& data);
+  void recordPerformance(const std::string& strategyId,
+                         const PerformanceData& data);
 
   // Backtest integration
   void addBacktestResults(const std::string& backtestId,

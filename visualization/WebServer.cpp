@@ -6,8 +6,10 @@
 #include "../strategies/analytics/MarketRegimeDetector.h"
 
 #include <algorithm>
+#include <charconv>
 #include <chrono>
 #include <fstream>
+#include <limits>
 #include <spdlog/spdlog.h>
 #include <sstream>
 
@@ -82,6 +84,19 @@ void PerformanceCollector::registerStrategy(const std::string& strategyId,
 void PerformanceCollector::unregisterStrategy(const std::string& strategyId) {
   std::lock_guard<std::mutex> lock(m_mutex);
   m_performanceData.erase(strategyId);
+  m_performanceHistory.erase(strategyId);
+}
+
+void PerformanceCollector::recordPerformance(const std::string& strategyId,
+                                             const PerformanceData& data) {
+  std::lock_guard<std::mutex> lock(m_mutex);
+  m_performanceData[strategyId] = data;
+
+  auto& history = m_performanceHistory[strategyId];
+  history.push_back(data);
+  while (history.size() > m_maxHistorySize) {
+    history.pop_front();
+  }
 }
 
 void PerformanceCollector::startCollection(uint64_t intervalMs) {
@@ -114,6 +129,25 @@ PerformanceData PerformanceCollector::getLatestPerformance(
   return PerformanceData{};
 }
 
+std::vector<PerformanceData> PerformanceCollector::getPerformanceHistory(
+    const std::string& strategyId, uint64_t startTime, uint64_t endTime) const {
+  std::lock_guard<std::mutex> lock(m_mutex);
+  std::vector<PerformanceData> result;
+
+  auto it = m_performanceHistory.find(strategyId);
+  if (it == m_performanceHistory.end()) {
+    return result;
+  }
+
+  for (const auto& data : it->second) {
+    if (data.timestamp >= startTime && data.timestamp <= endTime) {
+      result.push_back(data);
+    }
+  }
+
+  return result;
+}
+
 std::vector<ChartDataPoint>
 PerformanceCollector::getChartData(const std::string& strategyId,
                                    const std::string& metric,
@@ -131,6 +165,13 @@ size_t PerformanceCollector::getRegisteredStrategiesCount() const {
 void PerformanceCollector::setMaxHistorySize(size_t maxSize) {
   std::lock_guard<std::mutex> lock(m_mutex);
   m_maxHistorySize = maxSize;
+
+  for (auto& [strategyId, history] : m_performanceHistory) {
+    boost::ignore_unused(strategyId);
+    while (history.size() > m_maxHistorySize) {
+      history.pop_front();
+    }
+  }
 }
 
 void PerformanceCollector::updateMarketData(const std::string& symbol,
@@ -968,17 +1009,62 @@ http::response<http::string_body> RestAPIServer::handleGetStrategies() {
 http::response<http::string_body>
 RestAPIServer::handleGetPerformance(const std::string& strategyId,
                                     const std::string& query) {
-  boost::ignore_unused(query);
+  auto params = parseQueryString(query);
+  const auto hasStart = params.contains("start");
+  const auto hasEnd = params.contains("end");
 
-  auto data = m_collector->getLatestPerformance(strategyId);
-  json performance = {{"pnl", data.pnl},
-                      {"position", data.position},
-                      {"sharpe_ratio", data.sharpeRatio},
-                      {"max_drawdown", data.maxDrawdown},
-                      {"win_rate", data.winRate},
-                      {"total_trades", data.totalTrades},
-                      {"ml_accuracy", data.mlAccuracy},
-                      {"prediction_time", data.avgPredictionTime}};
+  auto parseTimestamp = [](const std::string& value, uint64_t& timestamp) {
+    if (value.empty()) {
+      return false;
+    }
+
+    auto result =
+        std::from_chars(value.data(), value.data() + value.size(), timestamp);
+    return result.ec == std::errc{} &&
+           result.ptr == value.data() + value.size();
+  };
+
+  json performance;
+  if (hasStart || hasEnd) {
+    uint64_t startTime = 0;
+    uint64_t endTime = std::numeric_limits<uint64_t>::max();
+    if ((hasStart && !parseTimestamp(params.at("start"), startTime)) ||
+        (hasEnd && !parseTimestamp(params.at("end"), endTime)) ||
+        startTime > endTime) {
+      http::response<http::string_body> res{http::status::bad_request, 11};
+      res.set(http::field::server, "PinnacleMM-Visualization/1.0");
+      res.set(http::field::content_type, "application/json");
+      res.body() =
+          createErrorResponse("Invalid performance time range", 400).dump();
+      res.prepare_payload();
+      return res;
+    }
+
+    json history = json::array();
+    for (const auto& data :
+         m_collector->getPerformanceHistory(strategyId, startTime, endTime)) {
+      history.push_back({{"timestamp", data.timestamp},
+                         {"pnl", data.pnl},
+                         {"position", data.position},
+                         {"sharpe_ratio", data.sharpeRatio},
+                         {"max_drawdown", data.maxDrawdown},
+                         {"win_rate", data.winRate},
+                         {"total_trades", data.totalTrades},
+                         {"ml_accuracy", data.mlAccuracy},
+                         {"prediction_time", data.avgPredictionTime}});
+    }
+    performance = std::move(history);
+  } else {
+    auto data = m_collector->getLatestPerformance(strategyId);
+    performance = {{"pnl", data.pnl},
+                   {"position", data.position},
+                   {"sharpe_ratio", data.sharpeRatio},
+                   {"max_drawdown", data.maxDrawdown},
+                   {"win_rate", data.winRate},
+                   {"total_trades", data.totalTrades},
+                   {"ml_accuracy", data.mlAccuracy},
+                   {"prediction_time", data.avgPredictionTime}};
+  }
 
   auto response = createSuccessResponse(performance);
 
@@ -1337,6 +1423,13 @@ void VisualizationServer::updateMarketData(const std::string& symbol,
                                            const MarketData& data) {
   if (m_collector) {
     m_collector->updateMarketData(symbol, data);
+  }
+}
+
+void VisualizationServer::recordPerformance(const std::string& strategyId,
+                                            const PerformanceData& data) {
+  if (m_collector) {
+    m_collector->recordPerformance(strategyId, data);
   }
 }
 
