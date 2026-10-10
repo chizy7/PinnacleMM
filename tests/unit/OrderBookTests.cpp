@@ -364,6 +364,55 @@ TEST_F(OrderBookTest, UpdateCallbacks) {
   EXPECT_EQ(callbackCount.load(), 4);
 }
 
+// A late or duplicate execution report for a terminal order must not
+// resurrect it: fill() is only valid from NEW / PARTIALLY_FILLED.
+TEST(OrderTerminalFill, FillAfterCancelRejected) {
+  Order order("fill-cancel-1", "BTC-USD", OrderSide::BUY, OrderType::LIMIT,
+              10000.0, 1.0, utils::TimeUtils::getCurrentNanos());
+  EXPECT_TRUE(order.cancel(utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::CANCELED);
+  EXPECT_FALSE(order.fill(0.5, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::CANCELED);
+  EXPECT_DOUBLE_EQ(order.getFilledQuantity(), 0.0);
+}
+
+TEST(OrderTerminalFill, FillAfterRejectRejected) {
+  Order order("fill-reject-1", "BTC-USD", OrderSide::BUY, OrderType::LIMIT,
+              10000.0, 1.0, utils::TimeUtils::getCurrentNanos());
+  EXPECT_TRUE(order.reject(utils::TimeUtils::getCurrentNanos()));
+  EXPECT_FALSE(order.fill(1.0, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::REJECTED);
+}
+
+TEST(OrderTerminalFill, FillAfterExpireRejected) {
+  Order order("fill-expire-1", "BTC-USD", OrderSide::BUY, OrderType::LIMIT,
+              10000.0, 1.0, utils::TimeUtils::getCurrentNanos());
+  EXPECT_TRUE(order.expire(utils::TimeUtils::getCurrentNanos()));
+  EXPECT_FALSE(order.fill(1.0, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::EXPIRED);
+}
+
+TEST(OrderTerminalFill, FillAfterCancelOfPartiallyFilledRejected) {
+  Order order("fill-cancel-partial-1", "BTC-USD", OrderSide::BUY,
+              OrderType::LIMIT, 10000.0, 1.0,
+              utils::TimeUtils::getCurrentNanos());
+  EXPECT_TRUE(order.fill(0.4, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_TRUE(order.cancel(utils::TimeUtils::getCurrentNanos()));
+  EXPECT_FALSE(order.fill(0.6, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::CANCELED);
+  EXPECT_DOUBLE_EQ(order.getFilledQuantity(), 0.4);
+}
+
+TEST(OrderTerminalFill, ActiveFillLifecycleUnaffected) {
+  Order order("fill-active-1", "BTC-USD", OrderSide::BUY, OrderType::LIMIT,
+              10000.0, 1.0, utils::TimeUtils::getCurrentNanos());
+  EXPECT_TRUE(order.fill(0.4, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::PARTIALLY_FILLED);
+  EXPECT_TRUE(order.fill(0.6, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::FILLED);
+  EXPECT_FALSE(order.fill(0.1, utils::TimeUtils::getCurrentNanos()));
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

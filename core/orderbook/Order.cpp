@@ -73,16 +73,27 @@ bool Order::fill(double fillQuantity, uint64_t timestamp) {
     return false;
   }
 
-  double currentFilled = m_filledQuantity.load(std::memory_order_relaxed);
-  double newFilled = currentFilled + fillQuantity;
-
-  // Check if the fill would exceed the order quantity
-  if (newFilled > m_quantity) {
+  // Only active orders can be filled. A late or duplicate execution report
+  // for a cancelled, rejected or expired order must not resurrect it.
+  OrderStatus currentStatus = m_status.load(std::memory_order_acquire);
+  if (currentStatus != OrderStatus::NEW &&
+      currentStatus != OrderStatus::PARTIALLY_FILLED) {
     return false;
   }
 
-  // Update filled quantity
-  m_filledQuantity.store(newFilled, std::memory_order_release);
+  // CAS loop so concurrent fills neither lose updates nor overfill.
+  double currentFilled = m_filledQuantity.load(std::memory_order_relaxed);
+  double newFilled;
+  do {
+    newFilled = currentFilled + fillQuantity;
+
+    // Check if the fill would exceed the order quantity
+    if (newFilled > m_quantity) {
+      return false;
+    }
+  } while (!m_filledQuantity.compare_exchange_weak(
+      currentFilled, newFilled, std::memory_order_release,
+      std::memory_order_relaxed));
 
   // Update the status based on fill amount
   if (newFilled == m_quantity) {
