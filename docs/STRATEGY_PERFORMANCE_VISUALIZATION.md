@@ -244,10 +244,12 @@ GET /api/v1/strategies/{strategy_id}/performance
 &limit=100
 ```
 
-Requests without `start`, `end`, or `limit` return the latest performance
-snapshot as an object. Requests with any of these parameters return an array
-of retained snapshots matching the inclusive timestamp bounds. `limit` limits
-the number of returned snapshots. Unknown parameters are ignored.
+Timestamps are Unix epoch nanoseconds. Requests without `start`, `end`, or
+`limit` return the latest performance snapshot as an object. Requests with any
+of these parameters return an array of retained snapshots matching the
+inclusive timestamp bounds, oldest first. `limit` keeps only the newest N
+matching snapshots and must be greater than zero; `limit=0` or a non-numeric
+value returns `400 Bad Request`. Unknown parameters are ignored.
 
 #### Get Chart Data
 ```http
@@ -255,10 +257,16 @@ GET /api/v1/strategies/{strategy_id}/charts/{metric}
 ?range=1d
 ```
 
+Supported metrics: `pnl`, `position`, `sharpe_ratio`, `max_drawdown`,
+`win_rate`, `total_trades`, `ml_accuracy`, `prediction_time`. An unsupported
+metric returns `400 Bad Request`. Each point is `{"timestamp", "value"}` and is
+derived from the retained performance history.
+
 The `range` parameter accepts durations with `s`, `m`, `h`, or `d` units, for
-example `30m`, `1h`, or `1d`. Alternatively, use `start` and `end` timestamp
-bounds. Explicit bounds take precedence over `range`; invalid or reversed
-ranges return `400 Bad Request`.
+example `30m`, `1h`, or `1d`, measured back from now. Alternatively, use
+`start` and `end` timestamp bounds (Unix epoch nanoseconds). Explicit bounds
+take precedence over `range`; with neither, the last hour is returned. Invalid
+or reversed ranges return `400 Bad Request`.
 
 #### Get Backtest Results
 ```http

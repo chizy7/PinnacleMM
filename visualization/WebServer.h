@@ -37,6 +37,10 @@ std::unordered_map<std::string, std::string>
 parseQueryString(const std::string& query);
 std::string extractPath(const std::string& target);
 
+// Wall-clock (Unix epoch) nanoseconds. Performance history is recorded with
+// this clock so REST clients can supply absolute start/end bounds.
+uint64_t wallClockNanos();
+
 // Simple data structures for visualization
 struct PerformanceData {
   uint64_t timestamp{0};
@@ -102,11 +106,13 @@ public:
   std::vector<PerformanceData>
   getPerformanceHistory(const std::string& strategyId, uint64_t startTime,
                         uint64_t endTime, size_t limit = 0) const;
+  // Chart data is derived from the retained performance history. Supported
+  // metrics: pnl, position, sharpe_ratio, max_drawdown, win_rate,
+  // total_trades, ml_accuracy, prediction_time.
+  static bool isChartMetricSupported(const std::string& metric);
   std::vector<ChartDataPoint> getChartData(const std::string& strategyId,
                                            const std::string& metric,
                                            uint64_t timeRange) const;
-  void recordChartData(const std::string& strategyId, const std::string& metric,
-                       const ChartDataPoint& data);
   std::vector<ChartDataPoint> getChartDataInRange(const std::string& strategyId,
                                                   const std::string& metric,
                                                   uint64_t startTime,
@@ -123,7 +129,6 @@ private:
   size_t m_maxHistorySize{10000};
   std::unordered_map<std::string, std::deque<PerformanceData>>
       m_performanceHistory;
-  std::unordered_map<std::string, std::deque<ChartDataPoint>> m_chartHistory;
   std::unordered_map<std::string, MarketData> m_marketData;
 };
 
@@ -264,6 +269,7 @@ private:
   // Utility methods
   json createErrorResponse(const std::string& error, int code = 400);
   json createSuccessResponse(const json& data);
+  http::response<http::string_body> badRequest(const std::string& message);
   std::string getContentType(const std::string& path);
 
   friend class HttpSession;
@@ -321,17 +327,14 @@ public:
   void stop();
 
   // Strategy management
-  void
-  registerStrategy(const std::string& strategyId,
-                   std::shared_ptr<strategy::MLEnhancedMarketMaker> strategy);
+  void registerStrategy(const std::string& strategyId,
+                        std::shared_ptr<strategy::BasicMarketMaker> strategy);
   void unregisterStrategy(const std::string& strategyId);
 
   // Market data updates
   void updateMarketData(const std::string& symbol, const MarketData& data);
   void recordPerformance(const std::string& strategyId,
                          const PerformanceData& data);
-  void recordChartData(const std::string& strategyId, const std::string& metric,
-                       const ChartDataPoint& data);
 
   // Backtest integration
   void addBacktestResults(const std::string& backtestId,

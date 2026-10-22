@@ -665,6 +665,7 @@ int main(int argc, char* argv[]) {
 #ifdef BUILD_VISUALIZATION
     // Initialize visualization server if enabled
     std::unique_ptr<pinnacle::visualization::VisualizationServer> vizServer;
+    uint64_t vizRecordIntervalMs = 1000; // How often to sample performance
     if (vm["enable-visualization"].as<bool>()) {
       spdlog::info("Initializing performance visualization dashboard");
 
@@ -688,15 +689,12 @@ int main(int argc, char* argv[]) {
         return 1;
       }
 
-      // Register strategy for visualization
-      if (enableML) {
-        auto mlStrategy = std::dynamic_pointer_cast<
-            pinnacle::strategy::MLEnhancedMarketMaker>(strategy);
-        if (mlStrategy) {
-          vizServer->registerStrategy("primary_strategy", mlStrategy);
-          spdlog::info("Registered ML strategy for visualization");
-        }
-      }
+      // Register the strategy (basic or ML-enhanced) so the id answered by
+      // /performance is also listed by /api/v1/strategies.
+      vizServer->registerStrategy("primary_strategy", strategy);
+      vizRecordIntervalMs = vizConfig.dataCollectionIntervalMs;
+      spdlog::info("Registered {} strategy for visualization",
+                   enableML ? "ML-enhanced" : "basic");
 
       spdlog::info("Visualization dashboard available at:");
       spdlog::info("  WebSocket: ws://localhost:{}", vizConfig.webSocketPort);
@@ -803,19 +801,25 @@ int main(int argc, char* argv[]) {
     // Main application loop
     uint64_t lastStatsTime = 0;
     uint64_t lastCheckpointTime = 0; // Checkpoint persistence timing
+#ifdef BUILD_VISUALIZATION
+    uint64_t lastVizRecordTime = 0; // Performance sample timing
+#endif
 
     while (g_running.load()) {
       // Current time
       uint64_t currentTime = pinnacle::utils::TimeUtils::getCurrentMillis();
 
 #ifdef BUILD_VISUALIZATION
-      if (vizServer) {
+      // Sample performance at the configured collection interval rather than
+      // on every loop iteration, so the bounded history spans hours, not
+      // minutes. Timestamps are wall-clock so REST start/end bounds work.
+      if (vizServer && currentTime - lastVizRecordTime >= vizRecordIntervalMs) {
         pinnacle::visualization::PerformanceData performanceData;
-        performanceData.timestamp =
-            pinnacle::utils::TimeUtils::getCurrentNanos();
+        performanceData.timestamp = pinnacle::visualization::wallClockNanos();
         performanceData.pnl = strategy->getPnL();
         performanceData.position = strategy->getPosition();
         vizServer->recordPerformance("primary_strategy", performanceData);
+        lastVizRecordTime = currentTime;
       }
 #endif
 

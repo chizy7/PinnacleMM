@@ -18,9 +18,39 @@ namespace visualization {
 
 namespace {
 
-std::string chartHistoryKey(const std::string& strategyId,
-                            const std::string& metric) {
-  return strategyId + '\0' + metric;
+template <typename UnsignedT>
+bool parseUnsigned(const std::string& value, UnsignedT& out) {
+  if (value.empty()) {
+    return false;
+  }
+  auto result = std::from_chars(value.data(), value.data() + value.size(), out);
+  return result.ec == std::errc{} && result.ptr == value.data() + value.size();
+}
+
+// Maps a chart metric name onto the matching PerformanceData field. Returns
+// false for an unsupported metric.
+bool chartMetricValue(const std::string& metric, const PerformanceData& data,
+                      double& value) {
+  if (metric == "pnl") {
+    value = data.pnl;
+  } else if (metric == "position") {
+    value = data.position;
+  } else if (metric == "sharpe_ratio") {
+    value = data.sharpeRatio;
+  } else if (metric == "max_drawdown") {
+    value = data.maxDrawdown;
+  } else if (metric == "win_rate") {
+    value = data.winRate;
+  } else if (metric == "total_trades") {
+    value = static_cast<double>(data.totalTrades);
+  } else if (metric == "ml_accuracy") {
+    value = data.mlAccuracy;
+  } else if (metric == "prediction_time") {
+    value = data.avgPredictionTime;
+  } else {
+    return false;
+  }
+  return true;
 }
 
 bool decodeQueryComponent(const std::string& encoded, std::string& decoded) {
@@ -70,6 +100,13 @@ bool decodeQueryComponent(const std::string& encoded, std::string& decoded) {
 
 } // namespace
 
+uint64_t wallClockNanos() {
+  return static_cast<uint64_t>(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count());
+}
+
 // ============================================================================
 // PerformanceCollector Implementation
 // ============================================================================
@@ -90,13 +127,6 @@ void PerformanceCollector::unregisterStrategy(const std::string& strategyId) {
   std::lock_guard<std::mutex> lock(m_mutex);
   m_performanceData.erase(strategyId);
   m_performanceHistory.erase(strategyId);
-  for (auto it = m_chartHistory.begin(); it != m_chartHistory.end();) {
-    if (it->first.starts_with(strategyId + '\0')) {
-      it = m_chartHistory.erase(it);
-    } else {
-      ++it;
-    }
-  }
 }
 
 void PerformanceCollector::recordPerformance(const std::string& strategyId,
@@ -152,14 +182,18 @@ std::vector<PerformanceData> PerformanceCollector::getPerformanceHistory(
     return result;
   }
 
-  for (const auto& data : it->second) {
-    if (data.timestamp >= startTime && data.timestamp <= endTime) {
-      result.push_back(data);
+  // Scan newest to oldest so `limit` keeps the most recent matches, then
+  // restore chronological order for the caller.
+  const auto& history = it->second;
+  for (auto rit = history.rbegin(); rit != history.rend(); ++rit) {
+    if (rit->timestamp >= startTime && rit->timestamp <= endTime) {
+      result.push_back(*rit);
       if (limit > 0 && result.size() == limit) {
         break;
       }
     }
   }
+  std::reverse(result.begin(), result.end());
 
   return result;
 }
@@ -168,20 +202,14 @@ std::vector<ChartDataPoint>
 PerformanceCollector::getChartData(const std::string& strategyId,
                                    const std::string& metric,
                                    uint64_t timeRange) const {
-  auto endTime = utils::TimeUtils::getCurrentNanos();
+  auto endTime = wallClockNanos();
   auto startTime = endTime > timeRange ? endTime - timeRange : 0;
   return getChartDataInRange(strategyId, metric, startTime, endTime);
 }
 
-void PerformanceCollector::recordChartData(const std::string& strategyId,
-                                           const std::string& metric,
-                                           const ChartDataPoint& data) {
-  std::lock_guard<std::mutex> lock(m_mutex);
-  auto& history = m_chartHistory[chartHistoryKey(strategyId, metric)];
-  history.push_back(data);
-  while (history.size() > m_maxHistorySize) {
-    history.pop_front();
-  }
+bool PerformanceCollector::isChartMetricSupported(const std::string& metric) {
+  double unused = 0.0;
+  return chartMetricValue(metric, PerformanceData{}, unused);
 }
 
 std::vector<ChartDataPoint> PerformanceCollector::getChartDataInRange(
@@ -189,15 +217,21 @@ std::vector<ChartDataPoint> PerformanceCollector::getChartDataInRange(
     uint64_t startTime, uint64_t endTime) const {
   std::lock_guard<std::mutex> lock(m_mutex);
   std::vector<ChartDataPoint> result;
-  auto it = m_chartHistory.find(chartHistoryKey(strategyId, metric));
-  if (it == m_chartHistory.end()) {
+  auto it = m_performanceHistory.find(strategyId);
+  if (it == m_performanceHistory.end()) {
     return result;
   }
 
-  for (const auto& point : it->second) {
-    if (point.timestamp >= startTime && point.timestamp <= endTime) {
-      result.push_back(point);
+  for (const auto& data : it->second) {
+    if (data.timestamp < startTime || data.timestamp > endTime) {
+      continue;
     }
+    ChartDataPoint point;
+    point.timestamp = data.timestamp;
+    if (!chartMetricValue(metric, data, point.value)) {
+      break; // unsupported metric: nothing to derive
+    }
+    result.push_back(std::move(point));
   }
   return result;
 }
@@ -211,14 +245,8 @@ void PerformanceCollector::setMaxHistorySize(size_t maxSize) {
   std::lock_guard<std::mutex> lock(m_mutex);
   m_maxHistorySize = maxSize;
 
-  for (auto& [strategyId, history] : m_performanceHistory) {
-    boost::ignore_unused(strategyId);
-    while (history.size() > m_maxHistorySize) {
-      history.pop_front();
-    }
-  }
-  for (auto& [key, history] : m_chartHistory) {
-    boost::ignore_unused(key);
+  for (auto& entry : m_performanceHistory) {
+    auto& history = entry.second;
     while (history.size() > m_maxHistorySize) {
       history.pop_front();
     }
@@ -1072,44 +1100,22 @@ RestAPIServer::handleGetPerformance(const std::string& strategyId,
   const auto hasEnd = params.contains("end");
   const auto hasLimit = params.contains("limit");
 
-  auto parseTimestamp = [](const std::string& value, uint64_t& timestamp) {
-    if (value.empty()) {
-      return false;
-    }
-
-    auto result =
-        std::from_chars(value.data(), value.data() + value.size(), timestamp);
-    return result.ec == std::errc{} &&
-           result.ptr == value.data() + value.size();
-  };
-
-  auto parseLimit = [](const std::string& value, size_t& limit) {
-    if (value.empty()) {
-      return false;
-    }
-
-    auto result =
-        std::from_chars(value.data(), value.data() + value.size(), limit);
-    return result.ec == std::errc{} &&
-           result.ptr == value.data() + value.size();
-  };
-
   json performance;
   if (hasStart || hasEnd || hasLimit) {
     uint64_t startTime = 0;
     uint64_t endTime = std::numeric_limits<uint64_t>::max();
-    size_t limit = 0;
-    if ((hasStart && !parseTimestamp(params.at("start"), startTime)) ||
-        (hasEnd && !parseTimestamp(params.at("end"), endTime)) ||
-        (hasLimit && !parseLimit(params.at("limit"), limit)) ||
+    if ((hasStart && !parseUnsigned(params.at("start"), startTime)) ||
+        (hasEnd && !parseUnsigned(params.at("end"), endTime)) ||
         startTime > endTime) {
-      http::response<http::string_body> res{http::status::bad_request, 11};
-      res.set(http::field::server, "PinnacleMM-Visualization/1.0");
-      res.set(http::field::content_type, "application/json");
-      res.body() =
-          createErrorResponse("Invalid performance time range", 400).dump();
-      res.prepare_payload();
-      return res;
+      return badRequest("Invalid performance time range");
+    }
+
+    // `limit` keeps the newest N matches. 0 is reserved internally for
+    // "unlimited", so an explicit limit=0 is rejected rather than silently
+    // meaning everything.
+    size_t limit = 0;
+    if (hasLimit && (!parseUnsigned(params.at("limit"), limit) || limit == 0)) {
+      return badRequest("Invalid performance limit");
     }
 
     json history = json::array();
@@ -1153,23 +1159,22 @@ RestAPIServer::handleGetChartData(const std::string& strategyId,
                                   const std::string& metric,
                                   const std::string& query) {
   constexpr uint64_t nanosPerSecond = 1000000000ULL;
-  auto params = parseQueryString(query);
-  auto endTime = utils::TimeUtils::getCurrentNanos();
-  auto startTime = endTime - 3600ULL * nanosPerSecond;
+  constexpr uint64_t defaultWindow = 3600ULL * nanosPerSecond; // 1 hour
 
-  auto parseTimestamp = [](const std::string& value, uint64_t& timestamp) {
-    auto result =
-        std::from_chars(value.data(), value.data() + value.size(), timestamp);
-    return !value.empty() && result.ec == std::errc{} &&
-           result.ptr == value.data() + value.size();
-  };
+  if (!PerformanceCollector::isChartMetricSupported(metric)) {
+    return badRequest("Unsupported chart metric: " + metric);
+  }
+
+  auto params = parseQueryString(query);
+  auto endTime = wallClockNanos();
+  auto startTime = endTime > defaultWindow ? endTime - defaultWindow : 0;
 
   auto parseRange = [&](const std::string& value, uint64_t& duration) {
     if (value.size() < 2) {
       return false;
     }
     uint64_t amount = 0;
-    if (!parseTimestamp(value.substr(0, value.size() - 1), amount)) {
+    if (!parseUnsigned(value.substr(0, value.size() - 1), amount)) {
       return false;
     }
     const auto unit = value.back();
@@ -1190,27 +1195,18 @@ RestAPIServer::handleGetChartData(const std::string& strategyId,
   const auto hasEnd = params.contains("end");
   const auto hasRange = params.contains("range");
   if (hasStart || hasEnd) {
+    // Explicit bounds take precedence over `range`.
     startTime = 0;
     endTime = std::numeric_limits<uint64_t>::max();
-    if ((hasStart && !parseTimestamp(params.at("start"), startTime)) ||
-        (hasEnd && !parseTimestamp(params.at("end"), endTime)) ||
+    if ((hasStart && !parseUnsigned(params.at("start"), startTime)) ||
+        (hasEnd && !parseUnsigned(params.at("end"), endTime)) ||
         startTime > endTime) {
-      http::response<http::string_body> res{http::status::bad_request, 11};
-      res.set(http::field::server, "PinnacleMM-Visualization/1.0");
-      res.set(http::field::content_type, "application/json");
-      res.body() = createErrorResponse("Invalid chart time range", 400).dump();
-      res.prepare_payload();
-      return res;
+      return badRequest("Invalid chart time range");
     }
   } else if (hasRange) {
     uint64_t duration = 0;
     if (!parseRange(params.at("range"), duration)) {
-      http::response<http::string_body> res{http::status::bad_request, 11};
-      res.set(http::field::server, "PinnacleMM-Visualization/1.0");
-      res.set(http::field::content_type, "application/json");
-      res.body() = createErrorResponse("Invalid chart range", 400).dump();
-      res.prepare_payload();
-      return res;
+      return badRequest("Invalid chart range");
     }
     startTime = endTime > duration ? endTime - duration : 0;
   }
@@ -1220,10 +1216,7 @@ RestAPIServer::handleGetChartData(const std::string& strategyId,
 
   json data = json::array();
   for (const auto& point : chartData) {
-    data.push_back({{"timestamp", point.timestamp},
-                    {"value", point.value},
-                    {"label", point.label},
-                    {"color", point.color}});
+    data.push_back({{"timestamp", point.timestamp}, {"value", point.value}});
   }
 
   auto response = createSuccessResponse(data);
@@ -1272,6 +1265,16 @@ RestAPIServer::handleStaticFile(const std::string& path) {
   res.set(http::field::server, "PinnacleMM-Visualization/1.0");
   res.set(http::field::content_type, getContentType(path));
   res.body() = content;
+  res.prepare_payload();
+  return res;
+}
+
+http::response<http::string_body>
+RestAPIServer::badRequest(const std::string& message) {
+  http::response<http::string_body> res{http::status::bad_request, 11};
+  res.set(http::field::server, "PinnacleMM-Visualization/1.0");
+  res.set(http::field::content_type, "application/json");
+  res.body() = createErrorResponse(message, 400).dump();
   res.prepare_payload();
   return res;
 }
@@ -1543,7 +1546,7 @@ void VisualizationServer::stop() {
 
 void VisualizationServer::registerStrategy(
     const std::string& strategyId,
-    std::shared_ptr<strategy::MLEnhancedMarketMaker> strategy) {
+    std::shared_ptr<strategy::BasicMarketMaker> strategy) {
   if (m_collector) {
     m_collector->registerStrategy(strategyId, strategy);
   }
@@ -1566,14 +1569,6 @@ void VisualizationServer::recordPerformance(const std::string& strategyId,
                                             const PerformanceData& data) {
   if (m_collector) {
     m_collector->recordPerformance(strategyId, data);
-  }
-}
-
-void VisualizationServer::recordChartData(const std::string& strategyId,
-                                          const std::string& metric,
-                                          const ChartDataPoint& data) {
-  if (m_collector) {
-    m_collector->recordChartData(strategyId, metric, data);
   }
 }
 

@@ -135,9 +135,11 @@ snapshot and retained performance history:
 GET /api/v1/strategies/{strategy_id}/performance
 ```
 
-Supported performance parameters are `start` and `end` timestamp bounds and an
-optional `limit`. Requests without these parameters return the latest snapshot
-as an object. Requests with any of them return an array of matching snapshots.
+Supported performance parameters are `start` and `end` timestamp bounds
+(inclusive, Unix epoch nanoseconds) and an optional `limit`. Requests without
+these parameters return the latest snapshot as an object. Requests with any of
+them return an array of matching snapshots in chronological order. `limit`
+keeps the newest N matches and must be greater than zero.
 
 ```http
 GET /api/v1/strategies/primary_strategy/performance?start=100&end=300&limit=50
@@ -149,13 +151,17 @@ Chart data is available through:
 GET /api/v1/strategies/{strategy_id}/charts/{metric}
 ```
 
-Chart requests support `range` values such as `30m`, `1h`, and `1d`, or
-explicit `start` and `end` timestamp bounds. Explicit bounds take precedence
-over `range`. Invalid or reversed ranges return `400 Bad Request`.
+Supported metrics are `pnl`, `position`, `sharpe_ratio`, `max_drawdown`,
+`win_rate`, `total_trades`, `ml_accuracy`, and `prediction_time`; an unknown
+metric returns `400 Bad Request`. Chart requests support `range` values such as
+`30m`, `1h`, and `1d`, or explicit `start` and `end` timestamp bounds. Explicit
+bounds take precedence over `range`, and the window defaults to the last hour.
+Invalid or reversed ranges return `400 Bad Request`.
 
-Performance and chart history are bounded by the configured `maxHistorySize`.
-Live performance samples are recorded while visualization is enabled; chart
-history is populated by chart-data producers through the visualization API.
+Chart points are derived from the retained performance history, which is
+bounded by the configured `maxHistorySize`. While visualization is enabled, a
+performance sample is recorded once per `dataCollectionIntervalMs` (1 second by
+default), so the default history of 10,000 samples covers roughly 2.7 hours.
 
 ## Performance
 
