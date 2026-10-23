@@ -262,6 +262,12 @@ Supported metrics: `pnl`, `position`, `sharpe_ratio`, `max_drawdown`,
 metric returns `400 Bad Request`. Each point is `{"timestamp", "value"}` and is
 derived from the retained performance history.
 
+Live samples (recorded by the main loop when visualization is enabled) populate
+`pnl`, `position`, `total_trades`, and `ml_accuracy`/`prediction_time` when
+`--enable-ml` is set. `sharpe_ratio`, `max_drawdown`, and `win_rate` require
+per-trade realized PnL that the live strategy does not track, so they are `0`
+in live samples.
+
 The `range` parameter accepts durations with `s`, `m`, `h`, or `d` units, for
 example `30m`, `1h`, or `1d`, measured back from now. Alternatively, use
 `start` and `end` timestamp bounds (Unix epoch nanoseconds). Explicit bounds

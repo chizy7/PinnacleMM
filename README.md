@@ -162,6 +162,10 @@ Chart points are derived from the retained performance history, which is
 bounded by the configured `maxHistorySize`. While visualization is enabled, a
 performance sample is recorded once per `dataCollectionIntervalMs` (1 second by
 default), so the default history of 10,000 samples covers roughly 2.7 hours.
+Live samples populate `pnl`, `position`, `total_trades`, and the ML fields
+when `--enable-ml` is set. `sharpe_ratio`, `max_drawdown`, and `win_rate` need
+per-trade realized PnL that the live strategy does not track, so they read `0`
+in live samples.
 
 ## Performance
 
