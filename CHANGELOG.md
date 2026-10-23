@@ -1,3 +1,15 @@
+# [1.9.0](https://github.com/chizy7/PinnacleMM/compare/v1.8.1...v1.9.0) (2026-10-23)
+
+
+### Bug Fixes
+
+* parse REST API query strings ([#72](https://github.com/chizy7/PinnacleMM/issues/72)) ([beb62a4](https://github.com/chizy7/PinnacleMM/commit/beb62a40fbf461fcef69e89c89304e0d2be432dd))
+
+
+### Features
+
+* apply REST performance time range filters ([#83](https://github.com/chizy7/PinnacleMM/issues/83)) ([58a9bb6](https://github.com/chizy7/PinnacleMM/commit/58a9bb6d204e5092542517596a52fb369fb9c667))
+
 ## [1.8.1](https://github.com/chizy7/PinnacleMM/compare/v1.8.0...v1.8.1) (2026-07-21)
 
 
