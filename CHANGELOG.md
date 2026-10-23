@@ -1,3 +1,10 @@
+## [1.9.1](https://github.com/chizy7/PinnacleMM/compare/v1.9.0...v1.9.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **core:** reject fills on terminal order states ([#85](https://github.com/chizy7/PinnacleMM/issues/85)) ([79b91e7](https://github.com/chizy7/PinnacleMM/commit/79b91e75df34d3565591f4b2cd95f838659a4848))
+
 # [1.9.0](https://github.com/chizy7/PinnacleMM/compare/v1.8.1...v1.9.0) (2026-10-23)
 
 
