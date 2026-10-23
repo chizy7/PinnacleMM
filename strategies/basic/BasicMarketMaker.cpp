@@ -253,6 +253,11 @@ double BasicMarketMaker::getPnL() const {
   return m_pnl.load(std::memory_order_relaxed);
 }
 
+uint64_t BasicMarketMaker::getFilledOrderCount() const {
+  std::lock_guard<std::mutex> lock(m_statsMutex);
+  return m_stats.orderFilledCount;
+}
+
 bool BasicMarketMaker::updateConfig(const StrategyConfig& config) {
   // Validate the new configuration
   std::string errorReason;

@@ -154,6 +154,13 @@ public:
   double getPnL() const;
 
   /**
+   * @brief Get the number of fills received since the strategy was created
+   *
+   * @return Count of filled orders (live and backtest fills)
+   */
+  uint64_t getFilledOrderCount() const;
+
+  /**
    * @brief Update the strategy configuration
    *
    * @param config New strategy configuration

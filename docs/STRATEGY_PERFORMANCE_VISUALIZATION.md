@@ -239,16 +239,40 @@ const ws = new WebSocket('ws://localhost:8080');
 #### Get Performance Data
 ```http
 GET /api/v1/strategies/{strategy_id}/performance
-?start_time=1672531200000000000
-&end_time=1672617600000000000
+?start=1672531200000000000
+&end=1672617600000000000
+&limit=100
 ```
+
+Timestamps are Unix epoch nanoseconds. Requests without `start`, `end`, or
+`limit` return the latest performance snapshot as an object. Requests with any
+of these parameters return an array of retained snapshots matching the
+inclusive timestamp bounds, oldest first. `limit` keeps only the newest N
+matching snapshots and must be greater than zero; `limit=0` or a non-numeric
+value returns `400 Bad Request`. Unknown parameters are ignored.
 
 #### Get Chart Data
 ```http
 GET /api/v1/strategies/{strategy_id}/charts/{metric}
-?timeframe=1d
-&format=json
+?range=1d
 ```
+
+Supported metrics: `pnl`, `position`, `sharpe_ratio`, `max_drawdown`,
+`win_rate`, `total_trades`, `ml_accuracy`, `prediction_time`. An unsupported
+metric returns `400 Bad Request`. Each point is `{"timestamp", "value"}` and is
+derived from the retained performance history.
+
+Live samples (recorded by the main loop when visualization is enabled) populate
+`pnl`, `position`, `total_trades`, and `ml_accuracy`/`prediction_time` when
+`--enable-ml` is set. `sharpe_ratio`, `max_drawdown`, and `win_rate` require
+per-trade realized PnL that the live strategy does not track, so they are `0`
+in live samples.
+
+The `range` parameter accepts durations with `s`, `m`, `h`, or `d` units, for
+example `30m`, `1h`, or `1d`, measured back from now. Alternatively, use
+`start` and `end` timestamp bounds (Unix epoch nanoseconds). Explicit bounds
+take precedence over `range`; with neither, the last hour is returned. Invalid
+or reversed ranges return `400 Bad Request`.
 
 #### Get Backtest Results
 ```http

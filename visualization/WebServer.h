@@ -11,6 +11,7 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <nlohmann/json.hpp>
@@ -34,6 +35,11 @@ namespace net = boost::asio;
 
 std::unordered_map<std::string, std::string>
 parseQueryString(const std::string& query);
+std::string extractPath(const std::string& target);
+
+// Wall-clock (Unix epoch) nanoseconds. Performance history is recorded with
+// this clock so REST clients can supply absolute start/end bounds.
+uint64_t wallClockNanos();
 
 // Simple data structures for visualization
 struct PerformanceData {
@@ -91,13 +97,26 @@ public:
   void registerStrategy(const std::string& strategyId,
                         std::shared_ptr<void> strategy);
   void unregisterStrategy(const std::string& strategyId);
+  void recordPerformance(const std::string& strategyId,
+                         const PerformanceData& data);
   void startCollection(uint64_t intervalMs = 1000);
   void stopCollection();
 
   PerformanceData getLatestPerformance(const std::string& strategyId) const;
+  std::vector<PerformanceData>
+  getPerformanceHistory(const std::string& strategyId, uint64_t startTime,
+                        uint64_t endTime, size_t limit = 0) const;
+  // Chart data is derived from the retained performance history. Supported
+  // metrics: pnl, position, sharpe_ratio, max_drawdown, win_rate,
+  // total_trades, ml_accuracy, prediction_time.
+  static bool isChartMetricSupported(const std::string& metric);
   std::vector<ChartDataPoint> getChartData(const std::string& strategyId,
                                            const std::string& metric,
                                            uint64_t timeRange) const;
+  std::vector<ChartDataPoint> getChartDataInRange(const std::string& strategyId,
+                                                  const std::string& metric,
+                                                  uint64_t startTime,
+                                                  uint64_t endTime) const;
   size_t getRegisteredStrategiesCount() const;
   void setMaxHistorySize(size_t maxSize);
   void updateMarketData(const std::string& symbol, const MarketData& data);
@@ -108,6 +127,8 @@ private:
   std::atomic<bool> m_collecting{false};
   std::thread m_collectionThread;
   size_t m_maxHistorySize{10000};
+  std::unordered_map<std::string, std::deque<PerformanceData>>
+      m_performanceHistory;
   std::unordered_map<std::string, MarketData> m_marketData;
 };
 
@@ -212,6 +233,9 @@ public:
   void start();
   void stop();
 
+  http::response<http::string_body>
+  handleRequest(http::request<http::string_body>&& req);
+
 private:
   std::shared_ptr<PerformanceCollector> m_collector;
   std::shared_ptr<net::io_context> m_ioc;
@@ -224,8 +248,6 @@ private:
   void runServer();
 
   // Route handlers (to be called by HttpSession)
-  http::response<http::string_body>
-  handleRequest(http::request<http::string_body>&& req);
   http::response<http::string_body> handleGetStrategies();
   http::response<http::string_body>
   handleGetPerformance(const std::string& strategyId, const std::string& query);
@@ -247,7 +269,7 @@ private:
   // Utility methods
   json createErrorResponse(const std::string& error, int code = 400);
   json createSuccessResponse(const json& data);
-  std::string extractPath(const std::string& target);
+  http::response<http::string_body> badRequest(const std::string& message);
   std::string getContentType(const std::string& path);
 
   friend class HttpSession;
@@ -305,13 +327,14 @@ public:
   void stop();
 
   // Strategy management
-  void
-  registerStrategy(const std::string& strategyId,
-                   std::shared_ptr<strategy::MLEnhancedMarketMaker> strategy);
+  void registerStrategy(const std::string& strategyId,
+                        std::shared_ptr<strategy::BasicMarketMaker> strategy);
   void unregisterStrategy(const std::string& strategyId);
 
   // Market data updates
   void updateMarketData(const std::string& symbol, const MarketData& data);
+  void recordPerformance(const std::string& strategyId,
+                         const PerformanceData& data);
 
   // Backtest integration
   void addBacktestResults(const std::string& backtestId,
