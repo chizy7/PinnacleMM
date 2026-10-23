@@ -3,6 +3,33 @@
 
 namespace pinnacle {
 
+namespace {
+
+// RAII lock over Order::m_transitionLock. The critical sections are a handful
+// of loads and stores, so the uncontended path is a single test_and_set. If the
+// holder was pre-empted mid-transition the waiter blocks instead of spinning a
+// whole scheduler quantum.
+class TransitionGuard {
+public:
+  explicit TransitionGuard(std::atomic_flag& flag) : m_flag(flag) {
+    while (m_flag.test_and_set(std::memory_order_acquire)) {
+      m_flag.wait(true, std::memory_order_relaxed);
+    }
+  }
+  ~TransitionGuard() {
+    m_flag.clear(std::memory_order_release);
+    m_flag.notify_one();
+  }
+
+  TransitionGuard(const TransitionGuard&) = delete;
+  TransitionGuard& operator=(const TransitionGuard&) = delete;
+
+private:
+  std::atomic_flag& m_flag;
+};
+
+} // namespace
+
 Order::Order(const std::string& orderId, const std::string& symbol,
              OrderSide side, OrderType type, double price, double quantity,
              uint64_t timestamp)
@@ -64,12 +91,24 @@ double Order::getRemainingQuantity() const {
 }
 
 void Order::updateStatus(OrderStatus newStatus) {
+  TransitionGuard guard(m_transitionLock);
   m_status.store(newStatus, std::memory_order_release);
   updateLastUpdateTime(utils::TimeUtils::getCurrentNanos());
 }
 
 bool Order::fill(double fillQuantity, uint64_t timestamp) {
   if (fillQuantity <= 0) {
+    return false;
+  }
+
+  // Hold the transition lock for the whole check-and-update so a concurrent
+  // cancel()/expire()/reject() or another fill() cannot interleave between the
+  // status check and the status store.
+  TransitionGuard guard(m_transitionLock);
+
+  // Only active orders can be filled. A late or duplicate execution report
+  // for a cancelled, rejected or expired order must not resurrect it.
+  if (!isActiveStatus(m_status.load(std::memory_order_relaxed))) {
     return false;
   }
 
@@ -98,11 +137,11 @@ bool Order::fill(double fillQuantity, uint64_t timestamp) {
 }
 
 bool Order::cancel(uint64_t timestamp) {
+  TransitionGuard guard(m_transitionLock);
   OrderStatus currentStatus = m_status.load(std::memory_order_relaxed);
 
   // Can only cancel active orders
-  if (currentStatus == OrderStatus::NEW ||
-      currentStatus == OrderStatus::PARTIALLY_FILLED) {
+  if (isActiveStatus(currentStatus)) {
     m_status.store(OrderStatus::CANCELED, std::memory_order_release);
     updateLastUpdateTime(timestamp);
     return true;
@@ -112,6 +151,7 @@ bool Order::cancel(uint64_t timestamp) {
 }
 
 bool Order::reject(uint64_t timestamp) {
+  TransitionGuard guard(m_transitionLock);
   OrderStatus currentStatus = m_status.load(std::memory_order_relaxed);
 
   // Can only reject new orders
@@ -125,11 +165,11 @@ bool Order::reject(uint64_t timestamp) {
 }
 
 bool Order::expire(uint64_t timestamp) {
+  TransitionGuard guard(m_transitionLock);
   OrderStatus currentStatus = m_status.load(std::memory_order_relaxed);
 
   // Can only expire active orders
-  if (currentStatus == OrderStatus::NEW ||
-      currentStatus == OrderStatus::PARTIALLY_FILLED) {
+  if (isActiveStatus(currentStatus)) {
     m_status.store(OrderStatus::EXPIRED, std::memory_order_release);
     updateLastUpdateTime(timestamp);
     return true;
@@ -139,9 +179,7 @@ bool Order::expire(uint64_t timestamp) {
 }
 
 bool Order::isActive() const {
-  OrderStatus currentStatus = m_status.load(std::memory_order_relaxed);
-  return currentStatus == OrderStatus::NEW ||
-         currentStatus == OrderStatus::PARTIALLY_FILLED;
+  return isActiveStatus(m_status.load(std::memory_order_relaxed));
 }
 
 bool Order::isCompleted() const {

@@ -2,6 +2,8 @@
 #include "../../core/persistence/PersistenceManager.h"
 #include "../../core/utils/TimeUtils.h"
 
+#include <atomic>
+#include <barrier>
 #include <chrono>
 #include <filesystem>
 #include <gtest/gtest.h>
@@ -362,6 +364,140 @@ TEST_F(OrderBookTest, UpdateCallbacks) {
 
   // Verify callback was called again
   EXPECT_EQ(callbackCount.load(), 4);
+}
+
+// A late or duplicate execution report for a terminal order must not
+// resurrect it: fill() is only valid from NEW / PARTIALLY_FILLED.
+TEST(OrderTerminalFill, FillAfterCancelRejected) {
+  Order order("fill-cancel-1", "BTC-USD", OrderSide::BUY, OrderType::LIMIT,
+              10000.0, 1.0, utils::TimeUtils::getCurrentNanos());
+  EXPECT_TRUE(order.cancel(utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::CANCELED);
+  EXPECT_FALSE(order.fill(0.5, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::CANCELED);
+  EXPECT_DOUBLE_EQ(order.getFilledQuantity(), 0.0);
+}
+
+TEST(OrderTerminalFill, FillAfterRejectRejected) {
+  Order order("fill-reject-1", "BTC-USD", OrderSide::BUY, OrderType::LIMIT,
+              10000.0, 1.0, utils::TimeUtils::getCurrentNanos());
+  EXPECT_TRUE(order.reject(utils::TimeUtils::getCurrentNanos()));
+  EXPECT_FALSE(order.fill(1.0, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::REJECTED);
+}
+
+TEST(OrderTerminalFill, FillAfterExpireRejected) {
+  Order order("fill-expire-1", "BTC-USD", OrderSide::BUY, OrderType::LIMIT,
+              10000.0, 1.0, utils::TimeUtils::getCurrentNanos());
+  EXPECT_TRUE(order.expire(utils::TimeUtils::getCurrentNanos()));
+  EXPECT_FALSE(order.fill(1.0, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::EXPIRED);
+}
+
+TEST(OrderTerminalFill, FillAfterCancelOfPartiallyFilledRejected) {
+  Order order("fill-cancel-partial-1", "BTC-USD", OrderSide::BUY,
+              OrderType::LIMIT, 10000.0, 1.0,
+              utils::TimeUtils::getCurrentNanos());
+  EXPECT_TRUE(order.fill(0.4, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_TRUE(order.cancel(utils::TimeUtils::getCurrentNanos()));
+  EXPECT_FALSE(order.fill(0.6, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::CANCELED);
+  EXPECT_DOUBLE_EQ(order.getFilledQuantity(), 0.4);
+}
+
+TEST(OrderTerminalFill, ActiveFillLifecycleUnaffected) {
+  Order order("fill-active-1", "BTC-USD", OrderSide::BUY, OrderType::LIMIT,
+              10000.0, 1.0, utils::TimeUtils::getCurrentNanos());
+  EXPECT_TRUE(order.fill(0.4, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::PARTIALLY_FILLED);
+  EXPECT_TRUE(order.fill(0.6, utils::TimeUtils::getCurrentNanos()));
+  EXPECT_EQ(order.getStatus(), OrderStatus::FILLED);
+  EXPECT_FALSE(order.fill(0.1, utils::TimeUtils::getCurrentNanos()));
+}
+
+// Concurrent fills must neither lose updates nor overfill, and the final
+// status must agree with the final filled quantity (no FILLED order left
+// marked PARTIALLY_FILLED by a slower thread).
+TEST(OrderConcurrentTransitions, ConcurrentFillsAreExactAndConsistent) {
+  constexpr int kThreads = 8;
+  constexpr int kFillsPerThread = 250;
+  constexpr double kFillQty = 0.25; // exactly representable, sums exactly
+  constexpr double kQuantity = kThreads * kFillsPerThread * kFillQty;
+
+  Order order("fill-concurrent-1", "BTC-USD", OrderSide::BUY, OrderType::LIMIT,
+              10000.0, kQuantity, utils::TimeUtils::getCurrentNanos());
+
+  std::atomic<int> accepted{0};
+  std::vector<std::thread> threads;
+  for (int t = 0; t < kThreads; ++t) {
+    threads.emplace_back([&order, &accepted]() {
+      // Attempt more fills than our share; the surplus must be rejected.
+      for (int i = 0; i < kFillsPerThread + 10; ++i) {
+        if (order.fill(kFillQty, utils::TimeUtils::getCurrentNanos())) {
+          accepted.fetch_add(1, std::memory_order_relaxed);
+        }
+      }
+    });
+  }
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  EXPECT_EQ(accepted.load(), kThreads * kFillsPerThread);
+  EXPECT_DOUBLE_EQ(order.getFilledQuantity(), kQuantity);
+  EXPECT_EQ(order.getStatus(), OrderStatus::FILLED);
+  EXPECT_FALSE(order.fill(kFillQty, utils::TimeUtils::getCurrentNanos()));
+}
+
+// A fill racing a cancel: exactly one of them wins. A cancelled order must
+// never report a fill, and a filled order must never report a cancel. Two
+// long-lived threads are released round by round through a barrier so each
+// round races fill() against cancel() on a fresh order.
+TEST(OrderConcurrentTransitions, FillAndCancelAreMutuallyExclusive) {
+  constexpr int kRounds = 2000;
+
+  std::vector<std::unique_ptr<Order>> orders;
+  orders.reserve(kRounds);
+  for (int round = 0; round < kRounds; ++round) {
+    orders.push_back(std::make_unique<Order>(
+        "fill-vs-cancel-" + std::to_string(round), "BTC-USD", OrderSide::SELL,
+        OrderType::LIMIT, 10000.0, 1.0, utils::TimeUtils::getCurrentNanos()));
+  }
+
+  // One byte per round per thread; distinct bytes are distinct memory
+  // locations, so the two writers never race with each other.
+  std::vector<uint8_t> fillOk(kRounds, 0);
+  std::vector<uint8_t> cancelOk(kRounds, 0);
+  std::barrier sync(2);
+
+  auto worker = [&](bool doFill) {
+    for (int round = 0; round < kRounds; ++round) {
+      sync.arrive_and_wait();
+      uint64_t now = utils::TimeUtils::getCurrentNanos();
+      if (doFill) {
+        fillOk[round] = orders[round]->fill(1.0, now) ? 1 : 0;
+      } else {
+        cancelOk[round] = orders[round]->cancel(now) ? 1 : 0;
+      }
+    }
+  };
+
+  std::thread filler(worker, true);
+  std::thread canceller(worker, false);
+  filler.join();
+  canceller.join();
+
+  for (int round = 0; round < kRounds; ++round) {
+    const Order& order = *orders[round];
+    ASSERT_NE(fillOk[round], cancelOk[round]) << "round " << round;
+    if (fillOk[round]) {
+      EXPECT_EQ(order.getStatus(), OrderStatus::FILLED) << "round " << round;
+      EXPECT_DOUBLE_EQ(order.getFilledQuantity(), 1.0) << "round " << round;
+    } else {
+      EXPECT_EQ(order.getStatus(), OrderStatus::CANCELED) << "round " << round;
+      EXPECT_DOUBLE_EQ(order.getFilledQuantity(), 0.0) << "round " << round;
+    }
+  }
 }
 
 int main(int argc, char** argv) {

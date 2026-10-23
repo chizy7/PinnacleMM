@@ -43,7 +43,15 @@ enum class OrderStatus : uint8_t {
  * @class Order
  * @brief Represents a single order in the trading system
  *
- * Optimized for memory layout and cache-friendliness
+ * Optimized for memory layout and cache-friendliness.
+ *
+ * Thread safety: getters are lock-free reads of atomic fields. The state
+ * transitions (fill, cancel, reject, expire, updateStatus) are serialized by a
+ * per-order lock so that the status check, the filled-quantity update and the
+ * status update of one transition are never interleaved with another.
+ * Without this a fill racing a cancel could resurrect the cancelled order, and
+ * two concurrent fills could leave a fully filled order marked
+ * PARTIALLY_FILLED.
  */
 class Order {
 public:
@@ -113,9 +121,16 @@ private:
       m_filledQuantity; // Filled quantity (atomic for thread safety)
   uint64_t m_timestamp; // Creation timestamp (nanoseconds)
   std::atomic<uint64_t> m_lastUpdateTime; // Last update timestamp (nanoseconds)
+  std::atomic_flag m_transitionLock; // Serializes state transitions (not moved)
 
   // Update the last update time
   void updateLastUpdateTime(uint64_t timestamp);
+
+  // Returns true if status allows further fills / cancellation / expiry
+  static bool isActiveStatus(OrderStatus status) {
+    return status == OrderStatus::NEW ||
+           status == OrderStatus::PARTIALLY_FILLED;
+  }
 };
 
 } // namespace pinnacle
